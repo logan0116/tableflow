@@ -215,6 +215,8 @@ tbody td {
   border-bottom: 1px solid var(--color-border-soft);
   background: var(--row-bg);
   line-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* 首列固定：表头与单元格同时 sticky，背景沿用所在行的 --row-bg。 */

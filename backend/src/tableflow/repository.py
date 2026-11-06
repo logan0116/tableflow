@@ -12,6 +12,7 @@ from typing import Any
 
 from .schemas import (
     BusinessChangeOut,
+    ComputedMetaOut,
     FieldOut,
     ProjectOut,
     RowDetailOut,
@@ -85,6 +86,46 @@ def _visible_fields(conn: sqlite3.Connection, table_id: str) -> list[FieldOut]:
     ]
 
 
+def _computed_rows(
+    conn: sqlite3.Connection, table_id: str, field_ids: list[str]
+) -> dict[tuple[str, str], sqlite3.Row]:
+    """读取已落库的计算值；读侧只读，不做任何计算。"""
+    if not field_ids:
+        return {}
+    placeholders = ",".join("?" for _ in field_ids)
+    rows = conn.execute(
+        "SELECT row_id, field_id, value, override_value, computed_at, override_reason"
+        f" FROM computed_values WHERE table_id = ? AND field_id IN ({placeholders})",
+        (table_id, *field_ids),
+    ).fetchall()
+    return {(row["row_id"], row["field_id"]): row for row in rows}
+
+
+def _merge_computed(
+    row_id: str,
+    values: dict[str, Any],
+    computed_fields: list[FieldOut],
+    computed_rows: dict[tuple[str, str], sqlite3.Row],
+) -> tuple[dict[str, Any], dict[str, ComputedMetaOut] | None]:
+    """把计算字段的有效值（override 优先）合并进行值，并生成 computed_meta。"""
+    if not computed_fields:
+        return values, None
+    meta: dict[str, ComputedMetaOut] = {}
+    for field in computed_fields:
+        stored = computed_rows.get((row_id, field.id))
+        if stored is None:
+            values[field.id] = None
+            continue
+        raw = stored["override_value"] if stored["override_value"] is not None else stored["value"]
+        values[field.id] = _decode_value(raw)
+        meta[field.id] = ComputedMetaOut(
+            computed_at=stored["computed_at"],
+            overridden=stored["override_value"] is not None,
+            override_reason=stored["override_reason"],
+        )
+    return values, (meta or None)
+
+
 def get_table(conn: sqlite3.Connection, table_id: str) -> TableOut | None:
     row = conn.execute(
         """
@@ -99,27 +140,29 @@ def get_table(conn: sqlite3.Connection, table_id: str) -> TableOut | None:
 
     fields = _visible_fields(conn, table_id)
     visible_ids = {field.id for field in fields}
+    computed_fields = [field for field in fields if field.type == "computed"]
+    computed_rows = _computed_rows(conn, table_id, [field.id for field in computed_fields])
 
     rows = conn.execute(
         "SELECT id, data FROM row_records WHERE table_id = ? ORDER BY id ASC",
         (table_id,),
     ).fetchall()
 
+    output_rows = []
+    for r in rows:
+        values = {
+            k: v
+            for k, v in (json.loads(r["data"]) if r["data"] else {}).items()
+            if k in visible_ids
+        }
+        values, meta = _merge_computed(r["id"], values, computed_fields, computed_rows)
+        output_rows.append(RowOut(id=r["id"], values=values, computed_meta=meta))
+
     return TableOut(
         project=ProjectOut(id=row["project_id"], name=row["project_name"]),
         table=TableSummaryOut(id=row["id"], name=row["name"], order=row["order_"]),
         fields=fields,
-        rows=[
-            RowOut(
-                id=r["id"],
-                values={
-                    k: v
-                    for k, v in (json.loads(r["data"]) if r["data"] else {}).items()
-                    if k in visible_ids
-                },
-            )
-            for r in rows
-        ],
+        rows=output_rows,
     )
 
 
@@ -146,11 +189,14 @@ def get_row_detail(
         for k, v in (json.loads(row["data"]) if row["data"] else {}).items()
         if k in visible_ids
     }
+    computed_fields = [field for field in fields if field.type == "computed"]
+    computed_rows = _computed_rows(conn, table_id, [field.id for field in computed_fields])
+    values, meta = _merge_computed(row["id"], values, computed_fields, computed_rows)
 
     return RowDetailOut(
         table=TableSummaryOut(id=table["id"], name=table["name"], order=table["order"]),
         fields=fields,
-        row=RowOut(id=row["id"], values=values),
+        row=RowOut(id=row["id"], values=values, computed_meta=meta),
     )
 
 

@@ -8,6 +8,9 @@ v0.3.0（002）表结构变化：
 - 新增 `business_changes`：字段级业务变更记录（与 `write_audit` 技术审计分离）。
 - `write_audit` 新增 `origin`：`agent` / `human-request` / `seed`。
 - 兼容别名视图 `row_change_log`：暴露 agent_id/table_id/row_id/field_id/old_value/new_value/created_at。
+
+v0.3.0（003）表结构变化：
+- 新增 `computed_values`：计算字段的落库值（`override_*` 为人工覆盖），读侧只读不计算。
 """
 
 from __future__ import annotations
@@ -72,11 +75,25 @@ CREATE TABLE IF NOT EXISTS business_changes (
     reason      TEXT
 );
 
+CREATE TABLE IF NOT EXISTS computed_values (
+    table_id        TEXT NOT NULL,
+    row_id          TEXT NOT NULL,
+    field_id        TEXT NOT NULL,
+    value           TEXT,
+    computed_at     TEXT NOT NULL,
+    override_value  TEXT,
+    override_reason TEXT,
+    override_by     TEXT,
+    override_at     TEXT,
+    PRIMARY KEY (table_id, row_id, field_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_tables_project ON tables (project_id, "order");
 CREATE INDEX IF NOT EXISTS idx_fields_table ON fields (table_id, "order");
 CREATE INDEX IF NOT EXISTS idx_row_records_table ON row_records (table_id, id);
 CREATE INDEX IF NOT EXISTS idx_business_changes_row
     ON business_changes (table_id, row_id, id DESC);
+CREATE INDEX IF NOT EXISTS idx_computed_values_field ON computed_values (field_id);
 
 CREATE VIEW IF NOT EXISTS row_change_log AS
 SELECT

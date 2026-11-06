@@ -12,7 +12,7 @@ from typing import Any
 
 from .db import connect_write, init_schema
 
-KNOWN_TYPES = {"text", "number", "datetime", "enum", "relation"}
+KNOWN_TYPES = {"text", "number", "datetime", "enum", "relation", "computed"}
 TONES = {"neutral", "info", "success", "warning", "danger"}
 
 
@@ -130,6 +130,7 @@ def write_seed(db_file: Path, data: dict[str, Any]) -> dict[str, int]:
     conn = connect_write(db_file)
     try:
         init_schema(conn)
+        conn.execute("DELETE FROM computed_values")
         conn.execute("DELETE FROM business_changes")
         conn.execute("DELETE FROM row_records")
         conn.execute("DELETE FROM fields")

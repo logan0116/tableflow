@@ -33,10 +33,20 @@ class FieldOut(BaseModel):
     order: int
 
 
+class ComputedMetaOut(BaseModel):
+    """计算字段的落库元信息；读侧只透传，不计算。"""
+
+    computed_at: str
+    overridden: bool = False
+    override_reason: str | None = None
+
+
 class RowOut(BaseModel):
     # 行 id 为业务编号（如 UD-01、7.0.1），表内唯一、跨表可同名。
     id: str
     values: dict[str, Any]
+    # 仅计算字段有；键为 field_id。
+    computed_meta: dict[str, ComputedMetaOut] | None = None
 
 
 class TableOut(BaseModel):
@@ -67,3 +77,10 @@ class BusinessChangeOut(BaseModel):
 
 class ChangesOut(BaseModel):
     changes: list[BusinessChangeOut]
+
+
+class RecomputeOut(BaseModel):
+    result: str = "success"
+    rows: int
+    fields: int
+    changed: int = 0
