@@ -17,6 +17,14 @@
 - 三态语义：`success` 已提交；`failed` 未落库；`unknown` 表示提交结果无法确认（HTTP 503），调用方 MUST NOT 当作成功。
 - 每次调用（成功或失败）都写一条 `write_audit`，字段见 data-model.md §6。
 
+## 0. 项目
+
+| 方法 | 路径 | 请求体 |
+|---|---|---|
+| POST | `/api/agent/projects` | `{ "id"?: string, "name": string }` |
+
+项目是写接口的第一层容器；建表前必须先有项目。
+
 ## 1. 表格
 
 | 方法 | 路径 | 请求体 |
