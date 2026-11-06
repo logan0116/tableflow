@@ -1,0 +1,15 @@
+services:
+  tableflow:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: tableflow:0.3.0
+    container_name: tableflow
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./data:/data
+    environment:
+      TABLEFLOW_DB: /data/tableflow.db
+      TABLEFLOW_STATIC_DIR: /app/frontend/dist
