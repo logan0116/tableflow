@@ -68,7 +68,9 @@ export function Cell({ field, value, onOpenRelation }: CellProps) {
       );
     }
     case "text":
-    default:
-      return <span>{String(value)}</span>;
+    default: {
+      const text = String(value);
+      return <span className={text.length <= 12 ? "cell-nowrap" : undefined}>{text}</span>;
+    }
   }
 }
