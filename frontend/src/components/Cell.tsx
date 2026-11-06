@@ -33,12 +33,12 @@ export function Cell({ field, value, onOpenRelation }: CellProps) {
 
   switch (field.type) {
     case "number":
-      return <span>{String(value)}</span>;
+      return <span className="cell-nowrap">{String(value)}</span>;
     case "datetime":
       return <span>{formatDateTime(String(value))}</span>;
     case "enum": {
       const option = enumOptions(field).find((item) => item.value === value);
-      return <span>{option?.label ?? String(value)}</span>;
+      return <span className="cell-nowrap">{option?.label ?? String(value)}</span>;
     }
     case "relation": {
       const ids = Array.isArray(value) ? value.map(String) : [];
@@ -47,7 +47,7 @@ export function Cell({ field, value, onOpenRelation }: CellProps) {
       }
       const target = (field.options as { table_id?: string } | null)?.table_id;
       return (
-        <span>
+        <span className="cell-nowrap">
           {ids.map((id, index) => (
             <span key={id}>
               {index > 0 ? "、" : ""}
