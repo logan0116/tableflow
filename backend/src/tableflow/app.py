@@ -6,8 +6,10 @@
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 from fastapi import Body, Depends, FastAPI, Header, Query, Request
@@ -309,3 +311,11 @@ def agent_delete_row(
                    lambda: write_service.delete_row(
                        conn, table_id, row_id, actor=x_agent_id or "-", origin=origin
                    ))
+
+
+# 生产部署：前端构建产物挂在根路径，前后端同端口（开发时不设该变量，走 vite）
+_static_dir = os.environ.get("TABLEFLOW_STATIC_DIR")
+if _static_dir and Path(_static_dir).is_dir():
+    from fastapi.staticfiles import StaticFiles
+
+    app.mount("/", StaticFiles(directory=_static_dir, html=True), name="ui")

@@ -1,0 +1,14 @@
+.git
+.agent-teams
+backend/.venv
+backend/**/__pycache__
+backend/.pytest_cache
+frontend/node_modules
+frontend/src
+data/*.db
+data/*.db-wal
+data/*.db-shm
+data/*.bak-*
+dist
+specs
+skills
