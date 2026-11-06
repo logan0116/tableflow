@@ -20,16 +20,16 @@ cd ../frontend && npm install
 
 期望：`backend/uv.lock` 生成；`frontend/node_modules` 就绪。
 
-## 3. 初始化数据（唯一入数路径）
+## 3. 初始化样例数据
 
 ```bash
 cd backend
-uv run python scripts/import_data.py --seed ../data/seed.example.json --db ../data/tableflow.db
+uv run python scripts/seed_data.py --seed ../data/seed.example.json --db ../data/tableflow.db
 ```
 
 期望：
 
-- 输出导入计数（项目数、字段数、行数），与 seed 文件一致
+- 输出写入计数（项目数、字段数、行数），与 seed 文件一致
 - `data/tableflow.db` 生成
 - `sqlite3 data/tableflow.db "PRAGMA journal_mode;"` 返回 `wal`
 - 重复执行时全量替换，计数不累加
@@ -99,6 +99,6 @@ curl -i -X POST http://localhost:8000/api/projects
 
 ## 6. 常见问题
 
-- **只读连接打不开库**：WAL 模式下只读连接需要能访问 `-wal` / `-shm` 文件。先跑完导入、再启动服务；确认库文件与目录对服务进程可读。
+- **只读连接打不开库**：WAL 模式下只读连接需要能访问 `-wal` / `-shm` 文件。先跑完样例写入、再启动服务；确认库文件与目录对服务进程可读。
 - **端口占用**：`8000` 被占用时改 `--port`，同时改 `frontend/vite.config.ts` 的代理目标。
 - **页面一直显示加载中**：检查 `GET /api/health` 是否返回 200；代理目标是否与后端端口一致。

@@ -2,11 +2,11 @@
 
 **Feature**: 001-readonly-dashboard | **Date**: 2026-11-06 | **Constitution**: v3.0.0
 
-Technical Context 中不存在未决的 `NEEDS CLARIFICATION`；以下 8 项决策覆盖了计划中所有需要选型的位置。D1 由用户直接决定，D2–D8 由实现者按宪法约束选取。
+Technical Context 中不存在未决的 `NEEDS CLARIFICATION`；以下 8 项决策覆盖了计划中所有需要选型的位置。D1 由用户直接决定，D3 按用户 2026-11-06 的降级要求调整，其余由实现者按宪法约束选取。
 
 ## D1 数据归属：tableflow 自有 SQLite 为权威数据
 
-- **Decision**: tableflow 自己的 SQLite 是权威数据。v0 由导入脚本从原平台一次性初始化，导入后不再读取原平台。
+- **Decision**: tableflow 自己的 SQLite 是权威数据。v0 不做存量数据迁移，数据以最小样例初始化，运行期不再读取原平台。
 - **Rationale**: 用户 2026-11-06 明确选择。它让 v0 不依赖原平台的接口形态与鉴权，也把 v1 的 Agent 写接口收拢到同一份数据上（宪法原则 I）。
 - **Alternatives considered**:
   - 只读打开同一份 SQLite 文件：需要与原平台同机部署并共享库文件，部署约束与表结构所有权都不清楚，且原平台未必是 SQLite。
@@ -21,21 +21,21 @@ Technical Context 中不存在未决的 `NEEDS CLARIFICATION`；以下 8 项决�
   - EAV（`row_values(row_id, field_id, value)`）：列变更同样只改数据，但 500行×20列会产生 1万行中间表，查询需要聚合，代码更绕。
   - 每个项目动态建物理表：列变更要 `ALTER TABLE`，迁移与并发风险高，且"表名来自数据"会引入注入面。
 
-## D3 导入来源形态：JSON 快照文件
+## D3 数据来源：v0 不迁移，最小样例初始化
 
-- **Decision**: 导入脚本接收一个 JSON 文件（`data/seed.example.json` 同构），由使用者从原平台导出后放入。脚本负责校验并写入 SQLite。
-- **Rationale**: 原平台的接口与鉴权未知，v0 不做数据源适配器。JSON 快照足够支撑 14行验收样本，且不违反「无读缓存」（这是初始化，不是运行期读缓存）。
+- **Decision**: v0 不承担存量数据迁移。只提供一个最小样例脚本，把 `data/seed.example.json` 写入 SQLite，用于演示与验收；原平台不再是数据来源。
+- **Rationale**: 用户 2026-11-06 明确要求降低迁移的优先级——平台建好后可以重新写入，迁移不是 v0 的前置条件。去掉迁移依赖后，v0 不需要原平台的导出格式、字段映射与清洗规则。
 - **Alternatives considered**:
-  - 直连原平台 API：需要 token 与接口契约，v0 无法验证。
-  - CSV / Excel：需要引入解析库，且多列类型（日期、枚举）会丢类型信息。
-- **Assumption（需在实现前确认）**: 原平台可导出 JSON；若只能导出 CSV，导入脚本改为 CSV 解析，其余不变。
+  - 保留从原平台一次性导入：要先确定导出格式与字段映射，属额外工作量，且不迁移也不影响 v0 验收。
+  - 手工 SQL 造数：不可复现，验收样本不稳定，弃。
+- **后续**: 历史数据迁移与同步已列入宪法非目标；需要时按原则 VII 先改宪法，再做映射与清洗。
 
 ## D4 只读打开方式：`mode=ro` + `PRAGMA query_only`
 
-- **Decision**: 后端以只读方式打开 SQLite（URI `file:...?mode=ro`），连接后执行 `PRAGMA query_only=ON`；导入脚本单独以读写方式打开。
+- **Decision**: 后端以只读方式打开 SQLite（URI `file:...?mode=ro`），连接后执行 `PRAGMA query_only=ON`；样例脚本单独以读写方式打开。
 - **Rationale**: 宪法原则 I 要求 v0 不存在运行期写路径；只读打开把这条约束落到数据库层，而不是靠代码自觉。
 - **Alternatives considered**: 读写连接 + 代码里不写——约束靠自觉，不满足「可判定」。
-- **风险**: WAL 模式下只读连接需要能访问 `-wal`/`-shm` 文件；导入完成后再启动服务即可避免该问题。
+- **风险**: WAL 模式下只读连接需要能访问 `-wal`/`-shm` 文件；样例写入完成后再启动服务即可避免该问题。
 
 ## D5 表格渲染：原生 `<table>` + TanStack Table（headless）
 
