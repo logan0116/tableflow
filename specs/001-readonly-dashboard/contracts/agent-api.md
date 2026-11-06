@@ -22,6 +22,7 @@
 | 方法 | 路径 | 请求体 |
 |---|---|---|
 | POST | `/api/agent/projects` | `{ "id"?: string, "name": string }` |
+| DELETE | `/api/agent/projects/{project_id}` | 无（级联删除其表格、字段、行） |
 
 项目是写接口的第一层容器；建表前必须先有项目。
 

@@ -125,6 +125,16 @@ def agent_create_project(
                    lambda: write_service.create_project(conn, body))
 
 
+@app.delete("/api/agent/projects/{project_id}")
+def agent_delete_project(
+    project_id: str,
+    x_agent_id: str | None = Header(default=None, alias="X-Agent-Id"),
+    conn: sqlite3.Connection = Depends(get_write_conn),
+):
+    return _handle(conn, x_agent_id, "project.delete", project_id, None,
+                   lambda: write_service.delete_project(conn, project_id))
+
+
 @app.post("/api/agent/projects/{project_id}/tables")
 def agent_create_table(
     project_id: str,
