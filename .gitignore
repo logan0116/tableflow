@@ -21,3 +21,6 @@ data/*.db-shm
 .DS_Store
 .vscode/
 .idea/
+
+# AgentTeams 运行状态
+.agent-teams/
