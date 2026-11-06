@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+frontend/dist/
+
+# 运行期数据库（不入库）
+data/*.db
+data/*.db-wal
+data/*.db-shm
+
+# 编辑器与系统
+.DS_Store
+.vscode/
+.idea/
