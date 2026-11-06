@@ -98,12 +98,12 @@ VERSION = ("v0.3.0", {
 
 DEP = ("DEP-01-BR", {
     "tf-d-id": "DEP-01-BR",
-    "tf-d-clause": "宪法 v6.0.0 修订（计算字段、人经 Agent 写）",
+    "tf-d-clause": "宪法 v6.0.0（计算字段、人经 Agent 写）与 v7.0.0（只读筛选）修订",
     "tf-d-spec": "constitution.md",
     "tf-d-indep": ["003-AR"],
-    "tf-d-impact": "003 全部；004 的状态色依赖 002 的 tone 字段",
-    "tf-d-regress": "todo",
-    "tf-d-status": "待办",
+    "tf-d-impact": "003 全部；004 的状态色依赖 002 的 tone 字段；筛选受 v7.0.0 约束",
+    "tf-d-regress": "passed",
+    "tf-d-status": "已完成",
 })
 
 
