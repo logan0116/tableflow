@@ -1,11 +1,17 @@
-"""只读查询：项目、表格、字段、数据行。"""
+"""只读查询：项目、表格、字段、数据行、业务变更记录。
+
+读侧只做 JSON 解析与透传，不做字段校验、不做格式化计算；
+坏 options / 历史非法值一律降级，不阻断整表读取。
+"""
 
 from __future__ import annotations
 
 import json
 import sqlite3
+from typing import Any
 
 from .schemas import (
+    BusinessChangeOut,
     FieldOut,
     ProjectOut,
     RowDetailOut,
@@ -13,6 +19,30 @@ from .schemas import (
     TableOut,
     TableSummaryOut,
 )
+
+
+def _parse_options(raw: Any) -> Any:
+    """容错解析 fields.options：坏 JSON 回退 None，不抛异常。"""
+    if raw is None:
+        return None
+    if not isinstance(raw, str):
+        return raw
+    try:
+        return json.loads(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def _decode_value(raw: Any) -> Any:
+    """容错解析业务变更记录的旧值/新值（JSON 编码；坏值原样返回）。"""
+    if raw is None:
+        return None
+    if not isinstance(raw, str):
+        return raw
+    try:
+        return json.loads(raw)
+    except (TypeError, ValueError):
+        return raw
 
 
 def list_projects(conn: sqlite3.Connection) -> list[ProjectOut]:
@@ -48,7 +78,7 @@ def _visible_fields(conn: sqlite3.Connection, table_id: str) -> list[FieldOut]:
             id=r["id"],
             name=r["name"],
             type=r["type"],
-            options=json.loads(r["options"]) if r["options"] else None,
+            options=_parse_options(r["options"]),
             order=r["order"],
         )
         for r in rows
@@ -82,7 +112,11 @@ def get_table(conn: sqlite3.Connection, table_id: str) -> TableOut | None:
         rows=[
             RowOut(
                 id=r["id"],
-                values={k: v for k, v in json.loads(r["data"]).items() if k in visible_ids},
+                values={
+                    k: v
+                    for k, v in (json.loads(r["data"]) if r["data"] else {}).items()
+                    if k in visible_ids
+                },
             )
             for r in rows
         ],
@@ -107,10 +141,51 @@ def get_row_detail(
 
     fields = _visible_fields(conn, table_id)
     visible_ids = {field.id for field in fields}
-    values = {k: v for k, v in json.loads(row["data"]).items() if k in visible_ids}
+    values = {
+        k: v
+        for k, v in (json.loads(row["data"]) if row["data"] else {}).items()
+        if k in visible_ids
+    }
 
     return RowDetailOut(
         table=TableSummaryOut(id=table["id"], name=table["name"], order=table["order"]),
         fields=fields,
         row=RowOut(id=row["id"], values=values),
     )
+
+
+def list_changes(
+    conn: sqlite3.Connection, table_id: str, row_id: str, limit: int = 50
+) -> list[BusinessChangeOut] | None:
+    """按 id 倒序返回一行的业务变更记录；行不存在返回 None。"""
+    exists = conn.execute(
+        "SELECT 1 FROM row_records WHERE table_id = ? AND id = ?", (table_id, row_id)
+    ).fetchone()
+    if exists is None:
+        return None
+    rows = conn.execute(
+        """
+        SELECT id, occurred_at, actor, origin, field_id, field_name,
+               old_value, new_value, change_kind, reason
+        FROM business_changes
+        WHERE table_id = ? AND row_id = ?
+        ORDER BY id DESC
+        LIMIT ?
+        """,
+        (table_id, row_id, int(limit)),
+    ).fetchall()
+    return [
+        BusinessChangeOut(
+            id=r["id"],
+            occurred_at=r["occurred_at"],
+            actor=r["actor"],
+            origin=r["origin"],
+            field_id=r["field_id"],
+            field_name=r["field_name"],
+            old_value=_decode_value(r["old_value"]),
+            new_value=_decode_value(r["new_value"]),
+            change_kind=r["change_kind"],
+            reason=r["reason"],
+        )
+        for r in rows
+    ]

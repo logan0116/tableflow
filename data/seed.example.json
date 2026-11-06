@@ -9,13 +9,45 @@
           "name": "人员",
           "order": 1,
           "fields": [
-            { "id": "s-f1", "name": "姓名", "type": "text", "options": null, "order": 1, "visible": 1 },
-            { "id": "s-f2", "name": "角色", "type": "text", "options": null, "order": 2, "visible": 1 }
+            {
+              "id": "s-f1",
+              "name": "姓名",
+              "type": "text",
+              "options": null,
+              "order": 1,
+              "visible": 1
+            },
+            {
+              "id": "s-f2",
+              "name": "角色",
+              "type": "text",
+              "options": null,
+              "order": 2,
+              "visible": 1
+            }
           ],
           "rows": [
-            { "id": "s-1", "values": { "s-f1": "张工", "s-f2": "电气" } },
-            { "id": "s-2", "values": { "s-f1": "李工", "s-f2": "机械" } },
-            { "id": "s-3", "values": { "s-f1": "王工", "s-f2": "调试" } }
+            {
+              "id": "s-1",
+              "values": {
+                "s-f1": "张工",
+                "s-f2": "电气"
+              }
+            },
+            {
+              "id": "s-2",
+              "values": {
+                "s-f1": "李工",
+                "s-f2": "机械"
+              }
+            },
+            {
+              "id": "s-3",
+              "values": {
+                "s-f1": "王工",
+                "s-f2": "调试"
+              }
+            }
           ]
         },
         {
@@ -23,25 +55,152 @@
           "name": "任务",
           "order": 2,
           "fields": [
-            { "id": "f-1", "name": "任务", "type": "text", "options": null, "order": 1, "visible": 1 },
-            { "id": "f-2", "name": "状态", "type": "enum", "options": [
-              { "value": "todo", "label": "待办" },
-              { "value": "doing", "label": "进行中" },
-              { "value": "done", "label": "已完成" }
-            ], "order": 2, "visible": 1 },
-            { "id": "f-3", "name": "负责人", "type": "relation", "options": { "table_id": "t-staff" }, "order": 3, "visible": 1 },
-            { "id": "f-4", "name": "截止", "type": "datetime", "options": null, "order": 4, "visible": 1 },
-            { "id": "f-5", "name": "内部备注", "type": "text", "options": null, "order": 5, "visible": 0 }
+            {
+              "id": "f-1",
+              "name": "任务",
+              "type": "text",
+              "options": null,
+              "order": 1,
+              "visible": 1
+            },
+            {
+              "id": "f-2",
+              "name": "状态",
+              "type": "enum",
+              "options": [
+                {
+                  "value": "todo",
+                  "label": "待办",
+                  "tone": "neutral"
+                },
+                {
+                  "value": "doing",
+                  "label": "进行中",
+                  "tone": "info"
+                },
+                {
+                  "value": "done",
+                  "label": "已完成",
+                  "tone": "success"
+                }
+              ],
+              "order": 2,
+              "visible": 1
+            },
+            {
+              "id": "f-3",
+              "name": "负责人",
+              "type": "relation",
+              "options": {
+                "table_id": "t-staff"
+              },
+              "order": 3,
+              "visible": 1
+            },
+            {
+              "id": "f-4",
+              "name": "截止",
+              "type": "datetime",
+              "options": null,
+              "order": 4,
+              "visible": 1
+            },
+            {
+              "id": "f-5",
+              "name": "内部备注",
+              "type": "text",
+              "options": null,
+              "order": 5,
+              "visible": 0
+            }
           ],
           "rows": [
-            { "id": "r-1", "values": { "f-1": "采购伺服电机", "f-2": "doing", "f-3": ["s-1"], "f-4": "2026-11-12T18:00:00+08:00", "f-5": "供应商A" } },
-            { "id": "r-2", "values": { "f-1": "导轨安装", "f-2": "done", "f-3": ["s-2"], "f-4": "2026-11-08T12:00:00+08:00" } },
-            { "id": "r-3", "values": { "f-1": "电控柜接线", "f-2": "todo", "f-3": ["s-1", "s-3"], "f-4": "2026-11-15T18:00:00+08:00" } },
-            { "id": "r-4", "values": { "f-1": "安全光栅调试", "f-2": "doing", "f-3": ["s-3"], "f-4": "2026-11-18T10:00:00+08:00" } },
-            { "id": "r-5", "values": { "f-1": "整线联调", "f-2": "todo", "f-3": [], "f-4": "2026-11-25T18:00:00+08:00" } },
-            { "id": "r-6", "values": { "f-1": "操作培训", "f-2": "todo", "f-3": ["s-2"], "f-4": "2026-11-28T09:00:00+08:00" } },
-            { "id": "r-7", "values": { "f-1": "验收文档", "f-2": "doing", "f-3": ["s-1"], "f-4": "2026-11-30T18:00:00+08:00" } },
-            { "id": "r-8", "values": { "f-1": "备件入库", "f-2": "todo", "f-3": [], "f-4": "2026-12-02T18:00:00+08:00" } }
+            {
+              "id": "r-1",
+              "values": {
+                "f-1": "采购伺服电机",
+                "f-2": "doing",
+                "f-3": [
+                  "s-1"
+                ],
+                "f-4": "2026-11-12T18:00:00+08:00",
+                "f-5": "供应商A"
+              }
+            },
+            {
+              "id": "r-2",
+              "values": {
+                "f-1": "导轨安装",
+                "f-2": "done",
+                "f-3": [
+                  "s-2"
+                ],
+                "f-4": "2026-11-08T12:00:00+08:00"
+              }
+            },
+            {
+              "id": "r-3",
+              "values": {
+                "f-1": "电控柜接线",
+                "f-2": "todo",
+                "f-3": [
+                  "s-1",
+                  "s-3"
+                ],
+                "f-4": "2026-11-15T18:00:00+08:00"
+              }
+            },
+            {
+              "id": "r-4",
+              "values": {
+                "f-1": "安全光栅调试",
+                "f-2": "doing",
+                "f-3": [
+                  "s-3"
+                ],
+                "f-4": "2026-11-18T10:00:00+08:00"
+              }
+            },
+            {
+              "id": "r-5",
+              "values": {
+                "f-1": "整线联调",
+                "f-2": "todo",
+                "f-3": [],
+                "f-4": "2026-11-25T18:00:00+08:00"
+              }
+            },
+            {
+              "id": "r-6",
+              "values": {
+                "f-1": "操作培训",
+                "f-2": "todo",
+                "f-3": [
+                  "s-2"
+                ],
+                "f-4": "2026-11-28T09:00:00+08:00"
+              }
+            },
+            {
+              "id": "r-7",
+              "values": {
+                "f-1": "验收文档",
+                "f-2": "doing",
+                "f-3": [
+                  "s-1"
+                ],
+                "f-4": "2026-11-30T18:00:00+08:00"
+              }
+            },
+            {
+              "id": "r-8",
+              "values": {
+                "f-1": "备件入库",
+                "f-2": "todo",
+                "f-3": [],
+                "f-4": "2026-12-02T18:00:00+08:00"
+              }
+            }
           ]
         }
       ]
@@ -55,22 +214,110 @@
           "name": "设备",
           "order": 1,
           "fields": [
-            { "id": "g-1", "name": "设备", "type": "text", "options": null, "order": 1, "visible": 1 },
-            { "id": "g-2", "name": "下次保养", "type": "datetime", "options": null, "order": 2, "visible": 1 },
-            { "id": "g-3", "name": "负责人", "type": "text", "options": null, "order": 3, "visible": 1 },
-            { "id": "g-4", "name": "状态", "type": "enum", "options": [
-              { "value": "normal", "label": "正常" },
-              { "value": "due", "label": "临近" },
-              { "value": "overdue", "label": "超期" }
-            ], "order": 4, "visible": 1 }
+            {
+              "id": "g-1",
+              "name": "设备",
+              "type": "text",
+              "options": null,
+              "order": 1,
+              "visible": 1
+            },
+            {
+              "id": "g-2",
+              "name": "下次保养",
+              "type": "datetime",
+              "options": null,
+              "order": 2,
+              "visible": 1
+            },
+            {
+              "id": "g-3",
+              "name": "负责人",
+              "type": "text",
+              "options": null,
+              "order": 3,
+              "visible": 1
+            },
+            {
+              "id": "g-4",
+              "name": "状态",
+              "type": "enum",
+              "options": [
+                {
+                  "value": "normal",
+                  "label": "正常",
+                  "tone": "success"
+                },
+                {
+                  "value": "due",
+                  "label": "临近",
+                  "tone": "warning"
+                },
+                {
+                  "value": "overdue",
+                  "label": "超期",
+                  "tone": "danger"
+                }
+              ],
+              "order": 4,
+              "visible": 1
+            }
           ],
           "rows": [
-            { "id": "e-1", "values": { "g-1": "CNC-01", "g-2": "2026-11-20T09:00:00+08:00", "g-3": "张工", "g-4": "normal" } },
-            { "id": "e-2", "values": { "g-1": "CNC-02", "g-2": "2026-11-09T09:00:00+08:00", "g-3": "李工", "g-4": "due" } },
-            { "id": "e-3", "values": { "g-1": "磨床-01", "g-2": "2026-11-02T09:00:00+08:00", "g-3": "王工", "g-4": "overdue" } },
-            { "id": "e-4", "values": { "g-1": "空压机", "g-2": "2026-12-01T09:00:00+08:00", "g-3": "赵工", "g-4": "normal" } },
-            { "id": "e-5", "values": { "g-1": "行车", "g-2": "2026-11-14T09:00:00+08:00", "g-3": "钱工", "g-4": "due" } },
-            { "id": "e-6", "values": { "g-1": "冷却塔", "g-2": "2026-12-10T09:00:00+08:00", "g-3": "孙工", "g-4": "normal" } }
+            {
+              "id": "e-1",
+              "values": {
+                "g-1": "CNC-01",
+                "g-2": "2026-11-20T09:00:00+08:00",
+                "g-3": "张工",
+                "g-4": "normal"
+              }
+            },
+            {
+              "id": "e-2",
+              "values": {
+                "g-1": "CNC-02",
+                "g-2": "2026-11-09T09:00:00+08:00",
+                "g-3": "李工",
+                "g-4": "due"
+              }
+            },
+            {
+              "id": "e-3",
+              "values": {
+                "g-1": "磨床-01",
+                "g-2": "2026-11-02T09:00:00+08:00",
+                "g-3": "王工",
+                "g-4": "overdue"
+              }
+            },
+            {
+              "id": "e-4",
+              "values": {
+                "g-1": "空压机",
+                "g-2": "2026-12-01T09:00:00+08:00",
+                "g-3": "赵工",
+                "g-4": "normal"
+              }
+            },
+            {
+              "id": "e-5",
+              "values": {
+                "g-1": "行车",
+                "g-2": "2026-11-14T09:00:00+08:00",
+                "g-3": "钱工",
+                "g-4": "due"
+              }
+            },
+            {
+              "id": "e-6",
+              "values": {
+                "g-1": "冷却塔",
+                "g-2": "2026-12-10T09:00:00+08:00",
+                "g-3": "孙工",
+                "g-4": "normal"
+              }
+            }
           ]
         }
       ]

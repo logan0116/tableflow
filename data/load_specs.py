@@ -1,21 +1,30 @@
 #!/usr/bin/env python3
-"""把 002/003/004 三个 spec 与 1 条依赖需求写进 tf 项目，并清掉 21 条 TF 条目。
+"""把 002/003/004 三个 spec 与 1 条依赖需求写进 tf 项目，并清掉历史 TF 条目。
 
 用法：后端跑起来后执行
     backend/.venv/bin/python data/load_specs.py
+
+v0.3.0：行 id 使用业务编号（002-AR / v0.3.0 / DEP-01-BR）；
+依赖变更需求表不再写「所属版本」；独立规格需求补齐 clarify/analyze/checklist 三态与治理字段。
 """
 
 from __future__ import annotations
 
+import os
 import sys
 
 import httpx
 
-BASE = "http://127.0.0.1:8000"
-HEADERS = {"X-Agent-Id": "agent-tableflow"}
+BASE = os.environ.get("TABLEFLOW_API_BASE", "http://127.0.0.1:8000")
+HEADERS = {"X-Agent-Id": "agent-tableflow", "X-Origin": "seed"}
+
+GOVERNANCE = {
+    "tf-i-constitution-version": "v6.0.0",
+    "tf-i-acceptance": "pending",
+}
 
 SPECS = [
-    ("tf-spec-002", {
+    ("002-AR", {
         "tf-i-id": "002-AR",
         "tf-i-clause": "字段体系与关联",
         "tf-i-dir": "specs/002-field-system",
@@ -25,8 +34,14 @@ SPECS = [
         "tf-i-plan": "未开始",
         "tf-i-task": "未开始",
         "tf-i-implement": "未开始",
+        "tf-i-clarify": "done",
+        "tf-i-analyze": "doing",
+        "tf-i-checklist": "todo",
+        "tf-i-owner": "schema-dev",
+        "tf-i-priority": "P0",
+        **GOVERNANCE,
     }),
-    ("tf-spec-003", {
+    ("003-AR", {
         "tf-i-id": "003-AR",
         "tf-i-clause": "计算字段与发布判定",
         "tf-i-dir": "specs/003-calculated-fields",
@@ -36,8 +51,14 @@ SPECS = [
         "tf-i-plan": "未开始",
         "tf-i-task": "未开始",
         "tf-i-implement": "未开始",
+        "tf-i-clarify": "todo",
+        "tf-i-analyze": "todo",
+        "tf-i-checklist": "todo",
+        "tf-i-owner": "schema-dev",
+        "tf-i-priority": "P1",
+        **GOVERNANCE,
     }),
-    ("tf-spec-004", {
+    ("004-AR", {
         "tf-i-id": "004-AR",
         "tf-i-clause": "界面体验",
         "tf-i-dir": "specs/004-ui-polish",
@@ -47,51 +68,74 @@ SPECS = [
         "tf-i-plan": "未开始",
         "tf-i-task": "未开始",
         "tf-i-implement": "未开始",
+        "tf-i-clarify": "todo",
+        "tf-i-analyze": "todo",
+        "tf-i-checklist": "todo",
+        "tf-i-owner": "ui-dev",
+        "tf-i-priority": "P1",
+        **GOVERNANCE,
     }),
 ]
 
-VERSION = ("tf-v-030", {
+VERSION = ("v0.3.0", {
     "tf-v-ver": "v0.3.0",
     "tf-v-date": "2026-12-15T00:00:00+08:00",
     "tf-v-status": "planned",
-    "tf-v-indep": ["tf-spec-002", "tf-spec-003", "tf-spec-004"],
+    "tf-v-indep": ["002-AR", "003-AR", "004-AR"],
     "tf-v-note": "字段体系 + 计算字段 + 界面体验",
 })
 
-DEP = ("tf-dep-01", {
+DEP = ("DEP-01-BR", {
     "tf-d-id": "DEP-01-BR",
     "tf-d-clause": "宪法 v6.0.0 修订（计算字段、人经 Agent 写）",
     "tf-d-spec": "constitution.md",
-    "tf-d-indep": ["tf-spec-003"],
+    "tf-d-indep": ["003-AR"],
     "tf-d-impact": "003 全部；004 的状态色依赖 002 的 tone 字段",
     "tf-d-regress": "未开始",
     "tf-d-status": "待办",
-    "tf-d-version": ["tf-v-030"],
 })
 
 
-def call(method: str, path: str, body: dict | None = None) -> dict:
-    response = httpx.request(method, f"{BASE}{path}", json=body, headers=HEADERS, timeout=10)
+def call(
+    client: httpx.Client,
+    method: str,
+    path: str,
+    body: dict | None = None,
+    *,
+    strict: bool = False,
+    quiet: bool = False,
+) -> dict:
+    response = client.request(method, path, json=body, headers=HEADERS)
     data = response.json()
     if data.get("result") != "success":
-        print(f"  ! {method} {path} → {response.status_code} {data}")
+        message = f"{method} {path} → {response.status_code} {data}"
+        if strict:
+            raise RuntimeError(message)
+        if not quiet:
+            print(f"  ! {message}")
     return data
 
 
-def main() -> int:
+def run(client: httpx.Client, *, strict: bool = False) -> None:
     removed = 0
     for index in range(1, 22):
         row_id = f"TF-{index:02d}"
-        if call("DELETE", f"/api/agent/rows/{row_id}").get("result") == "success":
+        result = call(client, "DELETE", f"/api/agent/tables/tf-indep/rows/{row_id}", quiet=True)
+        if result.get("result") == "success":
             removed += 1
-    print(f"已删除 TF 条目 {removed} 条")
+    print(f"已删除历史 TF 条目 {removed} 条")
 
     for row_id, values in SPECS:
-        call("POST", "/api/agent/tables/tf-indep/rows", {"id": row_id, "values": values})
-    call("POST", "/api/agent/tables/tf-ver/rows", {"id": VERSION[0], "values": VERSION[1]})
-    call("POST", "/api/agent/tables/tf-dep/rows", {"id": DEP[0], "values": DEP[1]})
+        call(client, "POST", f"/api/agent/tables/tf-indep/rows/{row_id}", {"values": values}, strict=strict)
+    call(client, "POST", f"/api/agent/tables/tf-ver/rows/{VERSION[0]}", {"values": VERSION[1]}, strict=strict)
+    call(client, "POST", f"/api/agent/tables/tf-dep/rows/{DEP[0]}", {"values": DEP[1]}, strict=strict)
 
     print("完成：3 个 spec + 1 个版本 + 1 条依赖需求")
+
+
+def main() -> int:
+    with httpx.Client(base_url=BASE, timeout=10) as client:
+        run(client)
     return 0
 
 
