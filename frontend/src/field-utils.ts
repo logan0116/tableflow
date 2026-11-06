@@ -53,3 +53,32 @@ export function isNumericField(field: Field): boolean {
 export function numberOptions(field: Field): NumberOptions | null {
   return field.type === "number" ? optionObject<NumberOptions>(field.options) : null;
 }
+
+/** 单元格的显示文本（供筛选匹配用，与渲染保持一致）。 */
+export function displayText(field: Field, value: unknown): string {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+  if (typeof value === "boolean") {
+    return value ? "是" : "否";
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item)).join("、");
+  }
+  if (field.type === "enum") {
+    const option = enumItems(field).find((item) => item.value === value);
+    return option?.label ?? String(value);
+  }
+  if (field.type === "datetime") {
+    const date = new Date(String(value));
+    if (Number.isNaN(date.getTime())) {
+      return String(value);
+    }
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const ymd = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    return String(value).includes("T")
+      ? `${ymd} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+      : ymd;
+  }
+  return String(value);
+}

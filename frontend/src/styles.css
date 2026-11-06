@@ -482,6 +482,7 @@ td.empty-cell {
 .modal-backdrop {
   position: fixed;
   inset: 0;
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -489,6 +490,8 @@ td.empty-cell {
 }
 
 .modal {
+  position: relative;
+  z-index: 1001;
   width: min(760px, 92vw);
   max-height: 80vh;
   overflow: auto;
@@ -528,4 +531,77 @@ td.empty-cell {
   .skeleton-block {
     animation: none;
   }
+}
+
+/* 筛选栏 */
+.filter-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+}
+
+.filter-box input {
+  width: 260px;
+  padding: 5px 10px;
+  border: 1px solid var(--color-border, #d0d7de);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.filter-clear {
+  padding: 4px 10px;
+  border: 1px solid var(--color-border, #d0d7de);
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.filter-count {
+  color: #656d76;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* 关联条目列表 */
+.relation-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.relation-list li + li {
+  border-top: 1px solid #eaeef2;
+}
+
+.relation-list button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 4px;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.relation-list button:disabled {
+  color: #8c959f;
+  cursor: default;
+}
+
+.relation-id {
+  font-weight: 600;
+}
+
+.relation-label {
+  color: #57606a;
+}
+
+.relation-missing {
+  color: #cf222e;
+  font-size: 12px;
 }

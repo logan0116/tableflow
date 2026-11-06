@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, useMemo } from "react";
 
 import { fetchProjects, fetchTable, fetchTables } from "./api";
+import { displayText } from "./field-utils";
 import { DataTable } from "./components/DataTable";
 import { EmptyState } from "./components/EmptyState";
 import { ProjectSwitcher } from "./components/ProjectSwitcher";
+import { RelationListModal } from "./components/RelationListModal";
 import { RelationModal } from "./components/RelationModal";
 import { TableTabs } from "./components/TableTabs";
 import { TableToolbar } from "./components/TableToolbar";
@@ -31,6 +33,8 @@ export default function App() {
   const [tableState, setTableState] = useState<TableState>({ status: "loading" });
   const [reloadKey, setReloadKey] = useState(0);
   const [modal, setModal] = useState<{ tableId: string; rowId: string } | null>(null);
+  const [relationList, setRelationList] = useState<{ tableId: string; rowIds: string[] } | null>(null);
+  const [filter, setFilter] = useState("");
 
   const [density, setDensity] = useDensity();
   const { widths, setWidths, resetWidths } = useColumnWidths(tableId);
@@ -90,6 +94,7 @@ export default function App() {
       return;
     }
     const current = ++seq.current;
+    setFilter("");
     setTableState({ status: "loading" });
     fetchTable(tableId)
       .then((table) => {
@@ -104,6 +109,23 @@ export default function App() {
         }
       });
   }, [tableId, reloadKey]);
+
+  const filteredRows = useMemo(() => {
+    if (tableState.status !== "ready") {
+      return [];
+    }
+    const rows = tableState.table.rows;
+    const keyword = filter.trim().toLowerCase();
+    if (!keyword) {
+      return rows;
+    }
+    const fields = tableState.table.fields;
+    return rows.filter((row) =>
+      fields.some((field) =>
+        displayText(field, row.values[field.id]).toLowerCase().includes(keyword),
+      ),
+    );
+  }, [tableState, filter]);
 
   const retry = () => setReloadKey((key) => key + 1);
   const hasColumnWidths = Object.keys(widths).length > 0;
@@ -144,6 +166,10 @@ export default function App() {
             ) : (
               <>
                 <TableToolbar
+                  filter={filter}
+                  onFilterChange={setFilter}
+                  totalRows={tableState.table.rows.length}
+                  shownRows={filteredRows.length}
                   density={density}
                   onDensityChange={setDensity}
                   onResetColumnWidths={resetWidths}
@@ -153,12 +179,15 @@ export default function App() {
                   key={tableState.table.table.id}
                   tableId={tableState.table.table.id}
                   fields={tableState.table.fields}
-                  rows={tableState.table.rows}
+                  rows={filteredRows}
                   density={density}
                   columnWidths={widths}
                   onColumnWidthsChange={setWidths}
                   onOpenRelation={(targetTableId, rowId) =>
                     setModal({ tableId: targetTableId, rowId })
+                  }
+                  onOpenRelationList={(targetTableId, rowIds) =>
+                    setRelationList({ tableId: targetTableId, rowIds })
                   }
                 />
               </>
@@ -173,6 +202,18 @@ export default function App() {
     <main className="app">
       <h1>只读状态看板</h1>
       {content}
+
+      {relationList ? (
+        <RelationListModal
+          tableId={relationList.tableId}
+          rowIds={relationList.rowIds}
+          onClose={() => setRelationList(null)}
+          onPick={(rowId) => {
+            setRelationList(null);
+            setModal({ tableId: relationList.tableId, rowId });
+          }}
+        />
+      ) : null}
 
       {modal ? (
         <RelationModal

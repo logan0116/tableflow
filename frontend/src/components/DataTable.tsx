@@ -13,8 +13,8 @@ import type { Density } from "../ui-prefs";
 import { Cell } from "./Cell";
 import { EmptyState } from "./EmptyState";
 
-const DEFAULT_COLUMN_WIDTH = 150;
-const FIRST_COLUMN_WIDTH = 200;
+const DEFAULT_COLUMN_WIDTH = 110;
+const FIRST_COLUMN_WIDTH = 140;
 const MIN_COLUMN_WIDTH = 48;
 const MAX_COLUMN_WIDTH = 600;
 
@@ -26,6 +26,7 @@ interface DataTableProps {
   columnWidths: ColumnSizingState;
   onColumnWidthsChange: (next: ColumnSizingState) => void;
   onOpenRelation?: (tableId: string, rowId: string) => void;
+  onOpenRelationList?: (tableId: string, rowIds: string[]) => void;
 }
 
 export function DataTable({
@@ -36,6 +37,7 @@ export function DataTable({
   columnWidths,
   onColumnWidthsChange,
   onOpenRelation,
+  onOpenRelationList,
 }: DataTableProps) {
   const visibleFields = useMemo(
     () => fields.filter((field) => field.visible !== 0),
@@ -66,10 +68,11 @@ export function DataTable({
             field={field}
             value={context.getValue()}
             onOpenRelation={onOpenRelation}
+            onOpenRelationList={onOpenRelationList}
           />
         ),
       })),
-    [visibleFields, onOpenRelation],
+    [visibleFields, onOpenRelation, onOpenRelationList],
   );
 
   const table = useReactTable({
