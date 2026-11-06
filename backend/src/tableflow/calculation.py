@@ -282,6 +282,19 @@ def validate_computed_options(
             "datetime",
         }:
             raise WriteError("rollup min/max 的源字段必须是 number 或 datetime")
+        require = options.get("require")
+        if require is not None:
+            if not isinstance(require, list) or not require:
+                raise WriteError("rollup.require 必须是非空数组")
+            for cond in require:
+                if not isinstance(cond, dict) or not isinstance(cond.get("field_id"), str):
+                    raise WriteError("rollup.require 每项必须含 field_id")
+                if cond["field_id"] not in target_fields:
+                    raise WriteError(f"rollup.require 字段不属于目标表：{cond['field_id']}")
+                if target_fields[cond["field_id"]]["type"] == "computed":
+                    raise WriteError("rollup.require 不能引用计算字段")
+                if "equals" not in cond:
+                    raise WriteError("rollup.require 每项必须含 equals")
 
     return options
 
@@ -460,7 +473,15 @@ def _compute_relation_kind(
         aggregate = options["aggregate"]
         if aggregate in BOOLEAN_AGGREGATES:
             equals = options["equals"]
-            results = [value == equals for value in values]
+            require = options.get("require") or []
+
+            def _matches(values_: dict[str, Any]) -> bool:
+                return all(values_.get(cond["field_id"]) == cond["equals"] for cond in require)
+
+            results = [
+                _matches(values_) and values_.get(target_field) == equals
+                for values_ in selected
+            ]
             if aggregate == "all":
                 return all(results)
             if aggregate == "any":

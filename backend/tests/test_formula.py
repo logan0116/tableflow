@@ -658,10 +658,10 @@ def test_tf_project_computed_fields(tmp_path, monkeypatch):
         assert fields["tf-v-bug-open"]["type"] == "number"
 
         rows = {row["id"]: row["values"] for row in payload["rows"]}
-        assert rows["v0.3.0"]["tf-v-dev"] == 33.3
+        assert rows["v0.3.0"]["tf-v-dev"] == 100.0
         assert rows["v0.3.0"]["tf-v-cond"] is False
         assert rows["v0.3.0"]["tf-v-bug-clear"] is True
-        assert rows["v0.3.0"]["tf-v-regress"] is True
+        assert rows["v0.3.0"]["tf-v-regress"] is False
         assert rows["v0.3.0"]["tf-v-dep-count"] == 1
         assert rows["v0.3.0"]["tf-v-scenes"] == 12
         assert rows["v0.3.0"]["tf-v-tasks"] == 30
@@ -673,19 +673,19 @@ def test_tf_project_computed_fields(tmp_path, monkeypatch):
         conn = sqlite3.connect(db)
         try:
             row = conn.execute(
-                "SELECT data FROM row_records WHERE table_id='tf-indep' AND id='003-AR'"
+                "SELECT data FROM row_records WHERE table_id='tf-indep' AND id='004-AR'"
             ).fetchone()
             values = json.loads(row[0])
-            values["tf-i-implement"] = "done"
+            values["tf-i-implement"] = "doing"
             conn.execute(
-                "UPDATE row_records SET data = ? WHERE table_id='tf-indep' AND id='003-AR'",
+                "UPDATE row_records SET data = ? WHERE table_id='tf-indep' AND id='004-AR'",
                 (json.dumps(values, ensure_ascii=False),),
             )
             conn.commit()
         finally:
             conn.close()
         rows = {row["id"]: row["values"] for row in client.get("/api/tables/tf-ver/table").json()["rows"]}
-        assert rows["v0.3.0"]["tf-v-dev"] == 33.3
+        assert rows["v0.3.0"]["tf-v-dev"] == 100.0
 
         # 显式重算后跟着变（2/3 = 66.7）
         assert client.post("/api/agent/tables/tf-ver/recompute", headers=HEADERS).json()["result"] == "success"
@@ -707,4 +707,15 @@ def test_tf_project_computed_fields(tmp_path, monkeypatch):
             headers=HEADERS,
         )
         rows = {row["id"]: row["values"] for row in client.get("/api/tables/tf-ver/table").json()["rows"]}
+        # 依赖还是待办：回归没通过，发布条件不能为是
+        assert rows["v0.3.0"]["tf-v-cond"] is False
+
+        # 把依赖标记为已完成且回归通过 → 发布条件才为是
+        client.patch(
+            "/api/agent/tables/tf-dep/rows/DEP-01-BR",
+            json={"values": {"tf-d-status": "已完成", "tf-d-regress": "passed"}},
+            headers=HEADERS,
+        )
+        rows = {row["id"]: row["values"] for row in client.get("/api/tables/tf-ver/table").json()["rows"]}
+        assert rows["v0.3.0"]["tf-v-regress"] is True
         assert rows["v0.3.0"]["tf-v-cond"] is True
