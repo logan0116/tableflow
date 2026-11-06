@@ -26,11 +26,11 @@
 
 **Purpose**: 两个工程的骨架与依赖锁定
 
-- [ ] T001 [P] 创建后端 uv 工程：`backend/pyproject.toml`（运行时依赖 fastapi、uvicorn；开发依赖 pytest、httpx）与 `backend/src/tableflow/__init__.py`
-- [ ] T002 [P] 创建前端 Vite 工程：`frontend/package.json`、`frontend/vite.config.ts`（`/api` 代理到 `http://localhost:8000`）、`frontend/tsconfig.json`、`frontend/index.html`、`frontend/src/main.tsx`
-- [ ] T003 [P] 安装并锁定依赖：`cd backend && uv sync`（生成 `backend/uv.lock`）、`cd frontend && npm install`（生成 `frontend/package-lock.json`）
-- [ ] T004 [P] 仓库忽略规则：在 `.gitignore` 增加 `data/*.db`、`data/*.db-wal`、`data/*.db-shm`、`node_modules/`、`dist/`、`.venv/`、`__pycache__/`
-- [ ] T005 [P] 样例数据 `data/seed.example.json`：2个项目、共14行，覆盖 `text` / `number` / `datetime` / `enum` 四种类型，并含 1 个 `visible: 0` 的字段
+- [X] T001 [P] 创建后端 uv 工程：`backend/pyproject.toml`（运行时依赖 fastapi、uvicorn；开发依赖 pytest、httpx）与 `backend/src/tableflow/__init__.py`
+- [X] T002 [P] 创建前端 Vite 工程：`frontend/package.json`、`frontend/vite.config.ts`（`/api` 代理到 `http://localhost:8000`）、`frontend/tsconfig.json`、`frontend/index.html`、`frontend/src/main.tsx`
+- [X] T003 [P] 安装并锁定依赖：`cd backend && uv sync`（生成 `backend/uv.lock`）、`cd frontend && npm install`（生成 `frontend/package-lock.json`）
+- [X] T004 [P] 仓库忽略规则：在 `.gitignore` 增加 `data/*.db`、`data/*.db-wal`、`data/*.db-shm`、`node_modules/`、`dist/`、`.venv/`、`__pycache__/`
+- [X] T005 [P] 样例数据 `data/seed.example.json`：2个项目、共14行，覆盖 `text` / `number` / `datetime` / `enum` 四种类型，并含 1 个 `visible: 0` 的字段
 
 ---
 
@@ -40,15 +40,15 @@
 
 **⚠️ CRITICAL**: 本阶段完成前不得开始任何用户故事
 
-- [ ] T006 配置模块 `backend/src/tableflow/config.py`：数据库路径读取环境变量 `TABLEFLOW_DB`，默认 `data/tableflow.db`
-- [ ] T007 只读连接 `backend/src/tableflow/db.py`：以 URI `file:...?mode=ro` 打开，连接后执行 `PRAGMA query_only=ON`；启动时校验 `PRAGMA journal_mode` 返回 `wal`，否则报错退出
-- [ ] T008 [P] 表结构与建库函数 `backend/src/tableflow/db.py`：按 data-model.md 建 `projects(id TEXT PK, name TEXT NOT NULL)`、`fields(id TEXT PK, table_id TEXT NOT NULL REFERENCES projects(id), name TEXT NOT NULL, type TEXT NOT NULL, options TEXT NULL, "order" INTEGER NOT NULL, visible INTEGER NOT NULL DEFAULT 1 CHECK(visible IN (0,1)))`、`row_records(id TEXT PK, table_id TEXT NOT NULL REFERENCES projects(id), data TEXT NOT NULL)`，以及索引 `idx_fields_table(table_id, "order")`、`idx_row_records_table(table_id, id)`；`type` 不加 CHECK 约束
-- [ ] T009 [P] 响应模型 `backend/src/tableflow/schemas.py`：`ProjectOut`、`FieldOut`、`RowOut`、`ProjectsOut`、`TableOut`，字段与 contracts/api.md 一致（`options` 为 `null` 或数组）
-- [ ] T010 只读查询 `backend/src/tableflow/repository.py`：`list_projects()` 返回全部项目；`get_table(project_id)` 返回字段（仅 `visible = 1`，按 `order` 升序、`id` 兜底）与行（按 `id` 升序），项目不存在返回 `None`
-- [ ] T011 FastAPI 应用骨架 `backend/src/tableflow/app.py`：注册路由、全响应加 `Cache-Control: no-store`、404 → `{"detail":"项目不存在"}`、数据库异常 → 503 `{"detail":"数据存储不可用"}`
-- [ ] T012 样例写入脚本 `backend/scripts/seed_data.py`：全量替换三张表；写入前校验 `row_records.data` 的键都属于同一项目的 `fields.id`，出现未知键报错退出且不写入；结束打印项目数、字段数、行数；支持 `--projects` / `--rows` 参数生成规模数据（用于 SC-005 的 20项目/500行 验证）
-- [ ] T013 [P] 样例脚本测试 `backend/tests/test_seed.py`：写入计数正确、未知键报错且库未被修改、重复执行计数不累加
-- [ ] T014 [P] 接口骨架测试 `backend/tests/test_api.py`：`GET /api/health` 返回 200 `{"status":"ok"}`；`POST /api/projects` 返回 405；响应头含 `Cache-Control: no-store`
+- [X] T006 配置模块 `backend/src/tableflow/config.py`：数据库路径读取环境变量 `TABLEFLOW_DB`，默认 `data/tableflow.db`
+- [X] T007 只读连接 `backend/src/tableflow/db.py`：以 URI `file:...?mode=ro` 打开，连接后执行 `PRAGMA query_only=ON`；启动时校验 `PRAGMA journal_mode` 返回 `wal`，否则报错退出
+- [X] T008 [P] 表结构与建库函数 `backend/src/tableflow/db.py`：按 data-model.md 建 `projects(id TEXT PK, name TEXT NOT NULL)`、`fields(id TEXT PK, table_id TEXT NOT NULL REFERENCES projects(id), name TEXT NOT NULL, type TEXT NOT NULL, options TEXT NULL, "order" INTEGER NOT NULL, visible INTEGER NOT NULL DEFAULT 1 CHECK(visible IN (0,1)))`、`row_records(id TEXT PK, table_id TEXT NOT NULL REFERENCES projects(id), data TEXT NOT NULL)`，以及索引 `idx_fields_table(table_id, "order")`、`idx_row_records_table(table_id, id)`；`type` 不加 CHECK 约束
+- [X] T009 [P] 响应模型 `backend/src/tableflow/schemas.py`：`ProjectOut`、`FieldOut`、`RowOut`、`ProjectsOut`、`TableOut`，字段与 contracts/api.md 一致（`options` 为 `null` 或数组）
+- [X] T010 只读查询 `backend/src/tableflow/repository.py`：`list_projects()` 返回全部项目；`get_table(project_id)` 返回字段（仅 `visible = 1`，按 `order` 升序、`id` 兜底）与行（按 `id` 升序），项目不存在返回 `None`
+- [X] T011 FastAPI 应用骨架 `backend/src/tableflow/app.py`：注册路由、全响应加 `Cache-Control: no-store`、404 → `{"detail":"项目不存在"}`、数据库异常 → 503 `{"detail":"数据存储不可用"}`
+- [X] T012 样例写入脚本 `backend/scripts/seed_data.py`：全量替换三张表；写入前校验 `row_records.data` 的键都属于同一项目的 `fields.id`，出现未知键报错退出且不写入；结束打印项目数、字段数、行数；支持 `--projects` / `--rows` 参数生成规模数据（用于 SC-005 的 20项目/500行 验证）
+- [X] T013 [P] 样例脚本测试 `backend/tests/test_seed.py`：写入计数正确、未知键报错且库未被修改、重复执行计数不累加
+- [X] T014 [P] 接口骨架测试 `backend/tests/test_api.py`：`GET /api/health` 返回 200 `{"status":"ok"}`；`POST /api/projects` 返回 405；响应头含 `Cache-Control: no-store`
 
 **Checkpoint**: 库能建、样例能写、服务能起——用户故事可以开始
 
