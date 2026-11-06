@@ -1,4 +1,6 @@
-import type { Field, FieldOption } from "../types";
+import type { DatetimeOptions, Field, FieldOption, RelationOptions } from "../types";
+import { enumItems, isNumericField, numberOptions, optionObject } from "../field-utils";
+import { EnumTag } from "./EnumTag";
 
 interface CellProps {
   field: Field;
@@ -10,42 +12,90 @@ function pad(value: number): string {
   return String(value).padStart(2, "0");
 }
 
-function formatDateTime(raw: string): string {
+function formatDateTime(raw: string, withTime: boolean | undefined): string {
   const date = new Date(raw);
   if (Number.isNaN(date.getTime())) {
     return raw;
   }
   const ymd = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-  if (!raw.includes("T")) {
-    return ymd;
-  }
-  return `${ymd} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const includeTime = withTime ?? raw.includes("T");
+  return includeTime ? `${ymd} ${pad(date.getHours())}:${pad(date.getMinutes())}` : ymd;
 }
 
-function enumOptions(field: Field): FieldOption[] {
-  return Array.isArray(field.options) ? (field.options as FieldOption[]) : [];
+function formatNumber(value: unknown, field: Field): string {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric)) {
+    return String(value);
+  }
+  const options = numberOptions(field);
+  const decimals =
+    typeof options?.decimals === "number" &&
+    Number.isInteger(options.decimals) &&
+    options.decimals >= 0 &&
+    options.decimals <= 6
+      ? options.decimals
+      : null;
+  const normalized = Object.is(numeric, -0) ? 0 : numeric;
+  const text = decimals === null ? String(normalized) : normalized.toFixed(decimals);
+  if (options?.percent) {
+    return `${text}%`;
+  }
+  const unit = typeof options?.unit === "string" ? options.unit.trim() : "";
+  return unit ? `${text} ${unit}` : text;
+}
+
+function findOption(field: Field, value: unknown): FieldOption | undefined {
+  return enumItems(field).find((item) => item.value === value);
+}
+
+function isBlank(value: unknown): boolean {
+  return value === null || value === undefined || value === "";
 }
 
 export function Cell({ field, value, onOpenRelation }: CellProps) {
-  if (value === null || value === undefined || value === "") {
+  const blank = isBlank(value);
+
+  // 数字列（number 与产出数字的计算字段）始终右对齐占位，空值也不破坏列宽。
+  if (isNumericField(field)) {
+    return <span className="cell-number">{blank ? "" : formatNumber(value, field)}</span>;
+  }
+
+  if (blank) {
     return <span />;
   }
 
+  if (typeof value === "boolean") {
+    return (
+      <EnumTag
+        option={{
+          value: String(value),
+          label: value ? "是" : "否",
+          tone: value ? "success" : "neutral",
+        }}
+        fallback={String(value)}
+      />
+    );
+  }
+
   switch (field.type) {
-    case "number":
-      return <span className="cell-nowrap">{String(value)}</span>;
-    case "datetime":
-      return <span>{formatDateTime(String(value))}</span>;
+    case "datetime": {
+      const options = optionObject<DatetimeOptions>(field.options);
+      return <span>{formatDateTime(String(value), options?.with_time)}</span>;
+    }
     case "enum": {
-      const option = enumOptions(field).find((item) => item.value === value);
-      return <span className="cell-nowrap">{option?.label ?? String(value)}</span>;
+      const option = findOption(field, value);
+      return (
+        <span className="cell-nowrap">
+          <EnumTag option={option} fallback={String(value)} />
+        </span>
+      );
     }
     case "relation": {
       const ids = Array.isArray(value) ? value.map(String) : [];
       if (ids.length === 0) {
         return <span />;
       }
-      const target = (field.options as { table_id?: string } | null)?.table_id;
+      const target = optionObject<RelationOptions>(field.options)?.table_id;
       return (
         <span className="cell-nowrap">
           {ids.map((id, index) => (
