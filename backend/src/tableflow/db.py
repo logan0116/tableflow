@@ -39,7 +39,7 @@ CREATE INDEX IF NOT EXISTS idx_row_records_table ON row_records (table_id, id);
 def connect_write(path: Path) -> sqlite3.Connection:
     """写连接：建库、WAL、外键。仅导入脚本使用。"""
     path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path)
+    conn = sqlite3.connect(path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
@@ -52,13 +52,13 @@ def connect_readonly(path: Path) -> sqlite3.Connection:
         raise FileNotFoundError(f"数据库不存在：{path}")
 
     try:
-        conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True, check_same_thread=False)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA query_only=ON")
         conn.execute("SELECT count(*) FROM projects").fetchone()
     except sqlite3.OperationalError:
         # WAL 模式下 -shm 不存在时 mode=ro 打不开；退化为 query_only。
-        conn = sqlite3.connect(path)
+        conn = sqlite3.connect(path, check_same_thread=False)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA query_only=ON")
 
