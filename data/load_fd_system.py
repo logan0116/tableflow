@@ -55,13 +55,18 @@ TABLES = [
         ],
         "rows": [
             ("v-700", {"v-ver": "7.0.0", "v-status": "released"}),
-            ("v-701", {"v-ver": "7.0.1", "v-date": "2026-11-10T00:00:00+08:00", "v-status": "planned"}),
+            ("v-701", {
+                "v-ver": "7.0.1",
+                "v-date": "2026-11-10T00:00:00+08:00",
+                "v-status": "planned",
+                "v-indep": ["fd-ud-04"],
+                "v-dep": ["fd-ud-01", "fd-ud-02", "fd-ud-03"],
+            }),
             ("v-702", {"v-ver": "7.0.2", "v-date": "2026-11-20T00:00:00+08:00", "v-status": "planned"}),
             ("v-710", {
                 "v-ver": "7.1.0",
                 "v-date": "2026-11-30T00:00:00+08:00",
                 "v-status": "planned",
-                "v-dep": ["fd-ud-01", "fd-ud-02", "fd-ud-03"],
             }),
         ],
     },
@@ -101,12 +106,12 @@ TABLES = [
             ("d-version", "所属版本", "relation", {"table_id": "fd-ver"}),
         ],
         "rows": [
-            ("fd-ud-03", {"d-id": "UD-03", "d-clause": "界面推荐案例更新", "d-version": ["v-710"]}),
-            ("fd-ud-02", {"d-id": "UD-02", "d-clause": "embedding 更新", "d-version": ["v-710"]}),
+            ("fd-ud-03", {"d-id": "UD-03", "d-clause": "界面推荐案例更新", "d-version": ["v-701"]}),
+            ("fd-ud-02", {"d-id": "UD-02", "d-clause": "embedding 更新", "d-version": ["v-701"]}),
             ("fd-ud-01", {
                 "d-id": "UD-01",
                 "d-clause": "基于新版本知识图谱的图谱相关 skill 的更新",
-                "d-version": ["v-710"],
+                "d-version": ["v-701"],
             }),
         ],
     },
