@@ -166,3 +166,7 @@ td.empty {
   background: #ffffff;
   cursor: pointer;
 }
+
+.cell-nowrap {
+  white-space: nowrap;
+}
