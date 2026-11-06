@@ -69,7 +69,11 @@ cd frontend && npm run dev
 3. 删除该字段定义，刷新页面，期望：该列消失，其余列正常
 4. 把某字段 `visible` 置 0，刷新，期望：该列不显示，但数据仍在库中
 
+注意：不要重跑 `seed_data.py`，它会全量替换三张表并覆盖上面的手工改动。
+
 ### V4 — 边界情形
+
+先用规模数据跑一遍：`uv run python scripts/seed_data.py --projects 20 --rows 500 --db ../data/tableflow.db`，再逐条验证：
 
 - 空单元格：不出现 `null` / `undefined` / `NaN`
 - 未知 `type`：该列按纯文本显示，页面不报错
