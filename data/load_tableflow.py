@@ -7,6 +7,7 @@
     backend/.venv/bin/python data/load_tableflow.py
 
 v0.3.0：行 id 使用业务编号；行写入顺序按依赖（独立需求先于版本）。
+计算字段（003）由写侧算好落库，行数据不再手写开发进度 / Bug / 发布条件。
 """
 
 from __future__ import annotations
@@ -39,7 +40,7 @@ ROWS = {
             "tf-i-specify": "完成",
             "tf-i-plan": "完成",
             "tf-i-task": "完成",
-            "tf-i-implement": "进行中（34/36）",
+            "tf-i-implement": "done",
             "tf-i-clarify": "done",
             "tf-i-analyze": "done",
             "tf-i-checklist": "done",
@@ -54,6 +55,8 @@ ROWS = {
         ("v0.1.0", {
             "tf-v-ver": "v0.1.0",
             "tf-v-status": "dropped",
+            "tf-v-bug-open": 0,
+            "tf-v-doc": "na",
             "tf-v-note": "单表只读看板（已被 v0.2.0 取代）",
         }),
         ("v0.2.0", {
@@ -61,16 +64,15 @@ ROWS = {
             "tf-v-date": "2026-11-30T00:00:00+08:00",
             "tf-v-status": "planned",
             "tf-v-indep": ["001-AR"],
-            "tf-v-dev": "34/36 任务完成",
             "tf-v-test": "pytest 27 passed",
-            "tf-v-bug": "—",
-            "tf-v-doc": "README / quickstart 已更新",
-            "tf-v-cond": "T034/T035 性能验收通过",
+            "tf-v-bug-open": 0,
+            "tf-v-doc": "done",
             "tf-v-note": "多维表格：项目→多表 + relation 关联 + Agent 写接口",
         }),
     ],
 }
 
+FIELD_ORDER = ["tf-indep", "tf-dep", "tf-ver"]
 ROW_ORDER = ["tf-indep", "tf-dep", "tf-ver"]
 
 
@@ -98,9 +100,11 @@ def run(client: httpx.Client, *, strict: bool = False) -> None:
     for table in TABLES:
         call(client, "POST", f"/api/agent/projects/{PROJECT_ID}/tables",
              {"id": table["id"], "name": table["name"], "order": table["order"]}, strict=strict)
-    for table in TABLES:
+    table_by_id = {table["id"]: table for table in TABLES}
+    for table_id in FIELD_ORDER:
+        table = table_by_id[table_id]
         for field_id, name, field_type, options in table["fields"]:
-            call(client, "POST", f"/api/agent/tables/{table['id']}/fields",
+            call(client, "POST", f"/api/agent/tables/{table_id}/fields",
                  {"id": field_id, "name": name, "type": field_type, "options": options}, strict=strict)
     for table_id in ROW_ORDER:
         for row_id, values in ROWS.get(table_id, []):

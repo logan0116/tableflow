@@ -6,6 +6,7 @@
 
 v0.3.0：行 id 使用业务编号（002-AR / v0.3.0 / DEP-01-BR）；
 依赖变更需求表不再写「所属版本」；独立规格需求补齐 clarify/analyze/checklist 三态与治理字段。
+计算字段（003）：v0.3.0 的开发进度 / 发布条件由写侧按关联需求与回归/Bug/文档状态算出。
 """
 
 from __future__ import annotations
@@ -28,12 +29,14 @@ SPECS = [
         "tf-i-id": "002-AR",
         "tf-i-clause": "字段体系与关联",
         "tf-i-dir": "specs/002-field-system",
-        "tf-i-status": "待启动",
+        "tf-i-scenes": 5,
+        "tf-i-tasks": 12,
+        "tf-i-status": "实现中",
         "tf-i-constitution": "未开始",
         "tf-i-specify": "未开始",
         "tf-i-plan": "未开始",
         "tf-i-task": "未开始",
-        "tf-i-implement": "未开始",
+        "tf-i-implement": "done",
         "tf-i-clarify": "done",
         "tf-i-analyze": "doing",
         "tf-i-checklist": "todo",
@@ -45,12 +48,14 @@ SPECS = [
         "tf-i-id": "003-AR",
         "tf-i-clause": "计算字段与发布判定",
         "tf-i-dir": "specs/003-calculated-fields",
-        "tf-i-status": "阻塞：需先修订宪法",
+        "tf-i-scenes": 4,
+        "tf-i-tasks": 10,
+        "tf-i-status": "实现中",
         "tf-i-constitution": "未开始",
         "tf-i-specify": "未开始",
         "tf-i-plan": "未开始",
         "tf-i-task": "未开始",
-        "tf-i-implement": "未开始",
+        "tf-i-implement": "doing",
         "tf-i-clarify": "todo",
         "tf-i-analyze": "todo",
         "tf-i-checklist": "todo",
@@ -62,12 +67,14 @@ SPECS = [
         "tf-i-id": "004-AR",
         "tf-i-clause": "界面体验",
         "tf-i-dir": "specs/004-ui-polish",
-        "tf-i-status": "待启动",
+        "tf-i-scenes": 3,
+        "tf-i-tasks": 8,
+        "tf-i-status": "实现中",
         "tf-i-constitution": "未开始",
         "tf-i-specify": "未开始",
         "tf-i-plan": "未开始",
         "tf-i-task": "未开始",
-        "tf-i-implement": "未开始",
+        "tf-i-implement": "todo",
         "tf-i-clarify": "todo",
         "tf-i-analyze": "todo",
         "tf-i-checklist": "todo",
@@ -82,6 +89,9 @@ VERSION = ("v0.3.0", {
     "tf-v-date": "2026-12-15T00:00:00+08:00",
     "tf-v-status": "planned",
     "tf-v-indep": ["002-AR", "003-AR", "004-AR"],
+    "tf-v-dep": ["DEP-01-BR"],
+    "tf-v-bug-open": 0,
+    "tf-v-doc": "doing",
     "tf-v-note": "字段体系 + 计算字段 + 界面体验",
 })
 
@@ -91,7 +101,7 @@ DEP = ("DEP-01-BR", {
     "tf-d-spec": "constitution.md",
     "tf-d-indep": ["003-AR"],
     "tf-d-impact": "003 全部；004 的状态色依赖 002 的 tone 字段",
-    "tf-d-regress": "未开始",
+    "tf-d-regress": "passed",
     "tf-d-status": "待办",
 })
 
@@ -120,6 +130,9 @@ def run(client: httpx.Client, *, strict: bool = False) -> None:
     removed = 0
     for index in range(1, 22):
         row_id = f"TF-{index:02d}"
+        exists = client.get(f"/api/tables/tf-indep/rows/{row_id}")
+        if exists.status_code != 200:
+            continue
         result = call(client, "DELETE", f"/api/agent/tables/tf-indep/rows/{row_id}", quiet=True)
         if result.get("result") == "success":
             removed += 1
@@ -127,8 +140,9 @@ def run(client: httpx.Client, *, strict: bool = False) -> None:
 
     for row_id, values in SPECS:
         call(client, "POST", f"/api/agent/tables/tf-indep/rows/{row_id}", {"values": values}, strict=strict)
-    call(client, "POST", f"/api/agent/tables/tf-ver/rows/{VERSION[0]}", {"values": VERSION[1]}, strict=strict)
+    # 依赖需求先于版本写入：版本表的 v-dep 是唯一挂载点，relation_must_exist 要求目标行已存在。
     call(client, "POST", f"/api/agent/tables/tf-dep/rows/{DEP[0]}", {"values": DEP[1]}, strict=strict)
+    call(client, "POST", f"/api/agent/tables/tf-ver/rows/{VERSION[0]}", {"values": VERSION[1]}, strict=strict)
 
     print("完成：3 个 spec + 1 个版本 + 1 条依赖需求")
 

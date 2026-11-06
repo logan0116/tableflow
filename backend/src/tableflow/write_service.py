@@ -7,6 +7,10 @@ v0.3.0（002）：
 - 字段 options 结构化校验：enum tone、number 格式、datetime with_time、relation 同项目/单向、constraints。
 - 行 id 为业务编号（`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`），表内唯一、创建后不可变。
 - 字段级约束在落库前校验；失败不落库，只留失败审计。
+
+v0.3.0（003）：
+- 新增 `type=computed`：配置在字段创建/更新时校验，值由 `calculation` 在写事务内重算并落库。
+- 计算字段不接受直接写入；行 PATCH 支持 `overrides`（人工覆盖，带原因、可清除）。
 """
 
 from __future__ import annotations
@@ -18,21 +22,16 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
+from . import calculation
+from .errors import WriteError
+
 TZ = timezone(timedelta(hours=8))
-FIELD_TYPES = {"text", "number", "datetime", "enum", "relation"}
+FIELD_TYPES = {"text", "number", "datetime", "enum", "relation", "computed"}
 TONES = {"neutral", "info", "success", "warning", "danger"}
 ORIGINS = {"agent", "human-request", "seed"}
 CONSTRAINT_KEYS = {"required", "min", "max", "enum_strict", "relation_must_exist"}
 ROW_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 ORDER_MAX = 100000
-
-
-class WriteError(Exception):
-    """业务校验或数据库错误；`unknown=True` 表示提交结果未知。"""
-
-    def __init__(self, message: str, *, unknown: bool = False) -> None:
-        super().__init__(message)
-        self.unknown = unknown
 
 
 def _now() -> str:
@@ -316,6 +315,11 @@ def _validate_options(
         _validate_constraints_spec(options, field_type)
         return options
 
+    if field_type == "computed":
+        return calculation.validate_computed_options(
+            conn, table_id, options, field_id=field_id
+        )
+
     if field_type == "relation":
         if not isinstance(options, dict) or not isinstance(options.get("table_id"), str):
             raise WriteError('relation 的 options 必须形如 {"table_id": "..."}')
@@ -370,6 +374,7 @@ def delete_project(conn: sqlite3.Connection, project_id: str) -> str:
         for row in conn.execute("SELECT id FROM tables WHERE project_id = ?", (project_id,)).fetchall()
     ]
     for table_id in table_ids:
+        calculation.delete_values_for_table(conn, table_id)
         conn.execute("DELETE FROM business_changes WHERE table_id = ?", (table_id,))
         conn.execute("DELETE FROM row_records WHERE table_id = ?", (table_id,))
         conn.execute("DELETE FROM fields WHERE table_id = ?", (table_id,))
@@ -417,6 +422,11 @@ def update_table(conn: sqlite3.Connection, table_id: str, body: dict[str, Any]) 
 def delete_table(conn: sqlite3.Connection, table_id: str) -> str:
     if conn.execute("SELECT 1 FROM tables WHERE id = ?", (table_id,)).fetchone() is None:
         raise WriteError("表格不存在")
+    references = calculation.relations_to_table(conn, table_id)
+    if references:
+        names = "、".join(f"{ref['table_id']}.{ref['name']}" for ref in references)
+        raise WriteError(f"表格仍被 relation 字段引用，请先删除：{names}")
+    calculation.delete_values_for_table(conn, table_id)
     conn.execute("DELETE FROM business_changes WHERE table_id = ?", (table_id,))
     conn.execute("DELETE FROM row_records WHERE table_id = ?", (table_id,))
     conn.execute("DELETE FROM fields WHERE table_id = ?", (table_id,))
@@ -426,15 +436,24 @@ def delete_table(conn: sqlite3.Connection, table_id: str) -> str:
 
 # ---------- 字段 ----------
 
-def create_field(conn: sqlite3.Connection, table_id: str, body: dict[str, Any]) -> str:
+def create_field(
+    conn: sqlite3.Connection,
+    table_id: str,
+    body: dict[str, Any],
+    *,
+    actor: str = "-",
+    origin: str = "agent",
+) -> str:
     if conn.execute("SELECT 1 FROM tables WHERE id = ?", (table_id,)).fetchone() is None:
         raise WriteError("表格不存在")
     name = _require_name(body)
     field_type = body.get("type")
     if field_type not in FIELD_TYPES:
         raise WriteError(f"type 必须是 {sorted(FIELD_TYPES)} 之一")
-    options = _validate_options(conn, table_id, field_type, body.get("options"))
     field_id = body.get("id") or f"f-{uuid.uuid4().hex[:8]}"
+    options = _validate_options(
+        conn, table_id, field_type, body.get("options"), field_id=field_id
+    )
     order = body.get("order")
     if order is None:
         order = _next_order(
@@ -458,10 +477,19 @@ def create_field(conn: sqlite3.Connection, table_id: str, body: dict[str, Any]) 
             visible,
         ),
     )
+    if field_type == "computed":
+        calculation.recompute_table(conn, table_id, actor=actor, origin=origin)
     return field_id
 
 
-def update_field(conn: sqlite3.Connection, field_id: str, body: dict[str, Any]) -> str:
+def update_field(
+    conn: sqlite3.Connection,
+    field_id: str,
+    body: dict[str, Any],
+    *,
+    actor: str = "-",
+    origin: str = "agent",
+) -> str:
     field = conn.execute(
         "SELECT table_id, type, options FROM fields WHERE id = ?", (field_id,)
     ).fetchone()
@@ -472,6 +500,12 @@ def update_field(conn: sqlite3.Connection, field_id: str, body: dict[str, Any]) 
         field_type = body.get("type", field["type"])
         if field_type not in FIELD_TYPES:
             raise WriteError(f"type 必须是 {sorted(FIELD_TYPES)} 之一")
+        if field["type"] == "computed" and field_type != "computed":
+            references = calculation.references_to_field(conn, field_id)
+            if references:
+                names = "、".join(ref["name"] for ref in references)
+                raise WriteError(f"字段仍被计算字段引用，不能改为非计算字段：{names}")
+            calculation.delete_values_for_field(conn, field_id)
         options = body["options"] if "options" in body else _loads(field["options"])
         options = _validate_options(
             conn, field["table_id"], field_type, options, field_id=field_id
@@ -497,13 +531,46 @@ def update_field(conn: sqlite3.Connection, field_id: str, body: dict[str, Any]) 
             "UPDATE fields SET visible = ? WHERE id = ?",
             (_require_visible(body["visible"]), field_id),
         )
+    # 被引用字段的类型/options 变化后，重新校验引用它的计算字段配置。
+    for reference in calculation.references_to_field(conn, field_id):
+        computed_field = conn.execute(
+            "SELECT table_id, options FROM fields WHERE id = ?", (reference["field_id"],)
+        ).fetchone()
+        if computed_field is None:
+            continue
+        calculation.validate_computed_options(
+            conn,
+            computed_field["table_id"],
+            _loads(computed_field["options"]),
+            field_id=reference["field_id"],
+        )
+    calculation.recompute_for_write(
+        conn, field["table_id"], actor=actor, origin=origin
+    )
     return field_id
 
 
-def delete_field(conn: sqlite3.Connection, field_id: str) -> str:
-    if conn.execute("SELECT 1 FROM fields WHERE id = ?", (field_id,)).fetchone() is None:
+def delete_field(
+    conn: sqlite3.Connection,
+    field_id: str,
+    *,
+    actor: str = "-",
+    origin: str = "agent",
+) -> str:
+    field = conn.execute(
+        "SELECT table_id, name FROM fields WHERE id = ?", (field_id,)
+    ).fetchone()
+    if field is None:
         raise WriteError("字段不存在")
+    references = calculation.references_to_field(conn, field_id)
+    if references:
+        names = "、".join(ref["name"] for ref in references)
+        raise WriteError(f"字段仍被计算字段引用，不能删除：{names}")
+    calculation.delete_values_for_field(conn, field_id)
     conn.execute("DELETE FROM fields WHERE id = ?", (field_id,))
+    calculation.recompute_for_write(
+        conn, field["table_id"], actor=actor, origin=origin
+    )
     return field_id
 
 
@@ -573,6 +640,9 @@ def _validate_values(
     unknown = set(values) - set(fields)
     if unknown:
         raise WriteError(f"未知字段键：{sorted(unknown)}")
+    computed_keys = [key for key, field in fields.items() if field["type"] == "computed" and key in values]
+    if computed_keys:
+        raise WriteError(f"计算字段不能直接写入：{sorted(computed_keys)}")
     for key, value in values.items():
         field = fields[key]
         if field["type"] != "relation":
@@ -685,6 +755,7 @@ def create_row(
         fields=fields,
         values=values,
     )
+    calculation.recompute_for_write(conn, table_id, actor=actor, origin=origin)
     return row_id
 
 
@@ -704,7 +775,7 @@ def update_row(
     ).fetchone()
     if row is None:
         raise WriteError("行不存在")
-    values = body.get("values")
+    values = body.get("values") or {}
     if not isinstance(values, dict):
         raise WriteError("values 必须是对象")
     fields = _fields_map(conn, table_id)
@@ -733,6 +804,17 @@ def update_row(
         "UPDATE row_records SET data = ? WHERE table_id = ? AND id = ?",
         (json.dumps(merged, ensure_ascii=False), table_id, row_id),
     )
+    calculation.recompute_for_write(conn, table_id, actor=actor, origin=origin)
+    if "overrides" in body:
+        calculation.apply_overrides(
+            conn,
+            table_id,
+            row_id,
+            body["overrides"],
+            fields,
+            actor=actor,
+            origin=origin,
+        )
     return row_id
 
 
@@ -766,5 +848,7 @@ def delete_row(
             new_value=None,
             change_kind="delete",
         )
+    calculation.delete_values_for_row(conn, table_id, row_id)
     conn.execute("DELETE FROM row_records WHERE table_id = ? AND id = ?", (table_id, row_id))
+    calculation.recompute_for_write(conn, table_id, actor=actor, origin=origin)
     return row_id

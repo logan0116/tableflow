@@ -13,7 +13,7 @@ from typing import Any
 from fastapi import Body, Depends, FastAPI, Header, Query, Request
 from fastapi.responses import JSONResponse
 
-from . import db, repository, write_service
+from . import calculation, db, repository, write_service
 from .config import db_path
 from .schemas import ChangesOut, ProjectsOut, RowDetailOut, TableOut
 
@@ -144,6 +144,8 @@ def _handle(
         status = 503 if exc.unknown else 400
         kind = "unknown" if exc.unknown else "failed"
         return JSONResponse(status_code=status, content={"result": kind, "error": str(exc)})
+    if isinstance(result, dict):
+        return {"result": "success", **result}
     return {"result": "success", "id": result}
 
 
@@ -213,7 +215,9 @@ def agent_create_field(
     conn: sqlite3.Connection = Depends(get_write_conn),
 ):
     return _handle(conn, x_agent_id, origin, "field.create", table_id, body,
-                   lambda: write_service.create_field(conn, table_id, body))
+                   lambda: write_service.create_field(
+                       conn, table_id, body, actor=x_agent_id or "-", origin=origin
+                   ))
 
 
 @app.patch("/api/agent/fields/{field_id}")
@@ -225,7 +229,9 @@ def agent_update_field(
     conn: sqlite3.Connection = Depends(get_write_conn),
 ):
     return _handle(conn, x_agent_id, origin, "field.update", field_id, body,
-                   lambda: write_service.update_field(conn, field_id, body))
+                   lambda: write_service.update_field(
+                       conn, field_id, body, actor=x_agent_id or "-", origin=origin
+                   ))
 
 
 @app.delete("/api/agent/fields/{field_id}")
@@ -236,7 +242,29 @@ def agent_delete_field(
     conn: sqlite3.Connection = Depends(get_write_conn),
 ):
     return _handle(conn, x_agent_id, origin, "field.delete", field_id, None,
-                   lambda: write_service.delete_field(conn, field_id))
+                   lambda: write_service.delete_field(
+                       conn, field_id, actor=x_agent_id or "-", origin=origin
+                   ))
+
+
+@app.post("/api/agent/tables/{table_id}/recompute")
+def agent_recompute_table(
+    table_id: str,
+    x_agent_id: str | None = Header(default=None, alias="X-Agent-Id"),
+    origin: str = Depends(origin_header),
+    conn: sqlite3.Connection = Depends(get_write_conn),
+):
+    return _handle(
+        conn,
+        x_agent_id,
+        origin,
+        "table.recompute",
+        table_id,
+        None,
+        lambda: calculation.recompute_table_and_dependents(
+            conn, table_id, actor=x_agent_id or "-", origin=origin
+        ),
+    )
 
 
 @app.post("/api/agent/tables/{table_id}/rows/{row_id}")

@@ -5,7 +5,9 @@
     backend/.venv/bin/python data/load_fd_system.py
 
 v0.3.0：行 id 使用业务编号；依赖变更需求表删除「所属版本」；enum 选项带 tone。
-行写入顺序按依赖：独立需求 → 依赖需求 → 版本（relation 目标行先存在）。
+计算字段（003）：开发进度 / Bug已清空 / 回归通过 / 发布条件 / 依赖需求数 / 场景与任务总数由写侧计算。
+写入顺序按依赖：先建独立需求字段，再建依赖需求字段，最后建版本字段（计算字段引用目标表字段）；
+行写入顺序：独立需求 → 依赖需求 → 版本（relation 目标行先存在）。
 """
 
 from __future__ import annotations
@@ -28,38 +30,65 @@ TABLES = build_tables("fd", "")
 # 行 id 即业务编号（与「编号」「版本号」列一致）。
 ROWS = {
     "fd-indep": [
-        ("UD-04-AR", {"i-id": "UD-04-AR", "i-clause": "安装脚本更新"}),
+        ("UD-04-AR", {
+            "i-id": "UD-04-AR",
+            "i-clause": "安装脚本更新",
+            "i-scenes": 3,
+            "i-tasks": 8,
+            "i-implement": "done",
+        }),
     ],
     "fd-dep": [
         ("UD-01-BR", {
             "d-id": "UD-01-BR",
             "d-clause": "基于新版本知识图谱的图谱相关 skill 的更新",
+            "d-regress": "passed",
         }),
-        ("UD-02-BR", {"d-id": "UD-02-BR", "d-clause": "embedding 更新"}),
-        ("UD-03-BR", {"d-id": "UD-03-BR", "d-clause": "界面推荐案例更新"}),
+        ("UD-02-BR", {
+            "d-id": "UD-02-BR",
+            "d-clause": "embedding 更新",
+            "d-regress": "passed",
+        }),
+        ("UD-03-BR", {
+            "d-id": "UD-03-BR",
+            "d-clause": "界面推荐案例更新",
+            "d-regress": "passed",
+        }),
     ],
     "fd-ver": [
-        ("7.0.0", {"v-ver": "7.0.0", "v-status": "released"}),
+        ("7.0.0", {
+            "v-ver": "7.0.0",
+            "v-status": "released",
+            "v-bug-open": 0,
+            "v-doc": "done",
+        }),
         ("7.0.1", {
             "v-ver": "7.0.1",
             "v-date": "2026-11-10T00:00:00+08:00",
             "v-status": "planned",
             "v-indep": ["UD-04-AR"],
             "v-dep": ["UD-01-BR", "UD-02-BR", "UD-03-BR"],
+            "v-bug-open": 2,
+            "v-doc": "doing",
         }),
         ("7.0.2", {
             "v-ver": "7.0.2",
             "v-date": "2026-11-20T00:00:00+08:00",
             "v-status": "planned",
+            "v-bug-open": 0,
+            "v-doc": "todo",
         }),
         ("7.1.0", {
             "v-ver": "7.1.0",
             "v-date": "2026-11-30T00:00:00+08:00",
             "v-status": "planned",
+            "v-bug-open": 0,
+            "v-doc": "todo",
         }),
     ],
 }
 
+FIELD_ORDER = ["fd-indep", "fd-dep", "fd-ver"]
 ROW_ORDER = ["fd-indep", "fd-dep", "fd-ver"]
 
 
@@ -87,10 +116,12 @@ def run(client: httpx.Client, *, strict: bool = False) -> None:
     for table in TABLES:
         call(client, "POST", f"/api/agent/projects/{PROJECT_ID}/tables",
              {"id": table["id"], "name": table["name"], "order": table["order"]}, strict=strict)
-    for table in TABLES:
+    table_by_id = {table["id"]: table for table in TABLES}
+    for table_id in FIELD_ORDER:
+        table = table_by_id[table_id]
         print(f"表：{table['name']}")
         for field_id, name, field_type, options in table["fields"]:
-            call(client, "POST", f"/api/agent/tables/{table['id']}/fields",
+            call(client, "POST", f"/api/agent/tables/{table_id}/fields",
                  {"id": field_id, "name": name, "type": field_type, "options": options}, strict=strict)
     for table_id in ROW_ORDER:
         for row_id, values in ROWS.get(table_id, []):
