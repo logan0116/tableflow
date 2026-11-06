@@ -67,8 +67,8 @@ def test_full_write_flow(env):
     assert field.json()["result"] == "success"
 
     row = client.post(
-        "/api/agent/tables/t-eq/rows",
-        json={"id": "r-1", "values": {"f-name": "CNC-01"}},
+        "/api/agent/tables/t-eq/rows/r-1",
+        json={"values": {"f-name": "CNC-01"}},
         headers=HEADERS,
     )
     assert row.json()["result"] == "success"
@@ -93,8 +93,8 @@ def test_relation_field_requires_same_project(env):
 def test_validation_failure_does_not_write(env):
     client, _ = env
     bad = client.post(
-        "/api/agent/tables/t-staff/rows",
-        json={"id": "r-x", "values": {"unknown": "x"}},
+        "/api/agent/tables/t-staff/rows/r-x",
+        json={"values": {"unknown": "x"}},
         headers=HEADERS,
     )
     assert bad.status_code == 400
@@ -112,7 +112,7 @@ def test_missing_agent_header_rejected(env):
 def test_audit_records_every_write(env):
     client, db = env
     client.post("/api/agent/projects/p/tables", json={"id": "t-eq", "name": "设备"}, headers=HEADERS)
-    client.post("/api/agent/tables/t-eq/rows", json={"values": {"unknown": 1}}, headers=HEADERS)
+    client.post("/api/agent/tables/t-eq/rows/r-x", json={"values": {"unknown": 1}}, headers=HEADERS)
     rows = _audit_rows(db)
     assert len(rows) == 2
     assert rows[0][0] == "agent-test"
@@ -130,7 +130,7 @@ def test_delete_table_cascades(env):
         json={"id": "f1", "name": "设备名", "type": "text"},
         headers=HEADERS,
     )
-    client.post("/api/agent/tables/t-eq/rows", json={"id": "r1", "values": {"f1": "x"}}, headers=HEADERS)
+    client.post("/api/agent/tables/t-eq/rows/r1", json={"values": {"f1": "x"}}, headers=HEADERS)
     deleted = client.delete("/api/agent/tables/t-eq", headers=HEADERS)
     assert deleted.json()["result"] == "success"
     assert client.get("/api/tables/t-eq/table").status_code == 404
@@ -146,11 +146,15 @@ def test_delete_table_cascades(env):
 def test_update_row_merges_values(env):
     client, _ = env
     client.post(
-        "/api/agent/tables/t-staff/rows",
-        json={"id": "r-9", "values": {"s1": "旧"}},
+        "/api/agent/tables/t-staff/rows/r-9",
+        json={"values": {"s1": "旧"}},
         headers=HEADERS,
     )
-    client.patch("/api/agent/rows/r-9", json={"values": {"s1": "新"}}, headers=HEADERS)
+    client.patch(
+        "/api/agent/tables/t-staff/rows/r-9",
+        json={"values": {"s1": "新"}},
+        headers=HEADERS,
+    )
     table = client.get("/api/tables/t-staff/table").json()
     values = {row["id"]: row["values"] for row in table["rows"]}
     assert values["r-9"]["s1"] == "新"
@@ -161,7 +165,7 @@ def test_delete_project_cascades(env):
     created = client.post("/api/agent/projects", json={"id": "p2", "name": "二"}, headers=HEADERS)
     assert created.json()["result"] == "success"
     client.post("/api/agent/projects/p2/tables", json={"id": "t2", "name": "表"}, headers=HEADERS)
-    client.post("/api/agent/tables/t2/rows", json={"id": "r2", "values": {}}, headers=HEADERS)
+    client.post("/api/agent/tables/t2/rows/r2", json={"values": {}}, headers=HEADERS)
 
     deleted = client.delete("/api/agent/projects/p2", headers=HEADERS)
     assert deleted.json()["result"] == "success"

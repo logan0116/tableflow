@@ -13,6 +13,7 @@ from typing import Any
 from .db import connect_write, init_schema
 
 KNOWN_TYPES = {"text", "number", "datetime", "enum", "relation"}
+TONES = {"neutral", "info", "success", "warning", "danger"}
 
 
 class SeedError(ValueError):
@@ -73,12 +74,24 @@ def validate_seed(data: dict[str, Any]) -> None:
                 if field.get("visible", 1) not in (0, 1):
                     raise SeedError(f"字段 {fid} 的 visible 只能是 0 或 1")
                 options = field.get("options")
-                if field.get("type") == "enum" and options is not None:
-                    if not isinstance(options, list):
-                        raise SeedError(f"字段 {fid} 的 options 必须是数组")
-                    for option in options:
+                if field.get("type") == "enum":
+                    if isinstance(options, dict):
+                        items = options.get("items")
+                    else:
+                        items = options
+                    if not isinstance(items, list) or not items:
+                        raise SeedError(f"字段 {fid} 的 enum options 必须是非空数组")
+                    seen_values: set[str] = set()
+                    for option in items:
                         if not isinstance(option, dict) or "value" not in option or "label" not in option:
                             raise SeedError(f"字段 {fid} 的 options 项必须含 value 与 label")
+                        if not isinstance(option["value"], str) or not option["value"]:
+                            raise SeedError(f"字段 {fid} 的 options.value 必须是非空字符串")
+                        if option["value"] in seen_values:
+                            raise SeedError(f"字段 {fid} 的 options.value 重复：{option['value']}")
+                        seen_values.add(option["value"])
+                        if option.get("tone") not in TONES:
+                            raise SeedError(f"字段 {fid} 的 options 项必须含合法 tone")
                 if field.get("type") == "relation":
                     if not isinstance(options, dict) or not isinstance(options.get("table_id"), str):
                         raise SeedError(f"字段 {fid} 的 relation options 必须含 table_id")
@@ -117,6 +130,7 @@ def write_seed(db_file: Path, data: dict[str, Any]) -> dict[str, int]:
     conn = connect_write(db_file)
     try:
         init_schema(conn)
+        conn.execute("DELETE FROM business_changes")
         conn.execute("DELETE FROM row_records")
         conn.execute("DELETE FROM fields")
         conn.execute("DELETE FROM tables")
@@ -175,9 +189,9 @@ def build_generated(project_count: int, tables_per_project: int, row_count: int)
     """生成规模数据，用于 SC-006（20项目 / 每项目10表 / 单表500行）验证。"""
     base = datetime(2026, 11, 6, 9, 0, tzinfo=timezone(timedelta(hours=8)))
     statuses = [
-        {"value": "todo", "label": "待办"},
-        {"value": "doing", "label": "进行中"},
-        {"value": "done", "label": "已完成"},
+        {"value": "todo", "label": "待办", "tone": "neutral"},
+        {"value": "doing", "label": "进行中", "tone": "info"},
+        {"value": "done", "label": "已完成", "tone": "success"},
     ]
     data: dict[str, Any] = {"projects": []}
     for p in range(project_count):

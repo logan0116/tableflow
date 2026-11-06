@@ -5,10 +5,13 @@
 
 用法：后端跑起来后执行
     backend/.venv/bin/python data/load_tableflow.py
+
+v0.3.0：行 id 使用业务编号；行写入顺序按依赖（独立需求先于版本）。
 """
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -17,34 +20,15 @@ import httpx
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from template_fd_system import build_tables  # noqa: E402
 
-BASE = "http://127.0.0.1:8000"
-HEADERS = {"X-Agent-Id": "agent-tableflow"}
+BASE = os.environ.get("TABLEFLOW_API_BASE", "http://127.0.0.1:8000")
+HEADERS = {"X-Agent-Id": "agent-tableflow", "X-Origin": "seed"}
 PROJECT_ID = "tableflow"
 
 TABLES = build_tables("tf", "tf")
 
 ROWS = {
-    "tf-ver": [
-        ("tf-v-010", {
-            "tf-v-ver": "v0.1.0",
-            "tf-v-status": "dropped",
-            "tf-v-note": "单表只读看板（已被 v0.2.0 取代）",
-        }),
-        ("tf-v-020", {
-            "tf-v-ver": "v0.2.0",
-            "tf-v-date": "2026-11-30T00:00:00+08:00",
-            "tf-v-status": "planned",
-            "tf-v-indep": ["tf-spec-001"],
-            "tf-v-dev": "34/36 任务完成",
-            "tf-v-test": "pytest 27 passed",
-            "tf-v-bug": "—",
-            "tf-v-doc": "README / quickstart 已更新",
-            "tf-v-cond": "T034/T035 性能验收通过",
-            "tf-v-note": "多维表格：项目→多表 + relation 关联 + Agent 写接口",
-        }),
-    ],
     "tf-indep": [
-        ("tf-spec-001", {
+        ("001-AR", {
             "tf-i-id": "001-AR",
             "tf-i-clause": "多维表格看板",
             "tf-i-dir": "specs/001-readonly-dashboard",
@@ -56,35 +40,77 @@ ROWS = {
             "tf-i-plan": "完成",
             "tf-i-task": "完成",
             "tf-i-implement": "进行中（34/36）",
+            "tf-i-clarify": "done",
+            "tf-i-analyze": "done",
+            "tf-i-checklist": "done",
+            "tf-i-constitution-version": "v5.0.0",
+            "tf-i-acceptance": "accepted",
+            "tf-i-owner": "captain",
+            "tf-i-priority": "P0",
         }),
     ],
     "tf-dep": [],
+    "tf-ver": [
+        ("v0.1.0", {
+            "tf-v-ver": "v0.1.0",
+            "tf-v-status": "dropped",
+            "tf-v-note": "单表只读看板（已被 v0.2.0 取代）",
+        }),
+        ("v0.2.0", {
+            "tf-v-ver": "v0.2.0",
+            "tf-v-date": "2026-11-30T00:00:00+08:00",
+            "tf-v-status": "planned",
+            "tf-v-indep": ["001-AR"],
+            "tf-v-dev": "34/36 任务完成",
+            "tf-v-test": "pytest 27 passed",
+            "tf-v-bug": "—",
+            "tf-v-doc": "README / quickstart 已更新",
+            "tf-v-cond": "T034/T035 性能验收通过",
+            "tf-v-note": "多维表格：项目→多表 + relation 关联 + Agent 写接口",
+        }),
+    ],
 }
 
+ROW_ORDER = ["tf-indep", "tf-dep", "tf-ver"]
 
-def call(method: str, path: str, body: dict | None = None) -> dict:
-    response = httpx.request(method, f"{BASE}{path}", json=body, headers=HEADERS, timeout=10)
+
+def call(
+    client: httpx.Client,
+    method: str,
+    path: str,
+    body: dict | None = None,
+    *,
+    strict: bool = False,
+) -> dict:
+    response = client.request(method, path, json=body, headers=HEADERS)
     data = response.json()
     if data.get("result") != "success":
-        print(f"  ! {method} {path} → {response.status_code} {data}")
+        message = f"{method} {path} → {response.status_code} {data}"
+        if strict:
+            raise RuntimeError(message)
+        print(f"  ! {message}")
     return data
 
 
-def main() -> int:
-    call("POST", "/api/agent/projects", {"id": PROJECT_ID, "name": "tableflow"})
+def run(client: httpx.Client, *, strict: bool = False) -> None:
+    call(client, "POST", "/api/agent/projects", {"id": PROJECT_ID, "name": "tableflow"})
 
     for table in TABLES:
-        call("POST", f"/api/agent/projects/{PROJECT_ID}/tables",
-             {"id": table["id"], "name": table["name"], "order": table["order"]})
+        call(client, "POST", f"/api/agent/projects/{PROJECT_ID}/tables",
+             {"id": table["id"], "name": table["name"], "order": table["order"]}, strict=strict)
     for table in TABLES:
         for field_id, name, field_type, options in table["fields"]:
-            call("POST", f"/api/agent/tables/{table['id']}/fields",
-                 {"id": field_id, "name": name, "type": field_type, "options": options})
-    for table in TABLES:
-        for row_id, values in ROWS.get(table["id"], []):
-            call("POST", f"/api/agent/tables/{table['id']}/rows",
-                 {"id": row_id, "values": values})
+            call(client, "POST", f"/api/agent/tables/{table['id']}/fields",
+                 {"id": field_id, "name": name, "type": field_type, "options": options}, strict=strict)
+    for table_id in ROW_ORDER:
+        for row_id, values in ROWS.get(table_id, []):
+            call(client, "POST", f"/api/agent/tables/{table_id}/rows/{row_id}",
+                 {"values": values}, strict=strict)
 
+
+def main() -> int:
+    with httpx.Client(base_url=BASE, timeout=10) as client:
+        run(client)
     print("完成：tableflow（3 表，结构同 fd_system）")
     return 0
 
