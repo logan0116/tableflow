@@ -102,7 +102,7 @@ DEP = ("DEP-01-BR", {
     "tf-d-spec": "constitution.md",
     "tf-d-indep": ["003-AR"],
     "tf-d-impact": "003 全部；004 的状态色依赖 002 的 tone 字段",
-    "tf-d-regress": "passed",
+    "tf-d-regress": "todo",
     "tf-d-status": "待办",
 })
 

@@ -42,17 +42,17 @@ ROWS = {
         ("UD-01-BR", {
             "d-id": "UD-01-BR",
             "d-clause": "基于新版本知识图谱的图谱相关 skill 的更新",
-            "d-regress": "passed",
+            "d-regress": "todo",
         }),
         ("UD-02-BR", {
             "d-id": "UD-02-BR",
             "d-clause": "embedding 更新",
-            "d-regress": "passed",
+            "d-regress": "todo",
         }),
         ("UD-03-BR", {
             "d-id": "UD-03-BR",
             "d-clause": "界面推荐案例更新",
-            "d-regress": "passed",
+            "d-regress": "todo",
         }),
     ],
     "fd-ver": [

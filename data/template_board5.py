@@ -108,6 +108,7 @@ def build_tables(table_prefix: str, field_prefix: str) -> list[dict]:
                     "field_id": fid("d-regress"),
                     "aggregate": "all",
                     "equals": "passed",
+                    "require": [{"field_id": fid("d-status"), "equals": "已完成"}],
                 }),
                 (fid("v-doc"), "文档状态", "enum", DOC_STATUS),
                 (fid("v-cond"), "发布条件", "computed", {
