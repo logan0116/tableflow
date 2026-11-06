@@ -115,6 +115,16 @@ def _handle(conn: sqlite3.Connection, agent_id: str | None, action: str, target:
     return {"result": "success", "id": result}
 
 
+@app.post("/api/agent/projects")
+def agent_create_project(
+    body: dict[str, Any] = Body(default={}),
+    x_agent_id: str | None = Header(default=None, alias="X-Agent-Id"),
+    conn: sqlite3.Connection = Depends(get_write_conn),
+):
+    return _handle(conn, x_agent_id, "project.create", "-", body,
+                   lambda: write_service.create_project(conn, body))
+
+
 @app.post("/api/agent/projects/{project_id}/tables")
 def agent_create_table(
     project_id: str,

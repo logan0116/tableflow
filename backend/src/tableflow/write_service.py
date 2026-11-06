@@ -96,6 +96,17 @@ def _next_order(conn: sqlite3.Connection, sql: str, params: tuple[Any, ...]) -> 
     return int(row[0] or 0) + 1
 
 
+# ---------- 项目 ----------
+
+def create_project(conn: sqlite3.Connection, body: dict[str, Any]) -> str:
+    name = _require_name(body)
+    project_id = body.get("id") or f"p-{uuid.uuid4().hex[:8]}"
+    if conn.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone():
+        raise WriteError(f"项目 id 已存在：{project_id}")
+    conn.execute("INSERT INTO projects (id, name) VALUES (?, ?)", (project_id, name))
+    return project_id
+
+
 # ---------- 表格 ----------
 
 def create_table(conn: sqlite3.Connection, project_id: str, body: dict[str, Any]) -> str:
