@@ -120,7 +120,7 @@ export function DataTable({
       data-table-id={tableId}
     >
       <div className="table-wrap">
-        <table style={{ width: totalWidth }}>
+        <table style={{ width: totalWidth, minWidth: "100%" }}>
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
