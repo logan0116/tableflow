@@ -6,6 +6,7 @@ interface CellProps {
   field: Field;
   value: unknown;
   onOpenRelation?: (tableId: string, rowId: string) => void;
+  onOpenRelationList?: (tableId: string, rowIds: string[]) => void;
 }
 
 function pad(value: number): string {
@@ -52,7 +53,7 @@ function isBlank(value: unknown): boolean {
   return value === null || value === undefined || value === "";
 }
 
-export function Cell({ field, value, onOpenRelation }: CellProps) {
+export function Cell({ field, value, onOpenRelation, onOpenRelationList }: CellProps) {
   const blank = isBlank(value);
 
   // 数字列（number 与产出数字的计算字段）始终右对齐占位，空值也不破坏列宽。
@@ -97,24 +98,23 @@ export function Cell({ field, value, onOpenRelation }: CellProps) {
       }
       const target = optionObject<RelationOptions>(field.options)?.table_id;
       return (
-        <span className="cell-nowrap">
-          {ids.map((id, index) => (
-            <span key={id}>
-              {index > 0 ? "、" : ""}
-              <button
-                type="button"
-                className="relation-link"
-                onClick={() => {
-                  if (target) {
-                    onOpenRelation?.(target, id);
-                  }
-                }}
-              >
-                {id}
-              </button>
-            </span>
-          ))}
-        </span>
+        <button
+          type="button"
+          className="relation-link cell-nowrap"
+          title={ids.join("、")}
+          onClick={() => {
+            if (!target) {
+              return;
+            }
+            if (onOpenRelationList) {
+              onOpenRelationList(target, ids);
+            } else {
+              onOpenRelation?.(target, ids[0]);
+            }
+          }}
+        >
+          {ids.length === 1 ? ids[0] : `${ids[0]} +${ids.length - 1}`}
+        </button>
       );
     }
     case "text":
