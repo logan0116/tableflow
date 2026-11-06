@@ -6,7 +6,7 @@
 
 ## Summary
 
-v0 交付一块局域网内的只读看板：打开页面、选择项目、看到该项目的当前数据行。列由数据里的字段定义驱动，增删列只改数据、不改代码。后端 FastAPI 暴露两个只读接口，直接读 tableflow 自己的 SQLite（WAL 模式）；前端 React + Vite + TypeScript，用 TanStack Table 承担表格逻辑（headless），表格本体用原生 DOM 渲染。数据由一次性导入脚本从原平台初始化，导入后以 tableflow 为准。
+v0 交付一块局域网内的只读看板：打开页面、选择项目、看到该项目的当前数据行。列由数据里的字段定义驱动，增删列只改数据、不改代码。后端 FastAPI 暴露两个只读接口，直接读 tableflow 自己的 SQLite（WAL 模式）；前端 React + Vite + TypeScript，用 TanStack Table 承担表格逻辑（headless），表格本体用原生 DOM 渲染。数据以最小样例脚本初始化，v0 不迁移原平台存量数据。
 
 ## Technical Context
 
@@ -16,7 +16,7 @@ v0 交付一块局域网内的只读看板：打开页面、选择项目、看�
 
 **Storage**: SQLite（WAL），标准库 sqlite3，不引入 ORM
 
-**Testing**: pytest + httpx（后端接口、导入脚本）；前端不引入测试框架，验收按 quickstart 的场景执行
+**Testing**: pytest + httpx（后端接口、样例脚本）；前端不引入测试框架，验收按 quickstart 的场景执行
 
 **Target Platform**: Linux（本机或局域网服务器），Chrome / Edge 桌面浏览器
 
@@ -26,7 +26,7 @@ v0 交付一块局域网内的只读看板：打开页面、选择项目、看�
 
 **Constraints**: 只读；无任何读缓存；表格必须 DOM 渲染；界面全中文；禁 canvas、禁自研虚拟滚动、禁重型表格库
 
-**Scale/Scope**: ≤20项目、单项目 ≤500行；2个只读接口、1个导入脚本、3个页面组件
+**Scale/Scope**: ≤20项目、单项目 ≤500行；2个只读接口、1个样例脚本、3个页面组件
 
 ## Constitution Check
 
@@ -34,7 +34,7 @@ v0 交付一块局域网内的只读看板：打开页面、选择项目、看�
 
 | 原则 | 本计划的落实方式 | 结论 |
 |---|---|---|
-| I 人只读、Agent 读写 | 路由只有 GET；导入脚本是唯一入数路径；v0 无写接口、无占位路由 | PASS |
+| I 人只读、Agent 读写 | 路由只有 GET；无运行期写路径，仅样例脚本初始化；无写接口占位 | PASS |
 | II 无读缓存 | 接口带 `Cache-Control: no-store`；前端 fetch 不落盘；后端无进程内缓存 | PASS |
 | III Schema 驱动 | fields 表驱动列；前端按 type 通用渲染；代码中无业务列名 | PASS |
 | IV DOM 表格 | 原生 `<table>` + TanStack Table（headless）；无 canvas、无虚拟滚动 | PASS |
@@ -72,10 +72,10 @@ backend/
 │   ├── db.py             # SQLite 连接（WAL、只读）
 │   ├── repository.py     # 项目 / 字段 / 行的只读查询
 │   └── schemas.py        # 响应模型
-├── scripts/import_data.py  # 一次性导入（唯一入数路径）
+├── scripts/seed_data.py    # 样例数据初始化（v0 不迁移存量）
 └── tests/
     ├── test_api.py
-    └── test_import.py
+    └── test_seed.py
 
 frontend/
 ├── package.json
@@ -93,7 +93,7 @@ frontend/
         └── Cell.tsx       # 按 type 渲染：文本/数字/日期时间/枚举
 
 data/
-├── seed.example.json      # 导入样例（14行、四种类型）
+├── seed.example.json      # 样例数据（14行、四种类型）
 └── tableflow.db           # 运行期库（gitignore）
 ```
 
