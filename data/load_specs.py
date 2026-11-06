@@ -16,7 +16,7 @@ HEADERS = {"X-Agent-Id": "agent-tableflow"}
 
 SPECS = [
     ("tf-spec-002", {
-        "tf-i-id": "002",
+        "tf-i-id": "002-AR",
         "tf-i-clause": "字段体系与关联",
         "tf-i-dir": "specs/002-field-system",
         "tf-i-status": "待启动",
@@ -27,7 +27,7 @@ SPECS = [
         "tf-i-implement": "未开始",
     }),
     ("tf-spec-003", {
-        "tf-i-id": "003",
+        "tf-i-id": "003-AR",
         "tf-i-clause": "计算字段与发布判定",
         "tf-i-dir": "specs/003-calculated-fields",
         "tf-i-status": "阻塞：需先修订宪法",
@@ -38,7 +38,7 @@ SPECS = [
         "tf-i-implement": "未开始",
     }),
     ("tf-spec-004", {
-        "tf-i-id": "004",
+        "tf-i-id": "004-AR",
         "tf-i-clause": "界面体验",
         "tf-i-dir": "specs/004-ui-polish",
         "tf-i-status": "待启动",
@@ -59,7 +59,7 @@ VERSION = ("tf-v-030", {
 })
 
 DEP = ("tf-dep-01", {
-    "tf-d-id": "DEP-01",
+    "tf-d-id": "DEP-01-BR",
     "tf-d-clause": "宪法 v6.0.0 修订（计算字段、人经 Agent 写）",
     "tf-d-spec": "constitution.md",
     "tf-d-indep": ["tf-spec-003"],
