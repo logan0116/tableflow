@@ -605,3 +605,41 @@ td.empty-cell {
   color: #cf222e;
   font-size: 12px;
 }
+
+/* 关联条目表 */
+.relation-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.relation-table th {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border-soft, #eaeef2);
+  color: #57606a;
+  font-weight: 600;
+  text-align: left;
+}
+
+.relation-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--color-border-soft, #eaeef2);
+}
+
+.relation-row {
+  cursor: pointer;
+}
+
+.relation-row:hover td {
+  background: #f6f8fa;
+}
+
+.relation-row.is-missing {
+  color: #8c959f;
+  cursor: default;
+}
+
+.relation-row .relation-id {
+  font-weight: 600;
+  white-space: nowrap;
+}

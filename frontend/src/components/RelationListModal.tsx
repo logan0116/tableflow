@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 
 import { fetchTable } from "../api";
+import { displayText, enumItems } from "../field-utils";
 import type { Field, Row } from "../types";
+import { EnumTag } from "./EnumTag";
 
 interface RelationListModalProps {
   tableId: string;
@@ -15,19 +17,31 @@ type ListState =
   | { status: "error"; message: string }
   | { status: "ready"; rows: Map<string, Row>; fields: Field[] };
 
-function labelFor(row: Row | undefined, fields: Field[]): string | null {
-  if (!row) {
-    return null;
+const TITLE_NAMES = ["标题", "条款", "名称", "姓名", "设备", "任务"];
+const STATUS_NAMES = ["状态", "发布状态", "回归状态"];
+
+function pickTitleField(fields: Field[]): Field | null {
+  for (const name of TITLE_NAMES) {
+    const hit = fields.find((field) => field.name === name);
+    if (hit) {
+      return hit;
+    }
   }
-  const textField = fields.find((field) => field.type === "text");
-  if (!textField) {
-    return null;
-  }
-  const value = row.values[textField.id];
-  return typeof value === "string" && value ? value : null;
+  // 退而求其次：第一个不是“编号”的文本字段
+  return fields.find((field) => field.type === "text" && !/编号|id/i.test(field.name)) ?? null;
 }
 
-/** 关联条目列表：点单元格先看列表，再点某条看明细。 */
+function pickStatusField(fields: Field[]): Field | null {
+  for (const name of STATUS_NAMES) {
+    const hit = fields.find((field) => field.name === name);
+    if (hit) {
+      return hit;
+    }
+  }
+  return fields.find((field) => field.type === "enum") ?? null;
+}
+
+/** 关联条目列表：编号 + 标题 + 状态，点一行看明细。 */
 export function RelationListModal({ tableId, rowIds, onPick, onClose }: RelationListModalProps) {
   const [state, setState] = useState<ListState>({ status: "loading" });
 
@@ -67,21 +81,48 @@ export function RelationListModal({ tableId, rowIds, onPick, onClose }: Relation
         ) : state.status === "error" ? (
           <div className="state">读取关联表失败：{state.message}</div>
         ) : (
-          <ul className="relation-list">
-            {rowIds.map((rowId) => {
-              const row = state.rows.get(rowId);
-              const label = labelFor(row, state.fields);
-              return (
-                <li key={rowId}>
-                  <button type="button" onClick={() => onPick(rowId)} disabled={!row}>
-                    <span className="relation-id">{rowId}</span>
-                    {label ? <span className="relation-label">{label}</span> : null}
-                    {row ? null : <span className="relation-missing">关联已失效</span>}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          <table className="relation-table">
+            <thead>
+              <tr>
+                <th>编号</th>
+                <th>标题</th>
+                <th>状态</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rowIds.map((rowId) => {
+                const row = state.rows.get(rowId);
+                const titleField = pickTitleField(state.fields);
+                const statusField = pickStatusField(state.fields);
+                const title = row && titleField ? displayText(titleField, row.values[titleField.id]) : "";
+                const statusValue = row && statusField ? row.values[statusField.id] : null;
+                const statusOption =
+                  statusField && statusValue != null
+                    ? enumItems(statusField).find((item) => item.value === statusValue) ?? null
+                    : null;
+
+                return (
+                  <tr
+                    key={rowId}
+                    className={row ? "relation-row" : "relation-row is-missing"}
+                    onClick={() => {
+                      if (row) {
+                        onPick(rowId);
+                      }
+                    }}
+                  >
+                    <td className="relation-id">{rowId}</td>
+                    <td>{row ? title : "关联已失效"}</td>
+                    <td>
+                      {row && statusField && statusValue != null ? (
+                        <EnumTag option={statusOption} fallback={displayText(statusField, statusValue)} />
+                      ) : null}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         )}
       </div>
     </div>
