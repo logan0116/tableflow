@@ -154,3 +154,22 @@ def test_update_row_merges_values(env):
     table = client.get("/api/tables/t-staff/table").json()
     values = {row["id"]: row["values"] for row in table["rows"]}
     assert values["r-9"]["s1"] == "新"
+
+
+def test_delete_project_cascades(env):
+    client, db = env
+    created = client.post("/api/agent/projects", json={"id": "p2", "name": "二"}, headers=HEADERS)
+    assert created.json()["result"] == "success"
+    client.post("/api/agent/projects/p2/tables", json={"id": "t2", "name": "表"}, headers=HEADERS)
+    client.post("/api/agent/tables/t2/rows", json={"id": "r2", "values": {}}, headers=HEADERS)
+
+    deleted = client.delete("/api/agent/projects/p2", headers=HEADERS)
+    assert deleted.json()["result"] == "success"
+    assert client.get("/api/projects/p2/tables").status_code == 404
+
+    conn = sqlite3.connect(db)
+    try:
+        assert conn.execute("SELECT count(*) FROM tables WHERE project_id='p2'").fetchone()[0] == 0
+        assert conn.execute("SELECT count(*) FROM row_records WHERE table_id='t2'").fetchone()[0] == 0
+    finally:
+        conn.close()

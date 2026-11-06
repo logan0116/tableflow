@@ -107,6 +107,21 @@ def create_project(conn: sqlite3.Connection, body: dict[str, Any]) -> str:
     return project_id
 
 
+def delete_project(conn: sqlite3.Connection, project_id: str) -> str:
+    if conn.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone() is None:
+        raise WriteError("项目不存在")
+    table_ids = [
+        row["id"]
+        for row in conn.execute("SELECT id FROM tables WHERE project_id = ?", (project_id,)).fetchall()
+    ]
+    for table_id in table_ids:
+        conn.execute("DELETE FROM row_records WHERE table_id = ?", (table_id,))
+        conn.execute("DELETE FROM fields WHERE table_id = ?", (table_id,))
+    conn.execute("DELETE FROM tables WHERE project_id = ?", (project_id,))
+    conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+    return project_id
+
+
 # ---------- 表格 ----------
 
 def create_table(conn: sqlite3.Connection, project_id: str, body: dict[str, Any]) -> str:
