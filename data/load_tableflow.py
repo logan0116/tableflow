@@ -45,7 +45,7 @@ ROWS = {
     ],
     "tf-indep": [
         ("tf-spec-001", {
-            "tf-i-id": "001",
+            "tf-i-id": "001-AR",
             "tf-i-clause": "多维表格看板",
             "tf-i-dir": "specs/001-readonly-dashboard",
             "tf-i-scenes": 3,

@@ -88,7 +88,7 @@ TABLES = [
             ("i-implement", "speckit-implement状态", "text", None),
         ],
         "rows": [
-            ("fd-ud-04", {"i-id": "UD-04", "i-clause": "安装脚本更新"}),
+            ("fd-ud-04", {"i-id": "UD-04-AR", "i-clause": "安装脚本更新"}),
         ],
     },
     {
@@ -106,10 +106,10 @@ TABLES = [
             ("d-version", "所属版本", "relation", {"table_id": "fd-ver"}),
         ],
         "rows": [
-            ("fd-ud-03", {"d-id": "UD-03", "d-clause": "界面推荐案例更新", "d-version": ["v-701"]}),
-            ("fd-ud-02", {"d-id": "UD-02", "d-clause": "embedding 更新", "d-version": ["v-701"]}),
+            ("fd-ud-03", {"d-id": "UD-03-BR", "d-clause": "界面推荐案例更新", "d-version": ["v-701"]}),
+            ("fd-ud-02", {"d-id": "UD-02-BR", "d-clause": "embedding 更新", "d-version": ["v-701"]}),
             ("fd-ud-01", {
-                "d-id": "UD-01",
+                "d-id": "UD-01-BR",
                 "d-clause": "基于新版本知识图谱的图谱相关 skill 的更新",
                 "d-version": ["v-701"],
             }),
