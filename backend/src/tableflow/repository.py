@@ -46,8 +46,12 @@ def get_table(conn: sqlite3.Connection, project_id: str) -> TableOut | None:
         (project_id,),
     ).fetchall()
 
+    visible_ids = {field.id for field in fields}
     rows = [
-        RowOut(id=r["id"], values=json.loads(r["data"]))
+        RowOut(
+            id=r["id"],
+            values={k: v for k, v in json.loads(r["data"]).items() if k in visible_ids},
+        )
         for r in row_rows
     ]
 

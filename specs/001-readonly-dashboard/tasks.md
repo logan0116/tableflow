@@ -62,14 +62,14 @@
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] 表格端点 `backend/src/tableflow/app.py`：`GET /api/projects/{project_id}/table`，调用 `repository.get_table`，返回 `project` + `fields` + `rows`，项目不存在返回 404
-- [ ] T016 [P] [US1] 前端接口层 `frontend/src/api.ts`：`fetchTable(projectId)` 使用 `fetch(..., { cache: 'no-store' })`，非 2xx 抛错并携带后端 `detail`；请求超时 5 秒（AbortController），超时按错误态处理
-- [ ] T017 [P] [US1] 响应类型 `frontend/src/types.ts`：与 contracts/api.md 对齐的 `Field` / `Row` / `TableResponse` 类型
-- [ ] T018 [US1] 三态容器 `frontend/src/App.tsx`：加载中显示中文提示；错误显示中文提示 + 重试按钮且清空已渲染数据；成功才渲染表格
-- [ ] T019 [US1] 表格组件 `frontend/src/components/DataTable.tsx`：TanStack Table `getCoreRowModel` 生成行模型，渲染原生 `<table>/<thead>/<tbody>/<tr>/<td>`，表头 `position: sticky`；列顺序直接用接口返回顺序；不设固定高度、不裁剪行（行数超出视口时由页面滚动查看，对应 FR-010）
-- [ ] T020 [P] [US1] 单元格渲染 `frontend/src/components/Cell.tsx`：`text` 原样、`number` 按原值、`datetime` 按浏览器本地时区（含时间 `YYYY-MM-DD HH:mm`，不含时间 `YYYY-MM-DD`）、`enum` 查 `options` 的 `value→label`；未识别类型按 `text` 渲染；空值显示空单元格
-- [ ] T021 [US1] 中文文案与文本选择 `frontend/src/App.tsx`：所有界面文案中文；不设置 `user-select: none`，单元格文本可选中复制
-- [ ] T022 [US1] 表格端点契约测试 `backend/tests/test_api.py`：字段按 `order` 升序、`visible = 0` 字段不返回、空项目返回 `rows: []` 且 `fields` 照常返回、未知项目 404
+- [X] T015 [US1] 表格端点 `backend/src/tableflow/app.py`：`GET /api/projects/{project_id}/table`，调用 `repository.get_table`，返回 `project` + `fields` + `rows`，项目不存在返回 404
+- [X] T016 [P] [US1] 前端接口层 `frontend/src/api.ts`：`fetchTable(projectId)` 使用 `fetch(..., { cache: 'no-store' })`，非 2xx 抛错并携带后端 `detail`；请求超时 5 秒（AbortController），超时按错误态处理
+- [X] T017 [P] [US1] 响应类型 `frontend/src/types.ts`：与 contracts/api.md 对齐的 `Field` / `Row` / `TableResponse` 类型
+- [X] T018 [US1] 三态容器 `frontend/src/App.tsx`：加载中显示中文提示；错误显示中文提示 + 重试按钮且清空已渲染数据；成功才渲染表格
+- [X] T019 [US1] 表格组件 `frontend/src/components/DataTable.tsx`：TanStack Table `getCoreRowModel` 生成行模型，渲染原生 `<table>/<thead>/<tbody>/<tr>/<td>`，表头 `position: sticky`；列顺序直接用接口返回顺序；不设固定高度、不裁剪行（行数超出视口时由页面滚动查看，对应 FR-010）
+- [X] T020 [P] [US1] 单元格渲染 `frontend/src/components/Cell.tsx`：`text` 原样、`number` 按原值、`datetime` 按浏览器本地时区（含时间 `YYYY-MM-DD HH:mm`，不含时间 `YYYY-MM-DD`）、`enum` 查 `options` 的 `value→label`；未识别类型按 `text` 渲染；空值显示空单元格
+- [X] T021 [US1] 中文文案与文本选择 `frontend/src/App.tsx`：所有界面文案中文；不设置 `user-select: none`，单元格文本可选中复制
+- [X] T022 [US1] 表格端点契约测试 `backend/tests/test_api.py`：字段按 `order` 升序、`visible = 0` 字段不返回、空项目返回 `rows: []` 且 `fields` 照常返回、未知项目 404
 
 **Checkpoint**: 单项目看板可用，US1 可独立验收
 
@@ -83,11 +83,11 @@
 
 ### Implementation for User Story 2
 
-- [ ] T023 [US2] 项目列表端点 `backend/src/tableflow/app.py`：`GET /api/projects` 返回 `{"projects":[{"id","name"}]}`，按 `id` 升序
-- [ ] T024 [US2] 项目切换组件 `frontend/src/components/ProjectSwitcher.tsx`：列出项目名、高亮当前项、点击切换；项目多时可横向滚动
-- [ ] T025 [US2] 接入切换 `frontend/src/App.tsx`：首屏先取项目列表并默认选中第一个；切换时立即清空上一项目的行并显示加载提示，直到新数据到达（FR-013）；用请求序号或 AbortController 丢弃过期响应，只渲染当前所选项目（FR-014）
-- [ ] T026 [US2] 空项目状态 `frontend/src/App.tsx`：`rows` 为空时渲染保留列头的表格 + 中文"暂无数据"提示，不显示错误
-- [ ] T027 [US2] 项目列表端点契约测试 `backend/tests/test_api.py`：返回全部项目、空库返回空数组、响应头含 `no-store`
+- [X] T023 [US2] 项目列表端点 `backend/src/tableflow/app.py`：`GET /api/projects` 返回 `{"projects":[{"id","name"}]}`，按 `id` 升序
+- [X] T024 [US2] 项目切换组件 `frontend/src/components/ProjectSwitcher.tsx`：列出项目名、高亮当前项、点击切换；项目多时可横向滚动
+- [X] T025 [US2] 接入切换 `frontend/src/App.tsx`：首屏先取项目列表并默认选中第一个；切换时立即清空上一项目的行并显示加载提示，直到新数据到达（FR-013）；用请求序号或 AbortController 丢弃过期响应，只渲染当前所选项目（FR-014）
+- [X] T026 [US2] 空项目状态 `frontend/src/App.tsx`：`rows` 为空时渲染保留列头的表格 + 中文"暂无数据"提示，不显示错误
+- [X] T027 [US2] 项目列表端点契约测试 `backend/tests/test_api.py`：返回全部项目、空库返回空数组、响应头含 `no-store`
 
 **Checkpoint**: US1 + US2 同时可用
 
@@ -101,9 +101,9 @@
 
 ### Implementation for User Story 3
 
-- [ ] T028 [US3] 字段可见性与排序断言 `backend/tests/test_api.py`：新增 `visible = 0` 字段不返回、`order` 变更后返回顺序随之变化、删除 `fields` 行后该列从响应消失而 `row_records` 不变
-- [ ] T029 [US3] 前端无业务列名硬编码检查 `frontend/src/`：检索源码中不出现样例数据的列名与字段 id；列标题、顺序、可见性全部来自接口响应，检查结论记录在 quickstart 执行记录中
-- [ ] T030 [US3] 执行 quickstart V3 三步验证（加列 / 删列 / `visible = 0`）并记录结果，确认期间无代码改动、无服务重启；注意不要重跑 `seed_data.py`（全量替换会覆盖手工改动）
+- [X] T028 [US3] 字段可见性与排序断言 `backend/tests/test_api.py`：新增 `visible = 0` 字段不返回、`order` 变更后返回顺序随之变化、删除 `fields` 行后该列从响应消失而 `row_records` 不变
+- [X] T029 [US3] 前端无业务列名硬编码检查 `frontend/src/`：检索源码中不出现样例数据的列名与字段 id；列标题、顺序、可见性全部来自接口响应，检查结论记录在 quickstart 执行记录中
+- [X] T030 [US3] 执行 quickstart V3 三步验证（加列 / 删列 / `visible = 0`）并记录结果，确认期间无代码改动、无服务重启；注意不要重跑 `seed_data.py`（全量替换会覆盖手工改动）
 
 **Checkpoint**: 三条用户故事均可独立验收
 
@@ -113,11 +113,11 @@
 
 **Purpose**: 验收口径、文档与边界核验
 
-- [ ] T031 [P] 运行说明 `README.md`：安装、样例初始化、启动后端与前端、验收入口（指向 quickstart.md）
+- [X] T031 [P] 运行说明 `README.md`：安装、样例初始化、启动后端与前端、验收入口（指向 quickstart.md）
 - [ ] T032 [P] 性能验收记录 `specs/001-readonly-dashboard/quickstart.md`：按 V5 记录首屏 5 次中位数（目标 ≤500ms）、按 V6 记录滚动平均帧率与长任务（目标 ≥50fps、无 >50ms）
-- [ ] T033 宪法逐条核验：`POST /api/projects` 返回 405；两个业务接口响应头含 `Cache-Control: no-store`；前端源码无 `localStorage` / `sessionStorage` / `indexedDB` 写入业务数据；后端无写路由与写接口占位（原则 I、II、VII）；页面无 canvas 承载表格、依赖无 AG Grid / Handsontable / DataTables（原则 IV）；无 i18n 依赖与 locales 目录（原则 VI）
+- [X] T033 宪法逐条核验：`POST /api/projects` 返回 405；两个业务接口响应头含 `Cache-Control: no-store`；前端源码无 `localStorage` / `sessionStorage` / `indexedDB` 写入业务数据；后端无写路由与写接口占位（原则 I、II、VII）；页面无 canvas 承载表格、依赖无 AG Grid / Handsontable / DataTables（原则 IV）；无 i18n 依赖与 locales 目录（原则 VI）
 - [ ] T034 全流程回归：按 `specs/001-readonly-dashboard/quickstart.md` 的 V1–V7 逐条执行并记录结果；先用 `seed_data.py --projects 20 --rows 500` 造规模数据核对 SC-005，并核对 SC-006（打开到确认状态 ≤2 步）
-- [ ] T035 提交与清理：确认 `data/*.db*`、`node_modules/`、`dist/` 未入库；按产物拆分提交
+- [X] T035 提交与清理：确认 `data/*.db*`、`node_modules/`、`dist/` 未入库；按产物拆分提交
 
 ---
 
