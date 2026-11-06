@@ -15,9 +15,16 @@ CREATE TABLE IF NOT EXISTS projects (
     name TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS tables (
+    id         TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id),
+    name       TEXT NOT NULL,
+    "order"    INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS fields (
     id       TEXT PRIMARY KEY,
-    table_id TEXT NOT NULL REFERENCES projects(id),
+    table_id TEXT NOT NULL REFERENCES tables(id),
     name     TEXT NOT NULL,
     type     TEXT NOT NULL,
     options  TEXT,
@@ -27,17 +34,29 @@ CREATE TABLE IF NOT EXISTS fields (
 
 CREATE TABLE IF NOT EXISTS row_records (
     id       TEXT PRIMARY KEY,
-    table_id TEXT NOT NULL REFERENCES projects(id),
+    table_id TEXT NOT NULL REFERENCES tables(id),
     data     TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS write_audit (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    agent_id   TEXT NOT NULL,
+    action     TEXT NOT NULL,
+    target     TEXT NOT NULL,
+    payload    TEXT,
+    result     TEXT NOT NULL,
+    error      TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_tables_project ON tables (project_id, "order");
 CREATE INDEX IF NOT EXISTS idx_fields_table ON fields (table_id, "order");
 CREATE INDEX IF NOT EXISTS idx_row_records_table ON row_records (table_id, id);
 """
 
 
 def connect_write(path: Path) -> sqlite3.Connection:
-    """写连接：建库、WAL、外键。仅导入脚本使用。"""
+    """写连接：建库、WAL、外键。写接口与样例脚本使用。"""
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
@@ -47,7 +66,7 @@ def connect_write(path: Path) -> sqlite3.Connection:
 
 
 def connect_readonly(path: Path) -> sqlite3.Connection:
-    """只读连接：服务端唯一使用的连接方式。"""
+    """只读连接：人侧读接口唯一使用的连接方式。"""
     if not path.exists():
         raise FileNotFoundError(f"数据库不存在：{path}")
 

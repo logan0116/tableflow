@@ -1,108 +1,94 @@
 # 快速开始与验收
 
-**Feature**: 001-readonly-dashboard | **Constitution**: v3.0.0
+**Feature**: 001-readonly-dashboard | **Constitution**: v5.0.0
 
-本文档只描述"怎么跑起来、怎么判定通过"，不包含实现代码。数据模型见 [data-model.md](./data-model.md)，接口见 [contracts/api.md](./contracts/api.md)。
+本文只描述"怎么跑、怎么判定通过"，不含实现代码。数据模型见 [data-model.md](./data-model.md)，接口见 [contracts/api.md](./contracts/api.md) 与 [contracts/agent-api.md](./contracts/agent-api.md)。
 
-## 1. 前置条件
-
-- Python 3.11+，uv（0.11+）
-- Node 24+，npm
-- 端口：后端 `8000`，前端 `5173`
-- 浏览器：近两年版本的 Chrome / Edge
-
-## 2. 安装依赖
+## 1. 安装与初始化
 
 ```bash
 cd backend && uv sync
 cd ../frontend && npm install
+cd ../backend && uv run python scripts/seed_data.py --seed ../data/seed.example.json
 ```
 
-期望：`backend/uv.lock` 生成；`frontend/node_modules` 就绪。
+期望：输出 `项目 2 / 表格 3 / 字段 11 / 行 17`；`PRAGMA journal_mode` 为 `wal`。
 
-## 3. 初始化样例数据
-
-```bash
-cd backend
-uv run python scripts/seed_data.py --seed ../data/seed.example.json --db ../data/tableflow.db
-```
-
-期望：
-
-- 输出写入计数（项目数、字段数、行数），与 seed 文件一致
-- `data/tableflow.db` 生成
-- `sqlite3 data/tableflow.db "PRAGMA journal_mode;"` 返回 `wal`
-- 重复执行时全量替换，计数不累加
-
-## 4. 启动
+## 2. 启动
 
 ```bash
-# 终端 1
 cd backend && uv run uvicorn tableflow.app:app --port 8000
-
-# 终端 2
-cd frontend && npm run dev
+cd frontend && npm run dev     # 5173，/api 代理到 8000
 ```
 
-打开 `http://localhost:5173`。前端通过 Vite 代理把 `/api` 转发到 `8000`，避免 CORS 配置。
+打开 `http://localhost:5173`。
 
-## 5. 验收场景
+## 3. 验收场景
 
-### V1 — 打开即见当前状态（US1 / SC-004）
+### V1 — 项目内多表浏览（US1 / SC-007）
 
-1. 浏览器打开 `http://localhost:5173`，选择"产线改造"项目
-2. 期望：表格显示14行，列顺序与 `fields.order` 一致
-3. 用 `sqlite3` 改掉某行某列的值为新值
-4. 重新打开页面（或刷新），期望：显示新值，不出现旧值
-5. 停掉后端，刷新页面，期望：中文错误提示 + 重试按钮，页面不残留旧数据
+1. 选择"产线改造"，期望看到"人员""任务"两个页签，默认选中"人员"
+2. 切到"任务"，期望列变为 任务/状态/负责人/截止，且不再显示人员的行
+3. 切到"设备维保"，期望只有"设备"一张表
 
-### V2 — 多项目切换（US2）
+### V2 — 关联字段与明细（US3 / SC-004）
 
-1. seed 中包含至少两个项目
-2. 在项目切换区来回切换
-3. 期望：每次切换后只显示该项目的数据与列；切到空项目时显示"暂无数据"且保留列头
+1. 打开"任务"表，负责人列显示 `s-1`、`s-2`、`s-1、s-3` 这类目标行 id
+2. 点击 `s-1`，期望弹层显示 姓名=张工、角色=电气，且不可编辑
+3. 点击弹层外或"关闭"，期望回到表格
+4. 删除人员表中的 `s-2` 后刷新，期望对应格子显示"关联已失效"
 
-### V3 — 增删列只改数据（US3 / SC-003）
+### V3 — Agent 定义表与字段（US2 / SC-003）
 
-1. 在 `fields` 表插入一条新字段定义，并在 `row_records.data` 补上对应键值
-2. 刷新页面，期望：新列出现，位置由 `order` 决定，类型渲染正确；期间无任何代码改动与重启
-3. 删除该字段定义，刷新页面，期望：该列消失，其余列正常
-4. 把某字段 `visible` 置 0，刷新，期望：该列不显示，但数据仍在库中
+```bash
+curl -s -X POST http://localhost:8000/api/agent/projects/proj-001/tables \
+  -H 'X-Agent-Id: agent-cli' -H 'Content-Type: application/json' \
+  -d '{"id":"t-test","name":"测试表"}'
 
-注意：不要重跑 `seed_data.py`，它会全量替换三张表并覆盖上面的手工改动。
+curl -s -X POST http://localhost:8000/api/agent/tables/t-test/fields \
+  -H 'X-Agent-Id: agent-cli' -H 'Content-Type: application/json' \
+  -d '{"id":"tf-1","name":"名称","type":"text"}'
+```
 
-### V4 — 边界情形
+期望：刷新页面后项目下出现"测试表"，表内出现"名称"列；期间无代码发布。
 
-先用规模数据跑一遍：`uv run python scripts/seed_data.py --projects 20 --rows 500 --db ../data/tableflow.db`，再逐条验证：
+### V4 — Agent 写行与审计（SC-005）
 
-- 空单元格：不出现 `null` / `undefined` / `NaN`
-- 未知 `type`：该列按纯文本显示，页面不报错
-- 500行项目：滚动到底部能看到最后一行，不截断
-- 20个项目：切换区仍可点击
+```bash
+curl -s -X POST http://localhost:8000/api/agent/tables/t-test/rows \
+  -H 'X-Agent-Id: agent-cli' -H 'Content-Type: application/json' \
+  -d '{"id":"tr-1","values":{"tf-1":"第一行"}}'
+```
 
-### V5 — SC-001 首屏 500ms
+期望：刷新后看到该行；`SELECT agent_id, action, target, result FROM write_audit` 每次调用都有一条。
 
-1. Chrome DevTools → Network 勾选 `Disable cache`，限速设为 `No throttling`（局域网本机）
-2. DevTools → Performance → 录制 → 刷新页面 → 第14行可见时停止
-3. 读取 `navigationStart` 到最后一帧渲染的时间，重复5次取中位数
-4. 期望：≤ 500ms
+### V5 — 写侧校验与三态（FR-018）
 
-### V6 — SC-002 滚动帧率
+1. 写一个不存在的字段键：期望 400 `{"result":"failed"}`，且该行未落库
+2. 不带 `X-Agent-Id` 写：期望 400，审计里有一条 `failed`（agent_id 为 `-`）
+3. 数据存储不可用时：期望 503 `{"result":"unknown"}`
 
-1. 用关闭硬件加速的方式启动 Chrome：`chrome --disable-gpu`
-2. DevTools → Performance 录制5秒连续滚动
-3. 期望：平均帧率 ≥ 50fps，无超过 50ms 的长任务
+### V6 — 空表与隐藏列（FR-007 / FR-009）
 
-### V7 — 只读边界（宪法原则 I）
+- 空表：显示"暂无数据"并保留列头
+- `visible = 0` 的字段（如"内部备注"）：不显示，且接口返回的行值里也没有该键
+
+### V7 — 首屏与滚动（SC-001 / SC-002）
+
+1. Chrome DevTools → Network 勾 Disable cache → Performance 录制 → 刷新，记第 14 行可见时间，5 次取中位数，期望 ≤ 500ms
+2. `chrome --disable-gpu` 连续滚动 5 秒，期望平均 ≥ 50fps 且无 > 50ms 长任务
+
+### V8 — 人侧只读（宪法原则 I）
 
 ```bash
 curl -i -X POST http://localhost:8000/api/projects
+curl -i -X POST http://localhost:8000/api/tables/t-task/table
 ```
 
-期望：`405 Method Not Allowed`；`GET /api/projects` 的响应头含 `Cache-Control: no-store`。
+期望：均 405；`GET` 响应头含 `Cache-Control: no-store`；前端无 `localStorage` / `indexedDB` / `canvas` / i18n。
 
-## 6. 常见问题
+## 4. 常见问题
 
-- **只读连接打不开库**：WAL 模式下只读连接需要能访问 `-wal` / `-shm` 文件。先跑完样例写入、再启动服务；确认库文件与目录对服务进程可读。
-- **端口占用**：`8000` 被占用时改 `--port`，同时改 `frontend/vite.config.ts` 的代理目标。
-- **页面一直显示加载中**：检查 `GET /api/health` 是否返回 200；代理目标是否与后端端口一致。
+- **旧库不可用**：数据模型已改为项目→表格，删除 `data/tableflow.db*` 后重新 seed
+- **只读连接打不开库**：先跑完样例写入再启动服务；WAL 需要能访问 `-wal` / `-shm`
+- **端口占用**：改后端端口时同步改 `frontend/vite.config.ts` 的代理目标

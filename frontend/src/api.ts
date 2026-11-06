@@ -1,4 +1,4 @@
-import type { Project, TableResponse } from "./types";
+import type { Project, RowDetailResponse, TableResponse, TableSummary } from "./types";
 
 const TIMEOUT_MS = 5000;
 
@@ -26,6 +26,18 @@ export function fetchProjects(): Promise<Project[]> {
   return getJson<{ projects: Project[] }>("/api/projects").then((data) => data.projects);
 }
 
-export function fetchTable(projectId: string): Promise<TableResponse> {
-  return getJson<TableResponse>(`/api/projects/${encodeURIComponent(projectId)}/table`);
+export function fetchTables(projectId: string): Promise<TableSummary[]> {
+  return getJson<{ tables: TableSummary[] }>(
+    `/api/projects/${encodeURIComponent(projectId)}/tables`,
+  ).then((data) => data.tables);
+}
+
+export function fetchTable(tableId: string): Promise<TableResponse> {
+  return getJson<TableResponse>(`/api/tables/${encodeURIComponent(tableId)}/table`);
+}
+
+export function fetchRow(tableId: string, rowId: string): Promise<RowDetailResponse> {
+  return getJson<RowDetailResponse>(
+    `/api/tables/${encodeURIComponent(tableId)}/rows/${encodeURIComponent(rowId)}`,
+  );
 }

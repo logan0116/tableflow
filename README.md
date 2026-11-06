@@ -1,13 +1,13 @@
-# TableFlow 只读状态看板（v0）
+# TableFlow 多维表格看板（v0）
 
-替代在 smart_table 上"看一眼状态"的做法：一块局域网内的只读看板，打开即见某项目的当前数据行。人只读，Agent 读写（v0 只交付读侧；写接口在 v1，见宪法原则 I）。
+局域网内的多维表格看板：项目 → 多张表格 → 字段与数据行；同一项目内的表格可用 relation 字段相互关联，关联格显示目标行 id，点击弹出只读明细。人只读，Agent 通过写接口定义表/字段/数据并写入，每次写入落审计。
 
-规格与设计见 `specs/001-readonly-dashboard/`：`spec.md`（需求）、`plan.md`（实施计划）、`data-model.md`（表结构）、`contracts/api.md`（接口契约）、`quickstart.md`（验收步骤）。
+规格与设计见 `specs/001-readonly-dashboard/`：`spec.md`、`plan.md`、`data-model.md`、`contracts/api.md`、`contracts/agent-api.md`、`quickstart.md`。
 
 ## 目录
 
 ```text
-backend/    FastAPI + SQLite（WAL），只读接口与样例脚本
+backend/    FastAPI + SQLite（WAL）：人侧读接口 + /api/agent 写接口
 frontend/   React + Vite + TypeScript + TanStack Table（headless，原生 DOM 渲染）
 data/       样例数据与运行期库（*.db 不入库）
 specs/      规格、计划、任务与验收产物
@@ -27,12 +27,12 @@ cd backend
 uv run python scripts/seed_data.py --seed ../data/seed.example.json
 ```
 
-样例为 2 个项目、9 个字段、14 行，覆盖文本/数字/日期时间/枚举四种类型，并含一个 `visible = 0` 的字段。脚本为**全量替换**：重复执行不会累加，但会覆盖手工改动。
+样例为 2 个项目、3 张表格、11 个字段、17 行；其中「产线改造」项目的「任务」表通过 relation 字段关联到「人员」表。脚本为**全量替换**：重复执行会覆盖手工改动。
 
-规模数据（用于 20 项目 / 500 行验收）：
+规模数据（用于 20 项目 / 每项目 10 表 / 单表 500 行验收）：
 
 ```bash
-uv run python scripts/seed_data.py --projects 20 --rows 500
+uv run python scripts/seed_data.py --projects 20 --tables 10 --rows 500
 ```
 
 ## 启动
@@ -49,32 +49,49 @@ cd frontend && npm run dev
 
 ## 接口
 
+### 人侧（只读，全部 GET）
+
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/api/health` | 探活；数据存储不可用时 503 |
-| GET | `/api/projects` | 项目列表，按 id 升序 |
-| GET | `/api/projects/{id}/table` | 字段（仅 visible=1，按 order 升序）+ 全部数据行 |
+| GET | `/api/health` | 探活 |
+| GET | `/api/projects` | 项目列表 |
+| GET | `/api/projects/{id}/tables` | 项目下的表格，按 order 升序 |
+| GET | `/api/tables/{id}/table` | 字段（visible=1）+ 数据行 |
+| GET | `/api/tables/{id}/rows/{row_id}` | 单行明细（关联弹层用） |
 
-全部响应带 `Cache-Control: no-store`；没有任何写方法（POST/PUT/PATCH/DELETE 返回 405）。细节见 `specs/001-readonly-dashboard/contracts/api.md`。
+### Agent 侧（写入，需请求头 `X-Agent-Id`）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| POST | `/api/agent/projects/{id}/tables` | 建表 |
+| PATCH / DELETE | `/api/agent/tables/{id}` | 改名 / 删除（级联字段与行） |
+| POST | `/api/agent/tables/{id}/fields` | 加字段（text/number/datetime/enum/relation） |
+| PATCH / DELETE | `/api/agent/fields/{id}` | 改字段 / 删字段 |
+| POST | `/api/agent/tables/{id}/rows` | 写行 |
+| PATCH / DELETE | `/api/agent/rows/{id}` | 改行（合并 values）/ 删行 |
+
+响应统一为 `{"result": "success" | "failed" | "unknown", ...}`；校验失败 400 且不落库，提交结果无法确认时返回 503 + `unknown`。每次调用（成功或失败）都写一条 `write_audit`。
 
 ## 验收
 
-按 `specs/001-readonly-dashboard/quickstart.md` 的 V1–V7 执行。性能两项需在 Chrome DevTools 里测：
+按 `specs/001-readonly-dashboard/quickstart.md` 的 V1–V8 执行。性能三项需在 Chrome DevTools 里测：
 
-- 首屏：14 行首次可见 ≤ 500ms（禁缓存、局域网、5 次中位数）
+- 首屏：14 行首次可见 ≤ 500ms
 - 滚动：`--disable-gpu` 下连续滚动 5 秒，平均 ≥ 50fps 且无 > 50ms 长任务
+- 关联弹层：点击到明细显示 ≤ 300ms
 
 ## 约束
 
-宪法 `.specify/memory/constitution.md`（v4.0.0）是本项目的硬约束，重点几条：
+宪法 `.specify/memory/constitution.md`（v5.0.0）是硬约束：
 
-- 只读：无写路由、无写接口占位
+- 人侧只有 GET；Agent 写接口必须带契约、审计、三态
 - 无读缓存：接口 `no-store`，前端不持久化业务数据
-- 列由数据驱动：增删列只改 `fields` 表，不改前端代码
+- 列由数据驱动：增删列只改 `fields` 表
 - 表格 DOM 渲染：禁 canvas、禁自研虚拟滚动、禁重型表格库
 
 ## 常见问题
 
-- **`uv run` 在沙箱里报 `Read-only file system`**：uv 需要写 `~/.cache/uv`；在普通终端不受影响，沙箱内可直接用 `backend/.venv/bin/python`。
-- **只读连接打不开库**：WAL 模式下只读连接需要能访问 `-wal` / `-shm`；先跑完样例写入再启动服务。
+- **`uv run` 在沙箱里报 `Read-only file system`**：uv 需要写 `~/.cache/uv`；普通终端不受影响，沙箱内可用 `backend/.venv/bin/python`。
+- **只读连接打不开库**：WAL 下只读连接需要能访问 `-wal` / `-shm`；先跑完样例写入再启动服务。
+- **旧库升级**：数据模型从"项目=表"改为"项目→表"，旧库不可复用，删除 `data/tableflow.db*` 后重新 seed。
 - **端口占用**：改后端 `--port` 时同步改 `frontend/vite.config.ts` 的代理目标。

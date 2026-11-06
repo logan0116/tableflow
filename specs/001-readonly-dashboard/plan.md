@@ -1,4 +1,4 @@
-# Implementation Plan: 只读状态看板（v0）
+# Implementation Plan: TableFlow 多维表格看板（v0）
 
 **Branch**: `001-readonly-dashboard` | **Date**: 2026-11-06 | **Spec**: [spec.md](./spec.md)
 
@@ -6,7 +6,7 @@
 
 ## Summary
 
-v0 交付一块局域网内的只读看板：打开页面、选择项目、看到该项目的当前数据行。列由数据里的字段定义驱动，增删列只改数据、不改代码。后端 FastAPI 暴露两个只读接口，直接读 tableflow 自己的 SQLite（WAL 模式）；前端 React + Vite + TypeScript，用 TanStack Table 承担表格逻辑（headless），表格本体用原生 DOM 渲染。数据以最小样例脚本初始化，v0 不迁移原平台存量数据。
+v0 交付一块多维表格看板：项目 → 多张表格 → 字段与数据行；同一项目内的表格可建立 relation 关联，关联格显示目标行 id，点击弹出只读明细。人侧只有读接口（全部 GET），Agent 通过 `/api/agent/*` 写接口定义表格、字段与数据行，每次写入落审计并返回三态。后端 FastAPI + SQLite（WAL），前端 React + Vite + TypeScript + TanStack Table（headless），表格用原生 DOM 渲染。
 
 ## Technical Context
 
@@ -14,33 +14,33 @@ v0 交付一块局域网内的只读看板：打开页面、选择项目、看�
 
 **Primary Dependencies**: FastAPI、uvicorn（后端）；React 18、Vite、TypeScript、@tanstack/react-table（前端）
 
-**Storage**: SQLite（WAL），标准库 sqlite3，不引入 ORM
+**Storage**: SQLite（WAL），标准库 sqlite3，不引入 ORM；五张表见 data-model.md
 
-**Testing**: pytest + httpx（后端接口、样例脚本）；前端不引入测试框架，验收按 quickstart 的场景执行
+**Testing**: pytest + httpx（读接口、写接口、审计、样例脚本）；前端不引入测试框架，验收按 quickstart 执行
 
 **Target Platform**: Linux（本机或局域网服务器），Chrome / Edge 桌面浏览器
 
 **Project Type**: web application（backend + frontend）
 
-**Performance Goals**: 14行首屏 ≤500ms；关闭硬件加速滚动 ≥50fps 且无 >50ms 长任务
+**Performance Goals**: 14行首屏 ≤500ms；关闭硬件加速滚动 ≥50fps 且无 >50ms 长任务；关联明细弹层 ≤300ms
 
-**Constraints**: 只读；无任何读缓存；表格必须 DOM 渲染；界面全中文；禁 canvas、禁自研虚拟滚动、禁重型表格库；前端请求超时 5 秒（超时按错误态处理）
+**Constraints**: 人侧只读（只有 GET）；Agent 写接口必须带契约、审计、三态；无任何读缓存；表格必须 DOM 渲染；界面全中文
 
-**Scale/Scope**: ≤20项目、单项目 ≤500行；2个只读接口、1个样例脚本、4个页面组件
+**Scale/Scope**: ≤20项目、每项目 ≤10表、单表 ≤500行；读接口 4 个、写接口 9 个、导入脚本 1 个
 
 ## Constitution Check
 
-*GATE: 对照宪法 v3.0.0 逐条核验。*
+*GATE: 对照宪法 v5.0.0 逐条核验。*
 
 | 原则 | 本计划的落实方式 | 结论 |
 |---|---|---|
-| I 人只读、Agent 读写 | 路由只有 GET；无运行期写路径，仅样例脚本初始化；无写接口占位 | PASS |
-| II 无读缓存 | 接口带 `Cache-Control: no-store`；前端 fetch 不落盘；后端无进程内缓存 | PASS |
-| III Schema 驱动 | fields 表驱动列；前端按 type 通用渲染；代码中无业务列名 | PASS |
+| I 人只读、Agent 读写 | 人侧路由只有 GET；写接口集中在 `/api/agent/*`，每条写操作落 `write_audit`，返回 success/failed/unknown | PASS |
+| II 无读缓存 | 读接口带 `Cache-Control: no-store`；前端 fetch 不落盘；无进程内缓存 | PASS |
+| III Schema 驱动 | `fields` 表驱动列；`relation` 只是新增 type，前端仍按 type 通用渲染 | PASS |
 | IV DOM 表格 | 原生 `<table>` + TanStack Table（headless）；无 canvas、无虚拟滚动 | PASS |
 | V 固定技术栈 | FastAPI + SQLite(WAL) + uv；React + Vite + TypeScript；uv.lock 入库 | PASS |
 | VI 中文单语 | 全部中文文案；无 i18n 依赖与 locales 目录 | PASS |
-| VII 边界收敛 | 非目标清单外不实现任何能力；写接口只在 spec「未来范围」出现，不进代码 | PASS |
+| VII 边界收敛 | 非目标清单外不实现；写接口只覆盖表/字段/行三类，不做权限、协作、视图 | PASS |
 
 无违规项，Complexity Tracking 留空。
 
@@ -50,13 +50,14 @@ v0 交付一块局域网内的只读看板：打开页面、选择项目、看�
 
 ```text
 specs/001-readonly-dashboard/
-├── plan.md              # 本文件
-├── research.md          # Phase 0：决策与备选
-├── data-model.md        # Phase 1：表结构与类型映射
-├── quickstart.md        # Phase 1：跑起来 + 验收场景
+├── plan.md
+├── research.md
+├── data-model.md
+├── quickstart.md
 ├── contracts/
-│   └── api.md           # Phase 1：两个只读接口契约
-└── tasks.md             # /speckit-tasks 生成，本命令不产出
+│   ├── api.md          # 人侧只读接口
+│   └── agent-api.md    # Agent 写接口
+└── tasks.md
 ```
 
 ### Source Code (repository root)
@@ -67,14 +68,17 @@ backend/
 ├── uv.lock
 ├── src/tableflow/
 │   ├── __init__.py
-│   ├── app.py            # FastAPI 应用与两个只读路由
-│   ├── config.py         # 数据库路径等配置
-│   ├── db.py             # SQLite 连接（WAL、只读）
-│   ├── repository.py     # 项目 / 字段 / 行的只读查询
-│   └── schemas.py        # 响应模型
-├── scripts/seed_data.py    # 样例数据初始化（v0 不迁移存量）
+│   ├── app.py            # FastAPI 应用：读路由 + 写路由挂载
+│   ├── config.py         # 数据库路径
+│   ├── db.py             # 连接（WAL、只读/读写）与建表
+│   ├── repository.py     # 读查询：项目 / 表格 / 字段 / 行 / 单行明细
+│   ├── write_service.py  # 写服务：表/字段/行 CRUD + 审计 + 三态
+│   ├── schemas.py        # 响应模型
+│   └── seed.py           # 样例数据校验与全量写入
+├── scripts/seed_data.py
 └── tests/
     ├── test_api.py
+    ├── test_agent_api.py
     └── test_seed.py
 
 frontend/
@@ -84,20 +88,22 @@ frontend/
 ├── index.html
 └── src/
     ├── main.tsx
-    ├── App.tsx            # 项目切换 + 加载/错误/空状态
-    ├── api.ts             # 两个只读接口调用（no-store）
+    ├── App.tsx            # 项目 → 表格 → 数据 三级导航 + 三态
+    ├── api.ts             # 读接口调用（no-store，5s 超时）
     ├── types.ts
     └── components/
         ├── ProjectSwitcher.tsx
-        ├── DataTable.tsx  # TanStack Table + 原生 table
-        └── Cell.tsx       # 按 type 渲染：文本/数字/日期时间/枚举
+        ├── TableTabs.tsx   # 项目内表格切换
+        ├── DataTable.tsx   # TanStack Table + 原生 table
+        ├── Cell.tsx        # text/number/datetime/enum/relation
+        └── RelationModal.tsx  # 关联明细只读弹层
 
 data/
-├── seed.example.json      # 样例数据（14行、四种类型）
+├── seed.example.json
 └── tableflow.db           # 运行期库（gitignore）
 ```
 
-**Structure Decision**: 采用 `backend/` + `frontend/` 双目录。前端需要独立构建产物，后端需要独立 uv 环境；v0 不引入 monorepo 工具，避免为两个包引入额外构建层。
+**Structure Decision**: 前后端双目录；写服务单独成文件，避免 `app.py` 同时承担读写两套路由。
 
 ## Complexity Tracking
 
