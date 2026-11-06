@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 
 import { fetchRow } from "../api";
+import { isNumericField } from "../field-utils";
 import type { Field, RowDetailResponse } from "../types";
 import { Cell } from "./Cell";
+import { EmptyState } from "./EmptyState";
+import { TableSkeleton } from "./TableSkeleton";
 
 interface RelationModalProps {
   tableId: string;
@@ -47,22 +50,30 @@ export function RelationModal({ tableId, rowId, onClose }: RelationModalProps) {
           </button>
         </header>
         {state.status === "loading" ? (
-          <div className="state">加载中…</div>
+          <TableSkeleton columns={4} rows={3} />
         ) : state.status === "error" ? (
-          <div className="state">关联已失效：{state.message}</div>
+          <EmptyState kind="error" message={`关联已失效：${state.message}`} />
         ) : (
           <table>
             <thead>
               <tr>
                 {state.detail.fields.map((field: Field) => (
-                  <th key={field.id}>{field.name}</th>
+                  <th
+                    key={field.id}
+                    className={isNumericField(field) ? "th-number" : undefined}
+                  >
+                    {field.name}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               <tr>
                 {state.detail.fields.map((field: Field) => (
-                  <td key={field.id}>
+                  <td
+                    key={field.id}
+                    className={isNumericField(field) ? "cell-number" : undefined}
+                  >
                     <Cell field={field} value={state.detail.row.values[field.id]} />
                   </td>
                 ))}

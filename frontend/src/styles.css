@@ -2,6 +2,17 @@
   font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
   color: #1f2328;
   background: #f6f7f9;
+
+  --color-text: #1f2328;
+  --color-muted: #656d76;
+  --color-border: #d0d7de;
+  --color-border-soft: #eaeef2;
+  --color-surface: #ffffff;
+  --color-header: #f6f8fa;
+  --color-zebra: #fafbfc;
+  --color-hover: #eef4fb;
+  --color-accent: #0969da;
+  --color-danger: #cf222e;
 }
 
 body {
@@ -19,6 +30,8 @@ h1 {
   margin: 8px 0 12px;
 }
 
+/* ---------- 项目 / 表格切换 ---------- */
+
 .switcher {
   display: flex;
   flex-wrap: wrap;
@@ -28,71 +41,17 @@ h1 {
 
 .switcher button {
   padding: 6px 12px;
-  border: 1px solid #d0d7de;
+  border: 1px solid var(--color-border);
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--color-surface);
   color: inherit;
   font-size: 14px;
   cursor: pointer;
 }
 
 .switcher button[aria-pressed="true"] {
-  border-color: #0969da;
-  color: #0969da;
-}
-
-.table-wrap {
-  max-height: 70vh;
-  overflow: auto;
-  border: 1px solid #d0d7de;
-  border-radius: 8px;
-  background: #ffffff;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-thead th {
-  position: sticky;
-  top: 0;
-  padding: 8px 12px;
-  border-bottom: 1px solid #d0d7de;
-  background: #f6f8fa;
-  text-align: left;
-  white-space: nowrap;
-}
-
-tbody td {
-  padding: 8px 12px;
-  border-bottom: 1px solid #eaeef2;
-}
-
-tbody tr:hover {
-  background: #f6f8fa;
-}
-
-td.empty {
-  padding: 24px;
-  color: #656d76;
-  text-align: center;
-}
-
-.state {
-  padding: 24px;
-  color: #656d76;
-  text-align: center;
-}
-
-.state button {
-  margin-left: 8px;
-  padding: 4px 12px;
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
-  background: #ffffff;
-  cursor: pointer;
+  border-color: var(--color-accent);
+  color: var(--color-accent);
 }
 
 .tabs {
@@ -100,7 +59,7 @@ td.empty {
   flex-wrap: wrap;
   gap: 4px;
   margin-bottom: 12px;
-  border-bottom: 1px solid #d0d7de;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .tabs button {
@@ -114,19 +73,409 @@ td.empty {
 }
 
 .tabs button[aria-selected="true"] {
-  border-bottom-color: #0969da;
-  color: #0969da;
+  border-bottom-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* ---------- 工具栏：行密度 / 重置列宽 ---------- */
+
+.table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0 8px;
+}
+
+.density-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar-label {
+  margin-right: 2px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.density-toggle button,
+.toolbar-reset {
+  padding: 4px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.density-toggle button[aria-pressed="true"] {
+  border-color: var(--color-accent);
+  background: #eef6ff;
+  color: var(--color-accent);
+}
+
+.toolbar-reset:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ---------- 表格 ---------- */
+
+.table-frame {
+  position: relative;
+  /* 让下方滚动阴影可以引用 .table-wrap 的命名滚动时间线。 */
+  timeline-scope: --tf-table-x;
+}
+
+.table-wrap {
+  position: relative;
+  max-height: 70vh;
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  scroll-timeline: --tf-table-x inline;
+}
+
+table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 14px;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-header);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.th-label {
+  display: block;
+  overflow: hidden;
+  padding-right: 6px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+th.th-number {
+  text-align: right;
+}
+
+th.th-number .th-label {
+  padding-right: 10px;
+}
+
+.col-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  border-right: 2px solid transparent;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+.col-resizer:hover,
+.col-resizer.is-resizing {
+  border-right-color: var(--color-accent);
+}
+
+tbody tr {
+  --row-bg: var(--color-surface);
+}
+
+tbody tr:nth-child(even) {
+  --row-bg: var(--color-zebra);
+}
+
+tbody tr:hover {
+  --row-bg: var(--color-hover);
+}
+
+tbody td {
+  box-sizing: border-box;
+  padding: var(--cell-pad-y, 10px) 12px;
+  border-bottom: 1px solid var(--color-border-soft);
+  background: var(--row-bg);
+  line-height: 20px;
+}
+
+/* 首列固定：表头与单元格同时 sticky，背景沿用所在行的 --row-bg。 */
+thead th.is-first {
+  left: 0;
+  z-index: 3;
+}
+
+tbody td.is-first {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+.table-frame[data-density="comfortable"] {
+  --cell-pad-y: 10px;
+}
+
+.table-frame[data-density="compact"] {
+  --cell-pad-y: 4px;
+}
+
+.cell-nowrap {
+  white-space: nowrap;
+}
+
+.cell-number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+span.cell-number {
+  display: block;
 }
 
 .relation-link {
   padding: 0;
   border: none;
   background: none;
-  color: #0969da;
+  color: var(--color-accent);
   font: inherit;
   cursor: pointer;
   text-decoration: underline;
 }
+
+td.empty-cell {
+  padding: 0;
+}
+
+/* 横向滚动阴影：纯 CSS，靠 scroll-driven animation 随滚动位置淡入淡出。 */
+.scroll-hint {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  z-index: 4;
+  width: 18px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.scroll-hint-left {
+  left: calc(var(--first-col-width, 200px) + 1px);
+  border-radius: 0;
+  background: linear-gradient(to right, rgba(15, 23, 42, 0.16), rgba(15, 23, 42, 0));
+}
+
+.scroll-hint-right {
+  right: 1px;
+  border-radius: 0 8px 8px 0;
+  background: linear-gradient(to left, rgba(15, 23, 42, 0.16), rgba(15, 23, 42, 0));
+}
+
+@supports (animation-timeline: scroll()) {
+  .scroll-hint-right {
+    animation: tf-scroll-hide-right linear both;
+    animation-timeline: --tf-table-x;
+  }
+
+  .scroll-hint-left {
+    animation: tf-scroll-show-left linear both;
+    animation-timeline: --tf-table-x;
+  }
+}
+
+@keyframes tf-scroll-hide-right {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes tf-scroll-show-left {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---------- enum 状态标签 ---------- */
+
+.enum-tag {
+  display: inline-block;
+  padding: 1px 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.enum-tone-neutral {
+  border-color: #d8dee4;
+  background: #eef1f4;
+  color: #4b5563;
+}
+
+.enum-tone-info {
+  border-color: #b6e3ff;
+  background: #ddf4ff;
+  color: #0969da;
+}
+
+.enum-tone-success {
+  border-color: #aceebb;
+  background: #dafbe1;
+  color: #1a7f37;
+}
+
+.enum-tone-warning {
+  border-color: #f5e08c;
+  background: #fff8c5;
+  color: #9a6700;
+}
+
+.enum-tone-danger {
+  border-color: #ffcecb;
+  background: #ffebe9;
+  color: #cf222e;
+}
+
+/* ---------- 空状态 ---------- */
+
+.state {
+  padding: 24px;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.empty-state {
+  padding: 32px 16px;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.empty-state-title {
+  margin: 0 0 6px;
+  color: var(--color-text);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.empty-state-hint {
+  margin: 0;
+  font-size: 13px;
+}
+
+.empty-state-error .empty-state-title {
+  color: var(--color-danger);
+}
+
+.empty-state-retry {
+  margin-top: 12px;
+  padding: 4px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: inherit;
+  cursor: pointer;
+}
+
+.empty-state-compact {
+  padding: 16px 12px;
+}
+
+/* ---------- 加载骨架 ---------- */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skeleton-block {
+  display: block;
+  height: 12px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #eaeef2 25%, #f3f5f7 37%, #eaeef2 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.skeleton-head {
+  width: 60%;
+  height: 10px;
+}
+
+.skeleton-inline {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.table-skeleton {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+
+.table-skeleton-head,
+.table-skeleton-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(64px, 1fr);
+  gap: 12px;
+  padding: 12px;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.table-skeleton-head {
+  padding: 10px 12px;
+  border-bottom-color: var(--color-border);
+  background: var(--color-header);
+}
+
+.table-skeleton-row:last-child {
+  border-bottom: none;
+}
+
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 100% 50%;
+  }
+  to {
+    background-position: 0 50%;
+  }
+}
+
+/* ---------- 关联明细弹层 ---------- */
 
 .modal-backdrop {
   position: fixed;
@@ -143,7 +492,7 @@ td.empty {
   overflow: auto;
   padding: 16px 20px 20px;
   border-radius: 10px;
-  background: #ffffff;
+  background: var(--color-surface);
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.25);
 }
 
@@ -159,14 +508,22 @@ td.empty {
   font-size: 16px;
 }
 
+.modal table {
+  table-layout: auto;
+}
+
 .modal header button {
   padding: 4px 12px;
-  border: 1px solid #d0d7de;
+  border: 1px solid var(--color-border);
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--color-surface);
   cursor: pointer;
 }
 
-.cell-nowrap {
-  white-space: nowrap;
+/* ---------- 减少动态效果 ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-block {
+    animation: none;
+  }
 }
