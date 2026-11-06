@@ -7,6 +7,7 @@
     python tf.py tables proj-x
     python tf.py table t-a
     python tf.py row t-a r-1
+    python tf.py changes t-a r-1
     python tf.py call POST /api/agent/tables/t-a/rows '{"id":"r-2","values":{}}'
 """
 
@@ -62,6 +63,8 @@ def main(argv: list[str]) -> int:
         print_table(request("GET", f"/api/tables/{args[0]}/table"))
     elif command == "row":
         print(json.dumps(request("GET", f"/api/tables/{args[0]}/rows/{args[1]}"), ensure_ascii=False, indent=2))
+    elif command == "changes":
+        print(json.dumps(request("GET", f"/api/tables/{args[0]}/rows/{args[1]}/changes"), ensure_ascii=False, indent=2))
     elif command == "call":
         method, path = args[0], args[1]
         body = json.loads(args[2]) if len(args) > 2 else None
