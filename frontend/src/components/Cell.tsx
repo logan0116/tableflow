@@ -70,7 +70,8 @@ export function Cell({ field, value, onOpenRelation }: CellProps) {
     case "text":
     default: {
       const text = String(value);
-      return <span className={text.length <= 12 ? "cell-nowrap" : undefined}>{text}</span>;
+      const compact = text.length <= 12 || /^[\w\-./]+$/.test(text);
+      return <span className={compact ? "cell-nowrap" : undefined}>{text}</span>;
     }
   }
 }
