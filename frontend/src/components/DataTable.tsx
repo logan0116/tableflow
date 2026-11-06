@@ -12,18 +12,25 @@ import { Cell } from "./Cell";
 interface DataTableProps {
   fields: Field[];
   rows: Row[];
+  onOpenRelation?: (tableId: string, rowId: string) => void;
 }
 
-export function DataTable({ fields, rows }: DataTableProps) {
+export function DataTable({ fields, rows, onOpenRelation }: DataTableProps) {
   const columns = useMemo<ColumnDef<Row>[]>(
     () =>
       fields.map((field) => ({
         id: field.id,
         header: field.name,
         accessorFn: (row: Row) => row.values[field.id],
-        cell: (context) => <Cell field={field} value={context.getValue()} />,
+        cell: (context) => (
+          <Cell
+            field={field}
+            value={context.getValue()}
+            onOpenRelation={onOpenRelation}
+          />
+        ),
       })),
-    [fields],
+    [fields, onOpenRelation],
   );
 
   const table = useReactTable({

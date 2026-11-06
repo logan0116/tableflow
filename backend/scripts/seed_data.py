@@ -20,7 +20,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="写入样例数据（全量替换三张表）")
     parser.add_argument("--seed", type=Path, help="样例 JSON 文件")
     parser.add_argument("--projects", type=int, help="生成项目数（规模数据）")
-    parser.add_argument("--rows", type=int, help="每个项目的行数（规模数据）")
+    parser.add_argument("--tables", type=int, default=1, help="每个项目的表格数（规模数据）")
+    parser.add_argument("--rows", type=int, help="每张表的行数（规模数据）")
     parser.add_argument("--db", type=Path, default=None, help="数据库路径，默认 data/tableflow.db")
     args = parser.parse_args(argv)
 
@@ -33,7 +34,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.projects is not None:
-            counts = write_seed(target, build_generated(args.projects, args.rows))
+            counts = write_seed(target, build_generated(args.projects, args.tables, args.rows))
         else:
             counts = seed_from_file(target, args.seed)
     except (SeedError, FileNotFoundError) as exc:
@@ -41,7 +42,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     print(f"数据库：{target}")
-    print(f"写入：项目 {counts['projects']} / 字段 {counts['fields']} / 行 {counts['rows']}")
+    print(f"写入：项目 {counts['projects']} / 表格 {counts['tables']} / 字段 {counts['fields']} / 行 {counts['rows']}")
     return 0
 
 

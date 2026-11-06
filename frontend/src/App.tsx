@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 
-import { fetchProjects, fetchTable } from "./api";
+import { fetchProjects, fetchTable, fetchTables } from "./api";
 import { DataTable } from "./components/DataTable";
 import { ProjectSwitcher } from "./components/ProjectSwitcher";
-import type { Project, TableResponse } from "./types";
+import { RelationModal } from "./components/RelationModal";
+import { TableTabs } from "./components/TableTabs";
+import type { Project, TableResponse, TableSummary } from "./types";
 
 type TableState =
   | { status: "loading" }
@@ -13,10 +15,17 @@ type TableState =
 export default function App() {
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [projectsError, setProjectsError] = useState<string | null>(null);
-  const [currentId, setCurrentId] = useState<string | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
+
+  const [tables, setTables] = useState<TableSummary[] | null>(null);
+  const [tablesError, setTablesError] = useState<string | null>(null);
+  const [tableId, setTableId] = useState<string | null>(null);
+
   const [tableState, setTableState] = useState<TableState>({ status: "loading" });
   const [reloadKey, setReloadKey] = useState(0);
-  const requestSeq = useRef(0);
+  const [modal, setModal] = useState<{ tableId: string; rowId: string } | null>(null);
+
+  const seq = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -27,7 +36,7 @@ export default function App() {
           return;
         }
         setProjects(list);
-        setCurrentId((previous) => previous ?? list[0]?.id ?? null);
+        setProjectId((previous) => previous ?? list[0]?.id ?? null);
       })
       .catch((error: Error) => {
         if (!cancelled) {
@@ -40,23 +49,49 @@ export default function App() {
   }, [reloadKey]);
 
   useEffect(() => {
-    if (!currentId) {
+    if (!projectId) {
       return;
     }
-    const seq = ++requestSeq.current;
+    let cancelled = false;
+    setTables(null);
+    setTablesError(null);
+    setTableId(null);
+    fetchTables(projectId)
+      .then((list) => {
+        if (cancelled) {
+          return;
+        }
+        setTables(list);
+        setTableId(list[0]?.id ?? null);
+      })
+      .catch((error: Error) => {
+        if (!cancelled) {
+          setTablesError(error.message);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, reloadKey]);
+
+  useEffect(() => {
+    if (!tableId) {
+      return;
+    }
+    const current = ++seq.current;
     setTableState({ status: "loading" });
-    fetchTable(currentId)
+    fetchTable(tableId)
       .then((table) => {
-        if (seq === requestSeq.current) {
+        if (current === seq.current) {
           setTableState({ status: "ready", table });
         }
       })
       .catch((error: Error) => {
-        if (seq === requestSeq.current) {
+        if (current === seq.current) {
           setTableState({ status: "error", message: error.message });
         }
       });
-  }, [currentId, reloadKey]);
+  }, [tableId, reloadKey]);
 
   const retry = () => setReloadKey((key) => key + 1);
 
@@ -77,25 +112,52 @@ export default function App() {
         <div className="state">暂无项目</div>
       ) : (
         <>
-          <ProjectSwitcher
-            projects={projects}
-            currentId={currentId}
-            onSelect={setCurrentId}
-          />
-          {tableState.status === "loading" ? (
-            <div className="state">加载中…</div>
-          ) : tableState.status === "error" ? (
+          <ProjectSwitcher projects={projects} currentId={projectId} onSelect={setProjectId} />
+
+          {tablesError ? (
             <div className="state">
-              <p>读取数据失败：{tableState.message}</p>
+              <p>读取表格列表失败：{tablesError}</p>
               <button type="button" onClick={retry}>
                 重试
               </button>
             </div>
+          ) : tables === null ? (
+            <div className="state">加载中…</div>
+          ) : tables.length === 0 ? (
+            <div className="state">暂无表格</div>
           ) : (
-            <DataTable fields={tableState.table.fields} rows={tableState.table.rows} />
+            <>
+              <TableTabs tables={tables} currentId={tableId} onSelect={setTableId} />
+              {tableState.status === "loading" ? (
+                <div className="state">加载中…</div>
+              ) : tableState.status === "error" ? (
+                <div className="state">
+                  <p>读取数据失败：{tableState.message}</p>
+                  <button type="button" onClick={retry}>
+                    重试
+                  </button>
+                </div>
+              ) : (
+                <DataTable
+                  fields={tableState.table.fields}
+                  rows={tableState.table.rows}
+                  onOpenRelation={(targetTableId, rowId) =>
+                    setModal({ tableId: targetTableId, rowId })
+                  }
+                />
+              )}
+            </>
           )}
         </>
       )}
+
+      {modal ? (
+        <RelationModal
+          tableId={modal.tableId}
+          rowId={modal.rowId}
+          onClose={() => setModal(null)}
+        />
+      ) : null}
     </main>
   );
 }

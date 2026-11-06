@@ -1,4 +1,4 @@
-"""接口响应模型（与 contracts/api.md 对齐）。"""
+"""接口响应模型（与 contracts/ 对齐）。"""
 
 from __future__ import annotations
 
@@ -12,11 +12,21 @@ class ProjectOut(BaseModel):
     name: str
 
 
+class ProjectsOut(BaseModel):
+    projects: list[ProjectOut]
+
+
+class TableSummaryOut(BaseModel):
+    id: str
+    name: str
+    order: int
+
+
 class FieldOut(BaseModel):
     id: str
     name: str
     type: str
-    options: list[dict[str, Any]] | None = None
+    options: Any | None = None
     order: int
 
 
@@ -25,11 +35,14 @@ class RowOut(BaseModel):
     values: dict[str, Any]
 
 
-class ProjectsOut(BaseModel):
-    projects: list[ProjectOut]
-
-
 class TableOut(BaseModel):
     project: ProjectOut
+    table: TableSummaryOut
     fields: list[FieldOut]
     rows: list[RowOut]
+
+
+class RowDetailOut(BaseModel):
+    table: TableSummaryOut
+    fields: list[FieldOut]
+    row: RowOut
