@@ -659,9 +659,10 @@ def test_tf_project_computed_fields(tmp_path, monkeypatch):
 
         rows = {row["id"]: row["values"] for row in payload["rows"]}
         assert rows["v0.3.0"]["tf-v-dev"] == 100.0
-        assert rows["v0.3.0"]["tf-v-cond"] is False
+        # DEP-01-BR 已完成且回归通过，v0.3.0 四条件全满足
+        assert rows["v0.3.0"]["tf-v-cond"] is True
         assert rows["v0.3.0"]["tf-v-bug-clear"] is True
-        assert rows["v0.3.0"]["tf-v-regress"] is False
+        assert rows["v0.3.0"]["tf-v-regress"] is True
         assert rows["v0.3.0"]["tf-v-dep-count"] == 1
         assert rows["v0.3.0"]["tf-v-scenes"] == 12
         assert rows["v0.3.0"]["tf-v-tasks"] == 30
@@ -692,7 +693,7 @@ def test_tf_project_computed_fields(tmp_path, monkeypatch):
         rows = {row["id"]: row["values"] for row in client.get("/api/tables/tf-ver/table").json()["rows"]}
         assert rows["v0.3.0"]["tf-v-dev"] == 66.7
 
-        # 经写接口把 004 也改为完成 → 100.0；再把文档改为完成 → 发布条件为是
+        # 经写接口把 004 改回完成 → 100.0；依赖已完成，发布条件保持为是
         client.patch(
             "/api/agent/tables/tf-indep/rows/004-AR",
             json={"values": {"tf-i-implement": "done"}},
@@ -700,14 +701,16 @@ def test_tf_project_computed_fields(tmp_path, monkeypatch):
         )
         rows = {row["id"]: row["values"] for row in client.get("/api/tables/tf-ver/table").json()["rows"]}
         assert rows["v0.3.0"]["tf-v-dev"] == 100.0
-        assert rows["v0.3.0"]["tf-v-cond"] is False
+        assert rows["v0.3.0"]["tf-v-cond"] is True
+
+        # 依赖回退为待办：回归不通过，发布条件必须转否（rollup require 行级前置条件）
         client.patch(
-            "/api/agent/tables/tf-ver/rows/v0.3.0",
-            json={"values": {"tf-v-doc": "done"}},
+            "/api/agent/tables/tf-dep/rows/DEP-01-BR",
+            json={"values": {"tf-d-status": "待办", "tf-d-regress": "todo"}},
             headers=HEADERS,
         )
         rows = {row["id"]: row["values"] for row in client.get("/api/tables/tf-ver/table").json()["rows"]}
-        # 依赖还是待办：回归没通过，发布条件不能为是
+        assert rows["v0.3.0"]["tf-v-regress"] is False
         assert rows["v0.3.0"]["tf-v-cond"] is False
 
         # 把依赖标记为已完成且回归通过 → 发布条件才为是
