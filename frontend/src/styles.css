@@ -233,14 +233,35 @@ tbody td.is-first {
 
 .table-frame[data-density="comfortable"] {
   --cell-pad-y: 10px;
+  --row-height: 40px;
 }
 
 .table-frame[data-density="compact"] {
   --cell-pad-y: 4px;
+  --row-height: 28px;
+}
+
+/* 主表单元格单行：行高由密度固定，长文本不撑高行（FR-031）。
+   明细弹层不在 .table-frame 内，保持换行全文。 */
+.table-frame tbody td {
+  height: var(--row-height, 40px);
+  white-space: nowrap;
+}
+
+.table-frame tbody td.empty-cell {
+  height: auto;
+  white-space: normal;
 }
 
 .cell-nowrap {
   white-space: nowrap;
+}
+
+.cell-text {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .cell-number {
