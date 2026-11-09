@@ -1,6 +1,6 @@
 [project]
 name = "tableflow"
-version = "0.4.0"
+version = "0.4.1"
 description = "TableFlow 只读状态看板后端"
 requires-python = ">=3.11"
 dependencies = [
