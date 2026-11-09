@@ -25,6 +25,7 @@ rsync -az --delete \
   --exclude '.git' --exclude '.agent-teams' \
   --exclude 'backend/.venv' --exclude 'backend/**/__pycache__' --exclude 'backend/.pytest_cache' \
   --exclude 'frontend/node_modules' --exclude 'data/*.db*' --exclude '/dist' \
+  --exclude '.tmp-shots' \
   -e "ssh -F /dev/null -o BatchMode=yes -o StrictHostKeyChecking=no" \
   ./ "$HOST:$DEST/"
 
