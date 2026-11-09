@@ -67,8 +67,8 @@ cd frontend && npm run dev
 | PATCH / DELETE | `/api/agent/tables/{id}` | 改名 / 删除（级联字段与行） |
 | POST | `/api/agent/tables/{id}/fields` | 加字段（text/number/datetime/enum/relation） |
 | PATCH / DELETE | `/api/agent/fields/{id}` | 改字段 / 删字段 |
-| POST | `/api/agent/tables/{id}/rows` | 写行 |
-| PATCH / DELETE | `/api/agent/rows/{id}` | 改行（合并 values）/ 删行 |
+| POST | `/api/agent/tables/{id}/rows/{row_id}` | 写行（行 id 在路径里，即业务编号） |
+| PATCH / DELETE | `/api/agent/tables/{id}/rows/{row_id}` | 改行（合并 values）/ 删行 |
 
 响应统一为 `{"result": "success" | "failed" | "unknown", ...}`；校验失败 400 且不落库，提交结果无法确认时返回 503 + `unknown`。每次调用（成功或失败）都写一条 `write_audit`。
 
@@ -91,7 +91,7 @@ python3 scripts/perf_check.py http://127.0.0.1:5173/ --rows 14   # 首屏与滚�
 
 ## 约束
 
-宪法 `.specify/memory/constitution.md`（v5.0.0）是硬约束：
+宪法 `.specify/memory/constitution.md`（v7.0.0）是硬约束：
 
 - 人侧只有 GET；Agent 写接口必须带契约、审计、三态
 - 无读缓存：接口 `no-store`，前端不持久化业务数据
