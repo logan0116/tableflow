@@ -1,11 +1,24 @@
 #!/usr/bin/env bash
 # 把 tableflow 部署到 155（docker compose，单端口 8090，前后端同容器）。
-# 用法：bash deploy/deploy_155.sh
+# 用法：
+#   bash deploy/deploy_155.sh           # 只更新代码，不动数据（默认）
+#   bash deploy/deploy_155.sh --seed    # 同时重建数据（seed.sh 会先备份旧库）
+#
+# 默认不 seed：线上可能有通过 Agent 写入的项目，重建会把它们清掉。
 set -euo pipefail
 
 HOST="${HOST:-root@192.168.1.155}"
 DEST="${DEST:-/srv/tableflow}"
 SSH_OPTS=(-F /dev/null -o BatchMode=yes -o StrictHostKeyChecking=no)
+
+SEED=0
+for arg in "$@"; do
+  case "$arg" in
+    --seed) SEED=1 ;;
+    -h|--help) sed -n '2,8p' "$0"; exit 0 ;;
+    *) echo "未知参数：$arg（可用：--seed）" >&2; exit 2 ;;
+  esac
+done
 
 echo "== 1/4 rsync → $HOST:$DEST"
 rsync -az --delete \
@@ -21,8 +34,12 @@ ssh "${SSH_OPTS[@]}" "$HOST" "cd $DEST && docker compose -f deploy/docker-compos
 echo "== 2.5/4 等待服务就绪"
 ssh "${SSH_OPTS[@]}" "$HOST" 'for i in $(seq 1 30); do curl -sf -o /dev/null http://127.0.0.1:8090/api/health && break; sleep 1; done; curl -sS -o /dev/null -w "ready=%{http_code}\n" http://127.0.0.1:8090/api/health'
 
-echo "== 3/4 初始化数据"
-ssh "${SSH_OPTS[@]}" "$HOST" "docker exec tableflow sh /app/seed.sh"
+if [ "$SEED" = "1" ]; then
+  echo "== 3/4 重建数据（--seed，seed.sh 内部会先备份旧库）"
+  ssh "${SSH_OPTS[@]}" "$HOST" "docker exec tableflow sh /app/seed.sh"
+else
+  echo "== 3/4 跳过数据初始化（默认不动数据；需要重建请加 --seed）"
+fi
 
 echo "== 4/4 验证"
 ssh "${SSH_OPTS[@]}" "$HOST" "curl -sS -o /dev/null -w 'api=%{http_code}\n' http://127.0.0.1:8090/api/projects; curl -sS -o /dev/null -w 'ui=%{http_code}\n' http://127.0.0.1:8090/; curl -sS http://127.0.0.1:8090/api/projects"
