@@ -125,6 +125,7 @@
 3. **Given** 已选择紧凑档，**When** 刷新页面，**Then** 仍为紧凑档（localStorage 记忆）。
 4. **Given** 任意密度，**When** 渲染，**Then** 偶数行有浅底色，hover 行覆盖为高亮底色。
 5. **Given** 斑马纹，**When** 首列 sticky，**Then** 首列底色与所在行一致。
+6. **Given** 某单元格文本长于列宽（如「测试进度」的 MeterSphere 描述），**When** 渲染，**Then** 行高不超过密度上限（舒适 ≤44px / 紧凑 ≤32px），文本单行截断为省略号，`title` 提供全文。
 
 ---
 
@@ -213,6 +214,7 @@
 - **FR-028**: 本 spec MUST NOT 引入新依赖、MUST NOT 引入 canvas/虚拟滚动/重型表格库。
 - **FR-029**: 性能基线 MUST 保持：14 行首屏 ≤500ms、关闭硬件加速滚动 ≥50fps、无 >50ms 长任务。
 - **FR-030**: 本 spec MUST NOT 改变接口契约与业务数据；只改渲染与 UI 偏好。
+- **FR-031**: 主表单元格内容 MUST 单行渲染；超出列宽 MUST 截断为省略号，并通过 `title` 提供全文；任意长文本 MUST NOT 撑高行高，舒适档行高 MUST ≤44px、紧凑档 MUST ≤32px（enum 标签高 22px，行高下限由标签决定）。关联明细弹层不受此限，保持全文换行。
 
 ### Key Entities
 
@@ -235,6 +237,7 @@
 - **SC-008**: 列宽拖到 240px 后刷新仍为 240px；localStorage 内容只含 tableId/fieldId/数字；清空后恢复默认；非法条目被忽略。
 - **SC-009**: localStorage 中检索不到任何行值或状态值（用当前表 10 行数据逐值比对，命中 0）。
 - **SC-010**: 首屏 ≤500ms、滚动 ≥50fps、无 >50ms 长任务；`cd frontend && npx tsc --noEmit` 零错误；`cd backend && .venv/bin/pytest -q` 全绿（本 spec 不改后端，作为回归门禁）。
+- **SC-011**: 取当前最长文本单元格（「测试进度」的 MeterSphere 描述，约 40 字），舒适档渲染后行高 ≤44px、紧凑档 ≤32px，且该单元格 `title` 含完整原文。
 
 ## Assumptions
 
