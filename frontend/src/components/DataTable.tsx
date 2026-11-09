@@ -67,6 +67,7 @@ export function DataTable({
           <Cell
             field={field}
             value={context.getValue()}
+            truncate
             onOpenRelation={onOpenRelation}
             onOpenRelationList={onOpenRelationList}
           />

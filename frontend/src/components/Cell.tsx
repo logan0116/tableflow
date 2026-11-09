@@ -5,6 +5,8 @@ import { EnumTag } from "./EnumTag";
 interface CellProps {
   field: Field;
   value: unknown;
+  /** 主表单元格：单行截断，全文进 title；明细弹层不传，保持换行全文。 */
+  truncate?: boolean;
   onOpenRelation?: (tableId: string, rowId: string) => void;
   onOpenRelationList?: (tableId: string, rowIds: string[]) => void;
 }
@@ -53,7 +55,7 @@ function isBlank(value: unknown): boolean {
   return value === null || value === undefined || value === "";
 }
 
-export function Cell({ field, value, onOpenRelation, onOpenRelationList }: CellProps) {
+export function Cell({ field, value, truncate, onOpenRelation, onOpenRelationList }: CellProps) {
   const blank = isBlank(value);
 
   // 数字列（number 与产出数字的计算字段）始终右对齐占位，空值也不破坏列宽。
@@ -81,7 +83,12 @@ export function Cell({ field, value, onOpenRelation, onOpenRelationList }: CellP
   switch (field.type) {
     case "datetime": {
       const options = optionObject<DatetimeOptions>(field.options);
-      return <span>{formatDateTime(String(value), options?.with_time)}</span>;
+      const text = formatDateTime(String(value), options?.with_time);
+      return (
+        <span className={truncate ? "cell-text" : undefined} title={truncate ? text : undefined}>
+          {text}
+        </span>
+      );
     }
     case "enum": {
       const option = findOption(field, value);
@@ -120,6 +127,14 @@ export function Cell({ field, value, onOpenRelation, onOpenRelationList }: CellP
     case "text":
     default: {
       const text = String(value);
+      if (truncate) {
+        // 主表：单行 + 省略号，行高不随文本长度变化；全文靠 title 与明细弹层。
+        return (
+          <span className="cell-text" title={text}>
+            {text}
+          </span>
+        );
+      }
       const compact = text.length <= 12 || /^[\w\-./]+$/.test(text);
       return <span className={compact ? "cell-nowrap" : undefined}>{text}</span>;
     }
