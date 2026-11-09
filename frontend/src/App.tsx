@@ -130,6 +130,11 @@ export default function App() {
   const retry = () => setReloadKey((key) => key + 1);
   const hasColumnWidths = Object.keys(widths).length > 0;
 
+  const currentProject = projects?.find((project) => project.id === projectId) ?? null;
+  const currentTable = tables?.find((table) => table.id === tableId) ?? null;
+  const totalRows = tableState.status === "ready" ? tableState.table.rows.length : null;
+  const isFiltering = filter.trim().length > 0;
+
   let content: ReactNode;
   if (projectsError) {
     content = <EmptyState kind="error" message={projectsError} onRetry={retry} />;
@@ -200,7 +205,28 @@ export default function App() {
 
   return (
     <main className="app">
-      <h1>只读状态看板</h1>
+      <header className="page-header">
+        <h1>
+          {currentProject ? (
+            <>
+              <span className="crumb-project">{currentProject.name}</span>
+              {currentTable ? (
+                <>
+                  <span className="crumb-sep">›</span>
+                  <span className="crumb-table">{currentTable.name}</span>
+                </>
+              ) : null}
+            </>
+          ) : (
+            <span className="crumb-table">只读状态看板</span>
+          )}
+        </h1>
+        {totalRows !== null && totalRows > 0 ? (
+          <span className="page-count">
+            {isFiltering ? `${filteredRows.length} / ${totalRows} 条` : `共 ${totalRows} 条`}
+          </span>
+        ) : null}
+      </header>
       {content}
 
       {relationList ? (

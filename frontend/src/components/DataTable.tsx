@@ -7,16 +7,15 @@ import {
 } from "@tanstack/react-table";
 import { useMemo, type CSSProperties } from "react";
 
-import { isNumericField } from "../field-utils";
+import { defaultColumnWidth, isNumericField } from "../field-utils";
 import type { Field, Row } from "../types";
 import type { Density } from "../ui-prefs";
 import { Cell } from "./Cell";
 import { EmptyState } from "./EmptyState";
 
-const DEFAULT_COLUMN_WIDTH = 110;
-const FIRST_COLUMN_WIDTH = 140;
 const MIN_COLUMN_WIDTH = 48;
 const MAX_COLUMN_WIDTH = 600;
+const FALLBACK_COLUMN_WIDTH = 168;
 
 interface DataTableProps {
   tableId: string;
@@ -60,7 +59,7 @@ export function DataTable({
         id: field.id,
         header: field.name,
         accessorFn: (row: Row) => row.values[field.id],
-        size: index === 0 ? FIRST_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH,
+        size: defaultColumnWidth(field, index === 0),
         minSize: MIN_COLUMN_WIDTH,
         maxSize: MAX_COLUMN_WIDTH,
         cell: (context) => (
@@ -100,15 +99,15 @@ export function DataTable({
     defaultColumn: {
       minSize: MIN_COLUMN_WIDTH,
       maxSize: MAX_COLUMN_WIDTH,
-      size: DEFAULT_COLUMN_WIDTH,
+      size: FALLBACK_COLUMN_WIDTH,
     },
   });
 
   const totalWidth = table.getTotalSize();
   const isEmpty = table.getRowModel().rows.length === 0;
   const firstColumnWidth = firstFieldId
-    ? (table.getColumn(firstFieldId)?.getSize() ?? FIRST_COLUMN_WIDTH)
-    : FIRST_COLUMN_WIDTH;
+    ? (table.getColumn(firstFieldId)?.getSize() ?? FALLBACK_COLUMN_WIDTH)
+    : FALLBACK_COLUMN_WIDTH;
   const frameStyle = {
     "--first-col-width": `${firstColumnWidth}px`,
   } as CSSProperties;
@@ -140,7 +139,7 @@ export function DataTable({
                       className={classes.join(" ")}
                       style={{ width: header.getSize() }}
                     >
-                      <span className="th-label">
+                      <span className="th-label" title={field?.name}>
                         {flexRender(header.column.columnDef.header, header.getContext())}
                       </span>
                       {header.column.getCanResize() ? (

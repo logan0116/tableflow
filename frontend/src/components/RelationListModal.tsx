@@ -66,9 +66,27 @@ export function RelationListModal({ tableId, rowIds, onPick, onClose }: Relation
     };
   }, [tableId]);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
   return (
-    <div className="modal-backdrop" onClick={onClose} role="presentation">
-      <div className="modal" onClick={(event) => event.stopPropagation()}>
+    <div
+      className="modal-backdrop"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div className="modal" role="dialog" aria-modal="true" aria-label="关联条目">
         <header>
           <h2>关联条目 · {rowIds.length} 项</h2>
           <button type="button" onClick={onClose}>
