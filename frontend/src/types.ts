@@ -40,6 +40,10 @@ export interface DatetimeOptions {
 
 export interface RelationOptions {
   table_id?: string;
+  /** 关联条目列表里用作「名称」列的字段 id（目标表字段）。缺失时只显示编号列。 */
+  display_field?: string;
+  /** 关联条目列表里用作「状态」列的字段 id（目标表字段）。缺失时不显示状态列。 */
+  status_field?: string;
   constraints?: FieldConstraints;
 }
 
