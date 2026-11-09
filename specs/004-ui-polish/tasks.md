@@ -121,6 +121,14 @@
 - [ ] T041 性能验收（`frontend/src/App.tsx`）：14 行首屏 ≤500ms、滚动 ≥50fps、无 >50ms 长任务；与 T002 基线对比
 - [ ] T042 提交与清理：按产物拆分提交（样式令牌 / 组件 / hooks / 文档），确认未提交 `dist/`、`node_modules/`
 
+## Phase 10: 行高上限（FR-031 补充，2026-11-09）
+
+**Independent Test**: 最长文本单元格（「测试进度」MeterSphere 描述）渲染后行高 ≤40px（舒适）/ ≤28px（紧凑），文本单行省略号，`title` 含全文。
+
+- [ ] T043 [US6] 单元格单行截断：`frontend/src/components/Cell.tsx` 增加 `truncate` 开关，text/datetime 分支输出 `title`；`DataTable.tsx` 主表传 `truncate`；`styles.css` 加 `.cell-text`（nowrap + ellipsis）与 `.table-frame tbody td { white-space: nowrap }`
+- [ ] T044 [US6] 行高固定：`styles.css` 给两档密度加 `--row-height`（40px / 28px），`tbody td` 以之兜底，长文本不得撑高
+- [ ] T045 [US6] 验收：155 线上取最长文本行，行高 ≤40px（舒适）/≤28px（紧凑），`title` 全文可读；关联明细弹层仍换行显示全文
+
 ## Dependencies & Execution Order
 
 - Phase 1 → Phase 2（阻塞）→ US1 / US2 → US3 → US4 / US5 → US6 → US7 → Polish
