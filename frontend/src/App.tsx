@@ -12,7 +12,7 @@ import { TableToolbar } from "./components/TableToolbar";
 import { InlineSkeleton, TableSkeleton } from "./components/TableSkeleton";
 import { useColumnWidths } from "./hooks/useColumnWidths";
 import { useDensity } from "./hooks/useDensity";
-import type { Project, TableResponse, TableSummary } from "./types";
+import type { Field, Project, TableResponse, TableSummary } from "./types";
 
 type TableState =
   | { status: "loading" }
@@ -33,7 +33,11 @@ export default function App() {
   const [tableState, setTableState] = useState<TableState>({ status: "loading" });
   const [reloadKey, setReloadKey] = useState(0);
   const [modal, setModal] = useState<{ tableId: string; rowId: string } | null>(null);
-  const [relationList, setRelationList] = useState<{ tableId: string; rowIds: string[] } | null>(null);
+  const [relationList, setRelationList] = useState<{
+    tableId: string;
+    rowIds: string[];
+    field: Field;
+  } | null>(null);
   const [filter, setFilter] = useState("");
 
   const [density, setDensity] = useDensity();
@@ -191,8 +195,8 @@ export default function App() {
                   onOpenRelation={(targetTableId, rowId) =>
                     setModal({ tableId: targetTableId, rowId })
                   }
-                  onOpenRelationList={(targetTableId, rowIds) =>
-                    setRelationList({ tableId: targetTableId, rowIds })
+                  onOpenRelationList={(targetTableId, rowIds, sourceField) =>
+                    setRelationList({ tableId: targetTableId, rowIds, field: sourceField })
                   }
                 />
               </>
@@ -231,6 +235,7 @@ export default function App() {
 
       {relationList ? (
         <RelationListModal
+          field={relationList.field}
           tableId={relationList.tableId}
           rowIds={relationList.rowIds}
           onClose={() => setRelationList(null)}

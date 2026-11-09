@@ -25,7 +25,7 @@ interface DataTableProps {
   columnWidths: ColumnSizingState;
   onColumnWidthsChange: (next: ColumnSizingState) => void;
   onOpenRelation?: (tableId: string, rowId: string) => void;
-  onOpenRelationList?: (tableId: string, rowIds: string[]) => void;
+  onOpenRelationList?: (tableId: string, rowIds: string[], field: Field) => void;
 }
 
 export function DataTable({

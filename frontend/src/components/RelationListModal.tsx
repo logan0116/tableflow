@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 
 import { fetchTable } from "../api";
-import { displayText, enumItems } from "../field-utils";
-import type { Field, Row } from "../types";
+import { displayText, enumItems, optionObject } from "../field-utils";
+import type { Field, RelationOptions, Row } from "../types";
 import { EnumTag } from "./EnumTag";
 
 interface RelationListModalProps {
+  /** 源 relation 字段：显示列由它的 options.display_field / status_field 决定。 */
+  field: Field;
   tableId: string;
   rowIds: string[];
   onPick: (rowId: string) => void;
@@ -17,32 +19,18 @@ type ListState =
   | { status: "error"; message: string }
   | { status: "ready"; rows: Map<string, Row>; fields: Field[] };
 
-const TITLE_NAMES = ["标题", "条款", "名称", "姓名", "设备", "任务"];
-const STATUS_NAMES = ["状态", "发布状态", "回归状态"];
-
-function pickTitleField(fields: Field[]): Field | null {
-  for (const name of TITLE_NAMES) {
-    const hit = fields.find((field) => field.name === name);
-    if (hit) {
-      return hit;
-    }
-  }
-  // 退而求其次：第一个不是“编号”的文本字段
-  return fields.find((field) => field.type === "text" && !/编号|id/i.test(field.name)) ?? null;
+/** 按 relation 字段的配置解析显示列；不按字段名猜测（宪法原则 III）。 */
+function resolveColumns(field: Field, fields: Field[]) {
+  const options = optionObject<RelationOptions>(field.options);
+  const byId = new Map(fields.map((item) => [item.id, item]));
+  return {
+    display: options?.display_field ? byId.get(options.display_field) ?? null : null,
+    status: options?.status_field ? byId.get(options.status_field) ?? null : null,
+  };
 }
 
-function pickStatusField(fields: Field[]): Field | null {
-  for (const name of STATUS_NAMES) {
-    const hit = fields.find((field) => field.name === name);
-    if (hit) {
-      return hit;
-    }
-  }
-  return fields.find((field) => field.type === "enum") ?? null;
-}
-
-/** 关联条目列表：编号 + 标题 + 状态，点一行看明细。 */
-export function RelationListModal({ tableId, rowIds, onPick, onClose }: RelationListModalProps) {
+/** 关联条目列表：编号 + 配置的名称列 + 配置的状态列，点一行看明细。 */
+export function RelationListModal({ field, tableId, rowIds, onPick, onClose }: RelationListModalProps) {
   const [state, setState] = useState<ListState>({ status: "loading" });
 
   useEffect(() => {
@@ -99,48 +87,62 @@ export function RelationListModal({ tableId, rowIds, onPick, onClose }: Relation
         ) : state.status === "error" ? (
           <div className="state">读取关联表失败：{state.message}</div>
         ) : (
-          <table className="relation-table">
-            <thead>
-              <tr>
-                <th>编号</th>
-                <th>标题</th>
-                <th>状态</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rowIds.map((rowId) => {
-                const row = state.rows.get(rowId);
-                const titleField = pickTitleField(state.fields);
-                const statusField = pickStatusField(state.fields);
-                const title = row && titleField ? displayText(titleField, row.values[titleField.id]) : "";
-                const statusValue = row && statusField ? row.values[statusField.id] : null;
-                const statusOption =
-                  statusField && statusValue != null
-                    ? enumItems(statusField).find((item) => item.value === statusValue) ?? null
-                    : null;
-
-                return (
-                  <tr
-                    key={rowId}
-                    className={row ? "relation-row" : "relation-row is-missing"}
-                    onClick={() => {
-                      if (row) {
-                        onPick(rowId);
-                      }
-                    }}
-                  >
-                    <td className="relation-id">{rowId}</td>
-                    <td>{row ? title : "关联已失效"}</td>
-                    <td>
-                      {row && statusField && statusValue != null ? (
-                        <EnumTag option={statusOption} fallback={displayText(statusField, statusValue)} />
-                      ) : null}
-                    </td>
+          (() => {
+            const { display, status } = resolveColumns(field, state.fields);
+            const isEnumStatus = status?.type === "enum";
+            return (
+              <table className="relation-table">
+                <thead>
+                  <tr>
+                    <th>编号</th>
+                    {display ? <th>{display.name}</th> : null}
+                    {status ? <th>{status.name}</th> : null}
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                </thead>
+                <tbody>
+                  {rowIds.map((rowId) => {
+                    const row = state.rows.get(rowId);
+                    const displayValue =
+                      row && display ? displayText(display, row.values[display.id]) : "";
+                    const statusValue = row && status ? row.values[status.id] : null;
+                    const statusOption =
+                      status && isEnumStatus && statusValue != null
+                        ? enumItems(status).find((item) => item.value === statusValue) ?? null
+                        : null;
+
+                    return (
+                      <tr
+                        key={rowId}
+                        className={row ? "relation-row" : "relation-row is-missing"}
+                        onClick={() => {
+                          if (row) {
+                            onPick(rowId);
+                          }
+                        }}
+                      >
+                        <td className="relation-id">{rowId}</td>
+                        {display ? (
+                          <td>{row ? displayValue || "—" : "关联已失效"}</td>
+                        ) : null}
+                        {status ? (
+                          <td>
+                            {row && statusValue != null && isEnumStatus ? (
+                              <EnumTag
+                                option={statusOption}
+                                fallback={displayText(status, statusValue)}
+                              />
+                            ) : row && statusValue != null ? (
+                              displayText(status, statusValue)
+                            ) : null}
+                          </td>
+                        ) : null}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            );
+          })()
         )}
       </div>
     </div>

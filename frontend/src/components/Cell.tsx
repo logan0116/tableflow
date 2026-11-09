@@ -8,7 +8,7 @@ interface CellProps {
   /** 主表单元格：单行截断，全文进 title；明细弹层不传，保持换行全文。 */
   truncate?: boolean;
   onOpenRelation?: (tableId: string, rowId: string) => void;
-  onOpenRelationList?: (tableId: string, rowIds: string[]) => void;
+  onOpenRelationList?: (tableId: string, rowIds: string[], field: Field) => void;
 }
 
 function pad(value: number): string {
@@ -114,7 +114,7 @@ export function Cell({ field, value, truncate, onOpenRelation, onOpenRelationLis
               return;
             }
             if (onOpenRelationList) {
-              onOpenRelationList(target, ids);
+              onOpenRelationList(target, ids, field);
             } else {
               onOpenRelation?.(target, ids[0]);
             }
