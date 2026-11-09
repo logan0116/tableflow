@@ -25,3 +25,4 @@ data/*.db.bak-*
 
 # AgentTeams 运行状态
 .agent-teams/
+.tmp-shots

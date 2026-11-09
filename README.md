@@ -80,6 +80,15 @@ cd frontend && npm run dev
 - 滚动：`--disable-gpu` 下连续滚动 5 秒，平均 ≥ 50fps 且无 > 50ms 长任务
 - 关联弹层：点击到明细显示 ≤ 300ms
 
+界面视觉打磨（005）的验收脚本：
+
+```bash
+python3 scripts/contrast_check.py                 # 结构色对比度，退出码非 0 即不达标
+python3 scripts/perf_check.py http://127.0.0.1:5173/ --rows 14   # 首屏与滚动（headless Chrome）
+```
+
+结果与口径见 `specs/005-ui-visual/quickstart.md`。
+
 ## 约束
 
 宪法 `.specify/memory/constitution.md`（v5.0.0）是硬约束：
