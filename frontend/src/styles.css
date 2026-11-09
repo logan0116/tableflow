@@ -1,18 +1,27 @@
 :root {
-  font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  /* 西文走系统 UI 字体，中文按平台依次回退；不打包字体文件。 */
+  font-family:
+    system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB",
+    "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
   color: #1f2328;
   background: #f6f7f9;
 
   --color-text: #1f2328;
   --color-muted: #656d76;
-  --color-border: #d0d7de;
-  --color-border-soft: #eaeef2;
+  /* 结构色对白底对比度：边框 1.54:1、分隔线 1.26:1、表头带 1.14:1、悬停底 1.17:1。
+     调整这四个值时须同步跑 scripts/contrast_check.py。 */
+  --color-border: #c9d1d9;
+  --color-border-soft: #e1e6ec;
   --color-surface: #ffffff;
-  --color-header: #f6f8fa;
-  --color-zebra: #fafbfc;
-  --color-hover: #eef4fb;
+  --color-header: #edf1f4;
+  --color-zebra: #f3f6f9;
+  --color-hover: #e3eefb;
   --color-accent: #0969da;
   --color-danger: #cf222e;
+
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 8px rgba(15, 23, 42, 0.04);
+  --shadow-modal: 0 16px 48px rgba(15, 23, 42, 0.22);
+  --radius-card: 10px;
 }
 
 body {
@@ -26,8 +35,43 @@ body {
 }
 
 h1 {
+  margin: 0;
   font-size: 18px;
-  margin: 8px 0 12px;
+  font-weight: 600;
+  line-height: 28px;
+  min-width: 0;
+}
+
+/* ---------- 页头：项目 › 表 + 行数 ---------- */
+
+.page-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 8px 0 14px;
+}
+
+.crumb-project {
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.crumb-sep {
+  margin: 0 6px;
+  color: #b0b8c0;
+  font-weight: 400;
+}
+
+.crumb-table {
+  color: var(--color-text);
+}
+
+.page-count {
+  flex: none;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---------- 项目 / 表格切换 ---------- */
@@ -75,6 +119,13 @@ h1 {
 .tabs button[aria-selected="true"] {
   border-bottom-color: var(--color-accent);
   color: var(--color-accent);
+}
+
+button {
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
 }
 
 button:focus-visible {
@@ -130,18 +181,27 @@ button:focus-visible {
 
 .table-frame {
   position: relative;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   /* 让下方滚动阴影可以引用 .table-wrap 的命名滚动时间线。 */
   timeline-scope: --tf-table-x;
 }
 
 .table-wrap {
   position: relative;
-  max-height: 70vh;
+  max-height: calc(100vh - 200px);
   overflow: auto;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-card);
   background: var(--color-surface);
   scroll-timeline: --tf-table-x inline;
+}
+
+/* 视口过矮时退回 70vh，避免卡片把页面挤到只剩表头。 */
+@media (max-height: 600px) {
+  .table-wrap {
+    max-height: 70vh;
+  }
 }
 
 table {
@@ -160,6 +220,8 @@ thead th {
   padding: 8px 12px;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-header);
+  font-weight: 600;
+  letter-spacing: 0.01em;
   text-align: left;
   white-space: nowrap;
 }
@@ -177,7 +239,8 @@ th.th-number {
 }
 
 th.th-number .th-label {
-  padding-right: 10px;
+  /* 与单元格的 12px 右内边距对齐，数字列头和数据右边缘不错位。 */
+  padding-right: 0;
 }
 
 .col-resizer {
@@ -217,6 +280,7 @@ tbody td {
   line-height: 20px;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: background-color 80ms ease;
 }
 
 /* 首列固定：表头与单元格同时 sticky，背景沿用所在行的 --row-bg。 */
@@ -281,6 +345,11 @@ span.cell-number {
   color: var(--color-accent);
   font: inherit;
   cursor: pointer;
+  text-decoration: none;
+}
+
+.relation-link:hover,
+.relation-link:focus-visible {
   text-decoration: underline;
 }
 
@@ -307,7 +376,7 @@ td.empty-cell {
 
 .scroll-hint-right {
   right: 1px;
-  border-radius: 0 8px 8px 0;
+  border-radius: 0 var(--radius-card) var(--radius-card) 0;
   background: linear-gradient(to left, rgba(15, 23, 42, 0.16), rgba(15, 23, 42, 0));
 }
 
@@ -465,8 +534,9 @@ td.empty-cell {
 .table-skeleton {
   overflow: hidden;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-card);
   background: var(--color-surface);
+  box-shadow: var(--shadow-card);
 }
 
 .table-skeleton-head,
@@ -517,9 +587,14 @@ td.empty-cell {
   max-height: 80vh;
   overflow: auto;
   padding: 16px 20px 20px;
-  border-radius: 10px;
+  border-radius: var(--radius-card);
   background: var(--color-surface);
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.25);
+  box-shadow: var(--shadow-modal);
+}
+
+/* 明细弹层字段多，给更宽的容器。 */
+.modal-wide {
+  width: min(960px, 94vw);
 }
 
 .modal header {
@@ -544,6 +619,46 @@ td.empty-cell {
   border-radius: 6px;
   background: var(--color-surface);
   cursor: pointer;
+}
+
+/* ---------- 明细弹层：竖向键值对 ---------- */
+
+.kv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 0 24px;
+  margin: 0;
+  padding: 0;
+}
+
+.kv-item {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border-soft);
+  align-items: start;
+}
+
+.kv-label {
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.kv-value {
+  margin: 0;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.kv-value .cell-number {
+  text-align: left;
+}
+
+.kv-empty {
+  color: #b0b8c0;
 }
 
 /* ---------- 减少动态效果 ---------- */

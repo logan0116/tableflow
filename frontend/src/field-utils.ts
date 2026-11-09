@@ -54,6 +54,48 @@ export function numberOptions(field: Field): NumberOptions | null {
   return field.type === "number" ? optionObject<NumberOptions>(field.options) : null;
 }
 
+/** 默认列宽的类型基础值（005）。 */
+const TYPE_BASE_WIDTH: Record<string, number> = {
+  number: 100,
+  datetime: 132,
+  enum: 124,
+  relation: 156,
+  text: 168,
+  computed: 120,
+};
+
+/** 默认列宽下限 / 上限（用户拖拽范围仍为 004 的 48–600）。 */
+const DEFAULT_WIDTH_MIN = 88;
+const DEFAULT_WIDTH_MAX = 320;
+const FIRST_COLUMN_EXTRA = 16;
+/** 表头左右内边距 12px×2 + 省略号与字距预留 16px。 */
+const HEADER_PADDING = 40;
+
+const CJK = /[\u3000-\u9fff\uf900-\ufaff\uff00-\uffef]/;
+
+/**
+ * 表头文字宽度估算：中文按 1 字宽（14px）、西文按 0.57 字宽（8px）。
+ * 只做字符近似，不用 canvas 或 DOM 测量（宪法原则 IV）。
+ */
+export function estimateHeaderWidth(name: string): number {
+  let px = 0;
+  for (const ch of name) {
+    px += CJK.test(ch) ? 14 : 8;
+  }
+  return px + HEADER_PADDING;
+}
+
+/** 首次打开某表时的默认列宽：类型基础宽与表头估算宽取大，再钳制。 */
+export function defaultColumnWidth(field: Field, isFirst: boolean): number {
+  const base =
+    field.type === "computed"
+      ? (isNumericField(field) ? TYPE_BASE_WIDTH.number : TYPE_BASE_WIDTH.computed)
+      : (TYPE_BASE_WIDTH[field.type] ?? TYPE_BASE_WIDTH.text);
+  const width = Math.max(base, estimateHeaderWidth(field.name));
+  const withFirst = width + (isFirst ? FIRST_COLUMN_EXTRA : 0);
+  return Math.min(DEFAULT_WIDTH_MAX, Math.max(DEFAULT_WIDTH_MIN, withFirst));
+}
+
 /** 单元格的显示文本（供筛选匹配用，与渲染保持一致）。 */
 export function displayText(field: Field, value: unknown): string {
   if (value === null || value === undefined || value === "") {

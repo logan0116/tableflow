@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { fetchRow } from "../api";
-import { isNumericField } from "../field-utils";
+import { displayText } from "../field-utils";
 import type { Field, RowDetailResponse } from "../types";
 import { Cell } from "./Cell";
 import { EmptyState } from "./EmptyState";
@@ -40,9 +40,28 @@ export function RelationModal({ tableId, rowId, onClose }: RelationModalProps) {
     };
   }, [tableId, rowId]);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
   return (
-    <div className="modal-backdrop" onClick={onClose} role="presentation">
-      <div className="modal" onClick={(event) => event.stopPropagation()}>
+    <div
+      className="modal-backdrop"
+      role="presentation"
+      onMouseDown={(event) => {
+        // 只认直接按在遮罩上的关闭，避免弹层内拖选文本到外面误关。
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label={`关联明细 ${rowId}`}>
         <header>
           <h2>关联明细 · {rowId}</h2>
           <button type="button" onClick={onClose}>
@@ -54,32 +73,24 @@ export function RelationModal({ tableId, rowId, onClose }: RelationModalProps) {
         ) : state.status === "error" ? (
           <EmptyState kind="error" message={`关联已失效：${state.message}`} />
         ) : (
-          <table>
-            <thead>
-              <tr>
-                {state.detail.fields.map((field: Field) => (
-                  <th
-                    key={field.id}
-                    className={isNumericField(field) ? "th-number" : undefined}
-                  >
-                    {field.name}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                {state.detail.fields.map((field: Field) => (
-                  <td
-                    key={field.id}
-                    className={isNumericField(field) ? "cell-number" : undefined}
-                  >
-                    <Cell field={field} value={state.detail.row.values[field.id]} />
-                  </td>
-                ))}
-              </tr>
-            </tbody>
-          </table>
+          <div className="kv-grid">
+            {state.detail.fields.map((field: Field) => {
+              const value = state.detail.row.values[field.id];
+              const text = displayText(field, value);
+              return (
+                <div className="kv-item" key={field.id}>
+                  <span className="kv-label">{field.name}</span>
+                  <div className="kv-value">
+                    {text === "" ? (
+                      <span className="kv-empty">—</span>
+                    ) : (
+                      <Cell field={field} value={value} />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>
