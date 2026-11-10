@@ -14,8 +14,8 @@ cd backend && .venv/bin/pytest -q
 grep -rn "TITLE_NAMES\|STATUS_NAMES" frontend/src
 
 # 迁移（幂等；--dry-run 先看映射）
-python3 data/migrate_relation_display.py --base http://192.168.1.155:8090 --dry-run
-python3 data/migrate_relation_display.py --base http://192.168.1.155:8090
+python3 data/migrate_relation_display.py --base http://<host>:8090 --dry-run
+python3 data/migrate_relation_display.py --base http://<host>:8090
 ```
 
 ## 2. 结果

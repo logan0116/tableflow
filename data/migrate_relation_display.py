@@ -11,7 +11,7 @@
 用法：
     python3 data/migrate_relation_display.py --dry-run     # 只打印映射
     python3 data/migrate_relation_display.py               # 写入（幂等）
-    python3 data/migrate_relation_display.py --base http://192.168.1.155:8090
+    python3 data/migrate_relation_display.py --base http://<host>:8090
 """
 
 from __future__ import annotations

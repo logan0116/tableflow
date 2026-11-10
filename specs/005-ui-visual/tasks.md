@@ -73,7 +73,7 @@
 - [x] T024 `frontend/package.json`、`deploy/docker-compose.yml` 版本号升到 0.4.0
 - [x] T025 更新 README 的版本与验收说明（如涉及）
 - [x] T026 git commit + tag `v0.4.0`
-- [x] T027 部署 155：`bash deploy/deploy_155.sh`（不 seed）
+- [x] T027 部署 155：`HOST=user@your-host bash deploy/deploy.sh`（不 seed）
 - [x] T028 tableflow 更新 005-AR 与 v0.4.0 状态，确认发布条件=是，发布状态改 released
 
 ## Dependencies

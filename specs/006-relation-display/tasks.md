@@ -36,7 +36,7 @@
 - [x] T012 `grep -rn "TITLE_NAMES\|STATUS_NAMES" frontend/src` 命中 0
 - [x] T013 浏览器验收：版本表「需求关联（依赖）」弹层三列正常、状态列有标签；未配置字段只显示编号
 - [x] T014 版本号升到 0.4.1（package.json / package-lock / pyproject / docker-compose）
-- [x] T015 `npm run build` → git commit + tag `v0.4.1` → `bash deploy/deploy_155.sh`
+- [x] T015 `npm run build` → git commit + tag `v0.4.1` → `HOST=user@your-host bash deploy/deploy.sh`
 - [x] T016 tableflow 登记 006-AR 与 DEP-02-BR、建 v0.4.1 并关联，确认发布条件=是后发布
 
 ## Dependencies

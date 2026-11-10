@@ -24,7 +24,7 @@ Sync Impact Report
 ### I. 人只读、Agent 读写（NON-NEGOTIABLE）
 
 - 角色分工固定：人不能直接写业务数据，只能经 Agent 写；Agent 对业务数据有读权限与写权限。该分工不随功能迭代改变。
-- 权威数据由 tableflow 自己的 SQLite 持有。原平台 smart_table（192.168.1.155:8093）不再是本项目的运行期数据源；v0 不承担存量数据迁移。
+- 权威数据由 tableflow 自己的 SQLite 持有。原平台 smart_table（局域网实例，端口 8093）不再是本项目的运行期数据源；v0 不承担存量数据迁移。
 - 数据模型：项目 → 表格 → 字段与数据行；同一项目内的表格之间可建立关联（relation 字段）。
 - 本项目承载两类访问：人的读（看板与关联明细的只读查看）与 Agent 的读写。两类访问 MUST 由两套接口承担，不得混用。
 - 人侧路由 MUST 只有 GET；人侧 MUST NOT 存在直接写业务数据的端点；前端 MUST NOT 直接持久化业务数据，MUST NOT 提供绕过 Agent 写接口的本地写控件。

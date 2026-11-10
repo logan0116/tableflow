@@ -17,7 +17,7 @@ tableflow 是一块只读看板 + 一套 Agent 写接口：**人只读，Agent �
 ## 连接
 
 ```bash
-export TF_BASE=http://192.168.1.155:8090     # 线上实例；本地开发是 http://127.0.0.1:8000
+export TF_BASE=http://<tableflow-host>:8090   # 线上实例；本地开发是 http://127.0.0.1:8000
 export TF_AGENT=agent-my-task                 # 写操作必带，写入审计
 ```
 
