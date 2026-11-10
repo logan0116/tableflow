@@ -104,3 +104,7 @@ python3 scripts/perf_check.py http://127.0.0.1:5173/ --rows 14   # 首屏与滚�
 - **只读连接打不开库**：WAL 下只读连接需要能访问 `-wal` / `-shm`；先跑完样例写入再启动服务。
 - **旧库升级**：数据模型从"项目=表"改为"项目→表"，旧库不可复用，删除 `data/tableflow.db*` 后重新 seed。
 - **端口占用**：改后端 `--port` 时同步改 `frontend/vite.config.ts` 的代理目标。
+
+## 许可
+
+MIT，见 [LICENSE](./LICENSE)。

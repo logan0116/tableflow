@@ -39,3 +39,4 @@ deploy/.env
 .specify/init-options.json
 .specify/integration.json
 .specify/memory/.constitution-template.json
+.specify/.gitignore
