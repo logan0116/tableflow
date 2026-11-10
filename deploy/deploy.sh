@@ -24,7 +24,7 @@ SEED=0
 for arg in "$@"; do
   case "$arg" in
     --seed) SEED=1 ;;
-    -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,9p' "$0"; exit 0 ;;
     *) echo "未知参数：$arg（可用：--seed）" >&2; exit 2 ;;
   esac
 done
