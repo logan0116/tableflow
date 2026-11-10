@@ -26,3 +26,16 @@ data/*.db.bak-*
 # AgentTeams 运行状态
 .agent-teams/
 .tmp-shots
+
+# 部署目标（含主机地址，不入库）
+deploy/.env
+
+# 本地工具链（speckit 与 DSH 的脚手架，不进业务仓库；constitution.md 除外）
+.dsh/
+.specify/scripts/
+.specify/templates/
+.specify/workflows/
+.specify/integrations/
+.specify/init-options.json
+.specify/integration.json
+.specify/memory/.constitution-template.json
