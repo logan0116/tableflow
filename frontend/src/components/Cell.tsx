@@ -77,12 +77,7 @@ export function Cell({ field, value, truncate, onOpenRelation, onOpenRelationLis
     }
     return (
       <span className="cell-ratio" title={`${ratio.done}/${ratio.total}`}>
-        <span className="ratio-bar">
-          <i className="ratio-fill" style={{ width: `${ratio.pct}%` }} />
-        </span>
-        <span className="ratio-text">
-          {ratio.done}/{ratio.total}
-        </span>
+        {ratio.done}/{ratio.total}
       </span>
     );
   }
