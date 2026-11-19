@@ -28,10 +28,96 @@ body {
   margin: 0;
 }
 
-.app {
-  max-width: 1400px;
+/* ---------- 两栏骨架：左侧项目导航 + 右侧内容 ---------- */
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 216px minmax(0, 1fr);
+  align-items: start;
+  max-width: 1500px;
+  min-height: 100vh;
   margin: 0 auto;
-  padding: 16px 20px 40px;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  box-sizing: border-box;
+  height: 100vh;
+  padding: 18px 10px 24px;
+  overflow-y: auto;
+  border-right: 1px solid var(--color-border-soft);
+  background: var(--color-surface);
+}
+
+.app-main {
+  min-width: 0;
+  padding: 16px 24px 40px;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 8px 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.brand-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.brand-note {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.project-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-label {
+  padding: 0 8px 6px;
+  color: var(--color-muted);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.nav-placeholder {
+  padding: 6px 8px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.project-nav button {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  overflow: hidden;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 14px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.project-nav button:hover {
+  background: var(--color-zebra);
+}
+
+.project-nav button[aria-current="page"] {
+  background: #eef6ff;
+  color: var(--color-accent);
+  font-weight: 600;
 }
 
 h1 {
@@ -46,10 +132,10 @@ h1 {
 
 .page-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin: 8px 0 14px;
+  margin: 4px 0 14px;
 }
 
 .crumb-project {
@@ -74,29 +160,59 @@ h1 {
   font-variant-numeric: tabular-nums;
 }
 
-/* ---------- 项目 / 表格切换 ---------- */
-
-.switcher {
+.header-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
+  flex: none;
+  align-items: center;
+  gap: 12px;
 }
 
-.switcher button {
-  padding: 6px 12px;
+.refresh-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
   border: 1px solid var(--color-border);
   border-radius: 6px;
   background: var(--color-surface);
-  color: inherit;
-  font-size: 14px;
+  color: var(--color-text);
+  font-size: 13px;
   cursor: pointer;
 }
 
-.switcher button[aria-pressed="true"] {
+.refresh-button:hover:not(:disabled) {
   border-color: var(--color-accent);
   color: var(--color-accent);
 }
+
+.refresh-button:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.refresh-icon {
+  display: inline-block;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.refresh-button.is-loading .refresh-icon {
+  animation: refresh-spin 0.9s linear infinite;
+}
+
+@keyframes refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .refresh-button.is-loading .refresh-icon {
+    animation: none;
+  }
+}
+
+/* ---------- 表格切换 ---------- */
 
 .tabs {
   display: flex;
