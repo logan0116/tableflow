@@ -26,6 +26,7 @@ conventions:
   gate_tag: '[闸门] 参与发布条件'
   gate_mapping: '契约字段的gate: true在数据层表达为计算字段的fields.options.gate=true（布尔；010实现，calculation.py校验options.get("gate")）；仅and或rollup的all/any/none允许打标，数量类打标返回400。写接口据此拒绝人工覆盖（清除覆盖仍允许）。给存量字段打标属于迁移，见migrations.gate-tag-existing，本契约不执行。'
   status_values_scope: status_definitions每个域自洽且域内互斥；跨域允许字面同名（stage与regress都含todo/doing，语义不同），引用必须带域前缀（如spec.stage.implement、change.regress），判定只看本域字段。
+  relation_status_column: 'relation字段options.status_field（关联弹层第三列）指向目标表的完成判据字段，不是表里第一个enum：indep→验收状态（spec.acceptance）、dep→回归状态（change.regress）、bug→状态（bug.status）。board@3的indep表第一个enum是speckit-constitution状态，按"第一个enum"取会把阶段进度当完成判据（BUG-03，2026-11-19）。'
 status_definitions:
   stage:
     field: spec.stage.*
