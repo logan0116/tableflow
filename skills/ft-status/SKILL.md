@@ -1,11 +1,11 @@
 ---
 name: ft-status
-description: "只读报告tableflow看板某版本距离发布还差什么：按board@2四表契约（版本/独立规格需求/依赖需求/缺陷）逐条列出未满足的闸门、原因与对应行，给出可后移候选与拆版方案，并点出看板计算字段与契约的偏差；三表项目明确提示未迁移而不是当0。触发词：ft_status、版本状态、能不能发、发布条件、差什么、拆版、版本差距、Bug闸门。"
+description: "只读报告tableflow看板某版本距离发布还差什么：按board@3四表契约（版本/独立规格需求/依赖需求/缺陷）逐条列出未满足的闸门、原因与对应行，给出可后移候选与拆版方案，并点出看板计算字段与契约的偏差；三表项目明确提示未迁移而不是当0。触发词：ft_status、版本状态、能不能发、发布条件、差什么、拆版、版本差距、Bug闸门。"
 ---
 
 # ft_status：这个版本还差什么，能不能发
 
-输入一个版本号，输出一份**只读**报告：结论（可发/不可发/无法完整判定）→ 四项逐项判定（独立需求就绪、依赖需求就绪、上一版本Bug就绪、发布条件）→ 每个未满足项逐行说清"差哪一步" → 看板口径偏差与数据异常 → 拆分建议。
+输入一个版本号，输出一份**只读**报告：结论（可发/不可发/无法完整判定）→ 四项逐项判定（独立需求是否完成、依赖需求是否完成、上一版本Bug是否清空、发布条件）→ 每个未满足项逐行说清"差哪一步" → 看板口径偏差与数据异常 → 拆分建议。
 
 **只读是硬承诺**：全程只发`GET`，不碰`/api/agent/*`，不改`发布状态`、`验收状态`、版本关联。需要动作时只给命令，不代跑。
 
@@ -22,22 +22,22 @@ description: "只读报告tableflow看板某版本距离发布还差什么：按
 - 改数据、推进回归、置验收 → 人工或发布流程。
 - 实现/修复计算口径 → 010的需求范围。
 
-## 口径（唯一来源`specs/011-bug-table/board@2.yaml`）
+## 口径（唯一来源`specs/017-bug-relation/board@3.yaml`）
 
 | 闸门 | 契约规则 | 判定字段 | 空集 |
 |---|---|---|---|
 | 独立需求就绪 | `rollup(ver.specs, spec.acceptance, all == accepted)` | 规格行的`验收状态` | 真（本版无此类工作） |
 | 依赖需求就绪 | `rollup(ver.changes, change.regress, all == passed)` | 变更单的`回归状态` | 真（本版无变更单） |
-| 上一版本Bug就绪 | `count({bug | bug.found == 上一版本 and bug.status != closed}) == 0` | 缺陷表的`发现版本`/`状态` | 真（上一版本无缺陷） |
-| 发布条件 | `and(三项就绪)` | 客户端重算 | — |
+| 上一版本Bug是否清空 | `rollup(ver.bugs, bug.status, all == closed)` | 版本行`Bug管理`挂的缺陷 | 真（本版无缺陷要清） |
+| 发布条件 | `and(三项布尔)` | 客户端重算 | — |
 
-三条口径要点（都来自board@2，别自己发挥）：
+三条口径要点（都来自board@3，别自己发挥）：
 
 - **上一版本**＝版本号按`v<主>.<次>.<修>`语义序严格小于当前版本的最大版本；不看发布时间、不看发布状态。
-- **挂接键是`发现版本`**（必填单值），不是`修复版本`；修复版本只记录"修在哪一版"，不参与判定。
-- **缺陷表缺失不等于0**：只有三张表的项目没迁移到board@2，Bug闸门按**未启用**处理，发布条件也只能给出"无法完整判定"。
+- **挂接方向是 ver→bug**：版本行的`Bug管理`列出本版需清零的缺陷；缺陷表的`发现版本号`只是文本来源，不反向持有关系。
+- **缺陷表缺失不等于0**：缺「缺陷」表的项目，Bug闸门按**未启用**处理，发布条件只能给出"无法完整判定"。
 
-010落地前，闸门值由本技能在客户端按契约重算；看板同名计算字段的值只作对照列在报告里，**不作判据**。版本表的`上一版本Bug总数/未解决数`两个number字段在自动聚合落地前是填报值，与缺陷表重算值不一致时以缺陷表为准。
+闸门值由本技能在客户端按契约重算；看板同名计算字段的值只作对照列在报告里，**不作判据**。
 
 ## 连接
 
@@ -183,26 +183,25 @@ def dep_reason(regress):
     }.get(regress, f"回归状态未知（regress={regress}）")
 
 
-def bug_gate(bug_data, sem_bug, ver_rows, sem_ver, current_id):
+def bug_gate(bug_data, sem_bug, current, sem_ver):
+    """board@3：版本行的 Bug管理 直接持有本版需清零的缺陷，不再按“上一版本”反查。"""
     if bug_data is None:
         return {"state": "not_migrated", "value": None,
-                "detail": "该表未迁移到board@2（项目只有三张表，缺「缺陷」表），Bug闸门按未启用处理"}
-    lacking = [name for key, name in (("status", "状态"), ("found", "发现版本")) if not sem_bug.get(key)]
-    if lacking:
+                "detail": "该表未迁移到board@3（项目缺「缺陷」表），Bug闸门按未启用处理"}
+    if not sem_bug.get("status"):
         return {"state": "unknown", "value": None,
-                "detail": f"缺陷表缺字段：{'、'.join(lacking)}，Bug闸门无法判定"}
-    cur = semver(current_id)
-    earlier = [r for r in ver_rows if semver(r["id"]) < cur]
-    if not earlier:
-        return {"state": "no_prev", "value": True, "prev": None, "total": 0, "open": [],
-                "detail": f"当前版本 {current_id} 没有更早的版本，上一版本Bug集合为空（空集为真）"}
-    prev = max(earlier, key=lambda r: semver(r["id"]))
-    bugs = [b for b in bug_data["rows"] if prev["id"] in (value(b, sem_bug, "found") or [])]
-    open_bugs = [b for b in bugs if value(b, sem_bug, "status") != "closed"]
-    detail = f"上一版本 {prev['id']} 的缺陷 {len(bugs)} 个，未 closed {len(open_bugs)} 个"
-    if not bugs:
-        detail = f"上一版本 {prev['id']} 无缺陷（集合为空，空集为真）"
-    return {"state": "ok", "value": not open_bugs, "prev": prev["id"], "total": len(bugs),
+                "detail": "缺陷表缺字段：状态，Bug闸门无法判定"}
+    if not sem_ver.get("bugs"):
+        return {"state": "unknown", "value": None,
+                "detail": "版本表没有 `Bug管理` 字段，Bug闸门无法判定"}
+    rel = value(current, sem_ver, "bugs") or []   # 字段存在但没填 = 本版未挂缺陷 = 空集
+    by_id = {b["id"]: b for b in bug_data["rows"]}
+    ids = [i for i in rel if i in by_id]
+    open_bugs = [by_id[i] for i in ids if value(by_id[i], sem_bug, "status") != "closed"]
+    detail = f"本版需清零缺陷 {len(ids)} 个，未 closed {len(open_bugs)} 个"
+    if not rel:
+        detail = "本版未挂缺陷（集合为空，空集为真）"
+    return {"state": "ok", "value": not open_bugs, "total": len(ids),
             "open": [{"id": b["id"], "status": value(b, sem_bug, "status"),
                       "severity": value(b, sem_bug, "severity"),
                       "title": value(b, sem_bug, "title")} for b in open_bugs],
@@ -235,9 +234,7 @@ for r in changes:
     if reg != "passed":
         change_gap.append({"id": r["id"], "regress": reg, "need": dep_reason(reg),
                            "impact": (value(r, sem["dep"], "impact") or "")[:50]})
-bug = bug_gate(data["bug"], sem["bug"], data["ver"]["rows"], sem["ver"], cur)
-bug_open_field = value(current, sem["ver"], "bug_open")
-bug_total_field = value(current, sem["ver"], "bug_total")
+bug = bug_gate(data["bug"], sem["bug"], current, sem["ver"])
 
 spec_done = not spec_gap and not dangling_specs
 change_done = not change_gap and not dangling_changes
@@ -291,8 +288,6 @@ if rel_max is not None:
     for r in planned:
         if semver(r["id"]) <= rel_max:
             anomalies.append(f"`{r['id']}`状态为 planned，但版本号小于已发布最大版本 `{rel_text}`")
-if bug["state"] in ("ok", "no_prev") and bug_open_field is None and bug_total_field is None:
-    anomalies.append("版本行没有`上一版本Bug未解决数`/`总数`字段值（board@2新字段未落库），Bug闸门完全依赖缺陷表重算")
 if bug["state"] == "ok" and data["bug"]["rows"] == []:
     anomalies.append("缺陷表为空：若已有未登记缺陷，Bug闸门会失真")
 
@@ -301,7 +296,7 @@ report = {
     "selection": "显式指定" if WANT else "大于已发布最大版本的最小 planned",
     "released_max": rel_max_id,
     "tables": {k: ids[k] for k in ids},
-    "contract": "board@2",
+    "contract": "board@3",
     "gates": {
         "spec_done": {"value": spec_done, "rule": RULES["spec_done"], "field": sem["indep"].get("acceptance"),
                        "blocking": [g["id"] for g in spec_gap], "dangling": dangling_specs, "empty": not spec_ids},
@@ -330,7 +325,7 @@ mark = lambda flag: "是" if flag else "**否**"
 bug_mark = {"ok": None, "no_prev": None, "not_migrated": "未启用", "unknown": "无法判定"}
 print(f"# 版本状态报告：{PROJECT} / {cur}\n")
 print(f"> 数据源：`GET {BASE}/api/tables/{{{','.join(ids[k] for k in ids if ids[k])}}}/table`（只读，未调用 `/api/agent/*`）")
-print(f"> 口径：`specs/011-bug-table/board@2.yaml`（四表）；版本选择：{report['selection']}；已发布最大版本：{report['released_max'] or '无'}\n")
+print(f"> 口径：`specs/017-bug-relation/board@3.yaml`（四表）；版本选择：{report['selection']}；已发布最大版本：{report['released_max'] or '无'}\n")
 blocked = len(spec_gap) + len(change_gap) + len(bug.get("open", []))
 if gate is None:
     head = f"**无法完整判定**：{bug['detail']}"
@@ -348,7 +343,7 @@ if bug["value"] is None:
     bug_cell = bug_mark.get(bug["state"], "无法判定")
 else:
     bug_cell = mark(bug["value"])
-print(f"| 上一版本Bug就绪 | `{RULES['bug_clear']}` | {bug_cell} | {bug['detail']} |")
+print(f"| 上一版本Bug是否清空 | `{RULES['bug_clear']}` | {bug_cell} | {bug['detail']} |")
 if gate is None:
     print(f"| 发布条件 | `{RULES['gate']}` | 无法完整判定 | Bug闸门未启用，只能给两项就绪的结论 |\n")
 else:
@@ -379,7 +374,7 @@ else:
             print(f"\n悬空关联：{'、'.join(dangling_changes)}")
         print()
     if bug.get("open"):
-        print(f"### 上一版本Bug就绪：{len(bug['open'])} 个缺陷未 closed\n")
+        print(f"### 上一版本Bug是否清空：{len(bug['open'])} 个缺陷未 closed\n")
         print("| 缺陷 | 状态 | 严重度 | 标题 |")
         print("|---|---|---|---|")
         for b in bug["open"]:
@@ -391,11 +386,11 @@ else:
         print("独立需求就绪：本版未关联规格，空集判真（含义是「本版无此类工作」）。\n")
 
 if bug["state"] == "not_migrated":
-    print("### 上一版本Bug就绪：未启用\n")
+    print("### 上一版本Bug是否清空：未启用\n")
     print(f"- {bug['detail']}")
-    print("- 迁移到board@2（补`<前缀>-bug`表并按`发现版本`登记缺陷）后，本闸门才会参与发布判定。\n")
+    print("- 迁移到board@3（补`<前缀>-bug`表，并在版本行用`Bug管理`挂本版需清零的缺陷）后，本闸门才会参与发布判定。\n")
 elif bug["state"] == "unknown":
-    print("### 上一版本Bug就绪：无法判定\n")
+    print("### 上一版本Bug是否清空：无法判定\n")
     print(f"- {bug['detail']}\n")
 
 print("## 看板口径偏差（010落地前）\n")
@@ -429,7 +424,7 @@ awk '/^python3 - "\$FT_VERSION"/{f=1} f{print} /^PY$/{if(f)exit}' skills/ft-stat
 
 ## 报告怎么读
 
-1. **结论行**：`可发布`／`不可发布`／`无法完整判定`。第三种只在项目未迁移到board@2（缺缺陷表）或缺陷表缺字段时出现，**不要**把它读成"可发"或"不可发"。
+1. **结论行**：`可发布`／`不可发布`／`无法完整判定`。第三种只在项目未迁移到board@3（缺缺陷表）或版本行缺`Bug管理`时出现，**不要**把它读成"可发"或"不可发"。
 2. **四项判定**：三项就绪 + 发布条件，每项给契约规则原文、判定与依据字段；空集项标注"本版无此类工作"。
 3. **距离发布还差什么**：逐行给`行 id / 字段现值 / 还差什么`；Bug闸门列出未closed的缺陷（编号/状态/严重度/标题）。
 4. **看板口径偏差**：缺字段、存量叫法、契约外字段、`发布条件`条件集差异、`回归状态`含`na`。
@@ -474,7 +469,7 @@ awk '/^python3 - "\$FT_VERSION"/{f=1} f{print} /^PY$/{if(f)exit}' skills/ft-stat
 |---|---|
 | 三表项目当四表跑 | 缺`<前缀>-bug`时Bug闸门报"未启用"、结论"无法完整判定"，不报错也不当0 |
 | 缺陷表为空就当"没缺陷" | 空集合按契约确实为真，但若缺陷没登记，闸门会偏低；报告会单列"缺陷表为空"的数据异常 |
-| 用`修复版本`算上一版本Bug | 挂接键是`发现版本`；修复版本只记录修在哪版 |
+| 用缺陷反查版本 | 方向是 ver→bug：看版本行的`Bug管理`；缺陷的`发现版本号`只是文本，不反向持有 |
 | 把看板`发布条件`当结论 | 它可能仍是旧口径（开发进度/文档状态等）；本报告按契约三项就绪重算 |
 | 空集读成"已回归" | 空集为真含义是"本版无此类工作" |
 | 硬编码字段id | 各项目字段id不同，必须按契约字段名解析；缺字段要标出而不是当满足 |
