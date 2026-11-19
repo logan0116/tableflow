@@ -1,4 +1,4 @@
-# Feature Specification: Agent↔看板交互协议protocol@1（v0.6.2）
+# Feature Specification: Agent↔看板交互协议protocol@2（v0.6.2 起，v0.6.5 升版）
 
 **Feature Branch**: `012-protocol`
 
@@ -8,7 +8,7 @@
 
 **Input**: 看板`012-AR`行条款："交互协议：在008与011的表设计完备后，定义Agent与看板之间的交互协议——请求与响应形态、错误码、幂等键、并发控制、写入审计口径，供skill与用户系统对接。不含具体业务实现。"
 
-**协议对象**: `specs/011-bug-table/board@2.yaml`（四表：`ver`/`indep`/`dep`/`bug`），前置为008契约与011 bug表已落盘。本文只定义协议行为，不重复字段口径；字段口径以契约文件为准。新增表或字段不改变请求/响应形态，不需要升协议版本。
+**协议对象**: `specs/017-bug-relation/board@3.yaml`（四表：`ver`/`indep`/`dep`/`bug`），前置为008/011/017契约已落盘。本文只定义协议行为，不重复字段口径；字段口径以契约文件为准。新增表或字段不改变请求/响应形态，不需要升协议版本。
 
 **基线**: `backend/`当前实现（v0.6.2开发分支，含010计算口径与013用户管理）；线上看板`http://192.168.1.155:8090`只用于只读核对。所有写行为探针在临时库（`TABLEFLOW_DB`指向临时文件）执行，未改线上数据。
 
@@ -36,7 +36,7 @@
 
 ### Session 2026-11-19
 
-- Q: 协议版本怎么表达？ → A: 文档记录`protocol@1`，看板`012-AR`的规格目录指向本文；不引入请求头协商（服务端不校验未知头也无意义）；兼容规则是"只增可选字段/新增路径"，改语义必须新路径并升版本。
+- Q: 协议版本怎么表达？ → A: 文档记录`protocol@2`，看板`012-AR`的规格目录指向本文；不引入请求头协商（服务端不校验未知头也无意义）；兼容规则是"只增可选字段/新增路径"，改语义必须新路径并升版本。v0.6.5 按 DEP-04-BR 把"多余顶层键被忽略"改为"拒绝"，因此协议从`protocol@1`升到`protocol@2`。
 - Q: 什么情况算`unknown`？ → A: 只回答"请求已离开客户端，但无法从响应判定服务端是否提交"：连接中断、超时、无响应、非JSON的5xx、`503 detail`。`400/401/404/405/422`一律`failed`（未执行或被拒）。
 - Q: `503 detail`为什么不算`failed`？ → A: 写依赖在处理器前后都可能失败（`get_write_conn`在处理器前，处理器内`sqlite3.Error`也会落到同一个`detail`信封），客户端无法区分"没执行"与"提交后审计失败"，已知信息不足，保守判`unknown`并回读。
 - Q: 幂等键长什么样、谁生成？ → A: 客户端生成，请求头`Idempotency-Key`，1–64字符，建议UUIDv7或ULID；一个"意图"（一次逻辑写）一个键，重试复用，不得跨意图复用。
@@ -54,7 +54,7 @@
 
 ### User Story 1 - 第三方按文档实现客户端（Priority: P1）
 
-一个没有本仓代码的客户端开发者，只读本文与`board@2.yaml`，能实现读写、三态判定、幂等补偿、并发串行与审计核对。
+一个没有本仓代码的客户端开发者，只读本文与`board@3.yaml`，能实现读写、三态判定、幂等补偿、并发串行与审计核对。
 
 **Independent Test**: 按"客户端实现清单"逐步实现，用"示例会话"一节的curl在临时库跑通读-写-回读-变更记录四步。
 
@@ -120,7 +120,7 @@
 
 | 编号 | 规则 | 现状 | 判定方式 |
 |---|---|---|---|
-| P-001 | 协议标识为`protocol@1`，与`board@2`配套；标识写入文档，不通过请求头协商 | 部分（无协商，但文档可追溯） | 本文与`board@2.yaml`并存且互相引用；看板`012-AR`的规格目录为`specs/012-protocol/`，本文即该目录交付物 |
+| P-001 | 协议标识为`protocol@2`，与`board@3`配套；标识写入文档，不通过请求头协商 | 满足（随DEP-04升版） | 本文与`board@3.yaml`互相引用；看板`012-AR`的规格目录为`specs/012-protocol/`，本文即该目录交付物 |
 | P-002 | 兼容规则：只允许新增可选字段/新增路径；删除字段、改变已有字段语义必须新增路径并升协议版本 | 满足 | 对照`/api/agent`路径清单与响应字段：只增不减 |
 | P-003 | 写操作必须走`/api/agent/*`；`/api/*`人侧路径只有GET | 满足 | `curl -i -X POST /api/projects`应返回`405 {"detail":"Method Not Allowed"}` |
 
@@ -148,6 +148,8 @@
 
 **请求体形态（写接口；路径里的id优先，body.id可省但必须一致）**
 
+> `protocol@2` 起，请求体**只接受下表列出的顶层键**，多一个键即 `400 failed`，整请求不做部分写入。
+
 | 方法/路径 | 请求体 | 说明 |
 |---|---|---|
 | `POST /api/agent/projects` | `{id?, name}` | 建项目；`id`省略则服务端生成 |
@@ -160,17 +162,17 @@
 | `DELETE /api/agent/fields/{field_id}` | 无 | 删字段 |
 | `POST /api/agent/tables/{table_id}/recompute` | 无 | 手动重算本表及依赖方 |
 | `POST /api/agent/tables/{table_id}/rows/{row_id}` | `{id?, values}` | 建行；`values`键为字段id |
-| `PATCH /api/agent/tables/{table_id}/rows/{row_id}` | `{values?, overrides?}` | 合并更新；覆盖计算字段 |
+| `PATCH /api/agent/tables/{table_id}/rows/{row_id}` | `{values?, overrides?}` | 合并更新；覆盖计算字段；`id` 一律拒绝 |
 | `DELETE /api/agent/tables/{table_id}/rows/{row_id}` | 无 | 硬删除 |
 
 | 编号 | 规则 | 现状 | 判定方式 |
 |---|---|---|---|
 | P-014 | 行写路径为`/api/agent/tables/{table_id}/rows/{row_id}`；`row_id`是业务编号，匹配`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`，创建后不可改；`body.id`若给必须与路径一致 | 满足（`write_service.py`的`_validate_row_id`/`create_row`/`update_row`） | 提交含`id`不同的body→`400`；PATCH带`id`→`400`，错误"行 id 不可变" |
-| P-015 | `values`的键必须是该表字段id；未知键`400 failed`；`type=computed`只读；relation值为目标行id字符串数组；`null`/`""`/`[]`视为空 | 满足（`write_service.py`的`_validate_values`） | 写`{"values":{"nope":1}}`→`400 未知字段键`；写computed字段→`400 计算字段不能直接写入` |
+| P-015 | `values`的键必须是该表字段id；未知键`400 failed`；`type=computed`只读；enum字段的值必须在枚举内（错误信息列出合法取值）；relation值为目标行id字符串数组；`null`/`""`/`[]`视为空 | 满足（`write_service.py`的`_validate_values`） | 写`{"values":{"nope":1}}`→`400 未知字段键`；写computed字段→`400 计算字段不能直接写入`；写枚举外值→`400 值不在枚举范围内…合法取值：[…]` |
 | P-016 | PATCH为合并语义：给出的字段覆盖、未给出的保留；约束在合并后整行校验；值未变化的字段不产生`business_changes` | 满足（`write_service.py`的`update_row`） | 同一行PATCH同值两次：两次`200`，`changes`条数不增 |
 | P-017 | 覆盖计算字段用`overrides: {field_id: {value, reason}}`；`reason`必填；`gate: true`的字段只能`value: null`清除，设值`400` | 满足（010，`calculation.py`的`apply_overrides`/`set_override`/`clear_override`） | 覆盖非计算字段→`400`；缺reason→`400`；gate字段设值→`400 闸门字段…禁止人工覆盖` |
 | P-018 | 删除为硬删除；表被relation引用时`400`并列出引用字段；删行不级联清理引用方，悬空由计算侧判未就绪 | 满足（`write_service.py`的`delete_table`/`delete_row`） | 删除被relation引用的表→`400`并列出引用字段；删行后读引用方行仍在且计算值按010规则变化 |
-| P-019 | 不提供批量写；一次请求只写一个资源；请求体多余顶层键被忽略；跨资源一致性由客户端编排（见P-036） | 满足 | 不存在批量路径；body带多余键不影响写入结果（实测行内容只含`values`内字段） |
+| P-019 | 不提供批量写；一次请求只写一个资源；**请求体含多余顶层键即`400 failed`，整请求零写入**；跨资源一致性由客户端编排（见P-036） | 满足（protocol@2，`write_service.py`的`_reject_unknown_keys`） | 对行发`PATCH {"tf-b-source":"review"}`→`400 请求体含未知顶层键…`且读回该字段不变；正确形状`{"values":{…}}`→`200 success` |
 
 ### 5. 响应形态与三态判定
 
@@ -190,7 +192,7 @@
 | HTTP | `result` | 触发（示例） | 客户端处置 |
 |---|---|---|---|
 | 200 | `success` | 写入成功；recompute完成 | 按客户端清单第8步做回读校验，通过即终态success |
-| 400 | `failed` | 缺身份；`X-Origin`非法；未知字段键；行id非法/不可变；行/表/项目/字段不存在；id已存在；type/options非法；relation目标不存在或跨项目；计算字段直写；覆盖非计算字段或缺reason；`allow_override=false`；gate字段设值；`body.id`不一致 | 不重试，修请求或按幂等配方回读对账 |
+| 400 | `failed` | 缺身份；`X-Origin`非法；未知字段键；未知顶层键；枚举外值；行id非法/不可变；行/表/项目/字段不存在；id已存在；type/options非法；relation目标不存在或跨项目；计算字段直写；覆盖非计算字段或缺reason；`allow_override=false`；gate字段设值；`body.id`不一致 | 不重试，修请求或按幂等配方回读对账 |
 | 401 | `failed` | 无效key、已吊销key | 不重试，换key或走013签发流程 |
 | 404 | 无（`detail`） | 读接口：项目/表/行不存在 | 按failed处理，核对id |
 | 405 | 无（`detail`） | 对人侧路径发写请求 | 按failed处理，改走`/api/agent` |
@@ -332,7 +334,7 @@ curl -s "$TF_BASE/api/tables/tf-bug/rows/BUG-01/changes?limit=5"
 
 ## 验收判定
 
-- **SC-001**: 第三方仅凭本文+`board@2.yaml`可完成"读表→建行→回读→改状态→查变更"全流程，无需读后端源码。
+- **SC-001**: 第三方仅凭本文+`board@3.yaml`可完成"读表→建行→回读→改状态→查变更"全流程，无需读后端源码。
 - **SC-002**: 协议正文每条规则均有编号（P-001…P-048）且"判定方式"列可执行；抽检任取10条，按列操作可得到所述结果。
 - **SC-003**: 三态判定树用六个样例（`200 success`、`400 failed`、`401`、`422`、`503 detail`、连接超时）验证，分类全部正确。
 - **SC-004**: 幂等现状以P-031/P-032配方验证：重复建行不重复写、同值PATCH不新增`business_changes`、二次DELETE按"最终不存在"定案；P-029服务端语义在G1落地前判定为"缺口未实现"。
@@ -342,7 +344,7 @@ curl -s "$TF_BASE/api/tables/tf-bug/rows/BUG-01/changes?limit=5"
 ## 非目标
 
 - key的签发、吊销、存储与CLI（013）。
-- 字段口径、状态定义、完成判据（`board@2.yaml`）。
+- 字段口径、状态定义、完成判据（`board@3.yaml`）。
 - 计算语义与空集/悬空规则（010）。
 - MS同步与交互产品（014）。
 - 服务端实现改造：本文只定义协议；G1–G6、G9需另立需求。
