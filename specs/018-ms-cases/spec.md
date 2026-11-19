@@ -63,7 +63,7 @@
 
 **Acceptance Scenarios**:
 
-1. **Given** `specs/017-bug-relation/board@3.yaml`，**When** 校验全部项目的四表字段名、类型与顺序，**Then** 差异为 0，任何不符都按项目/表/字段列出。
+1. **Given** `specs/017-bug-relation/board@3.yaml`，**When** 校验全部项目的四表字段名、类型、顺序与每张表的单元选项集合（枚举取值，不比显示顺序），**Then** 差异为 0，任何不符都按项目/表/字段列出。
 2. **Given** 全部 relation 字段，**When** 校验 `display_field` 与 `status_field`，**Then** 状态列指向该表的完成判据字段（indep→验收状态、dep→回归状态、bug→状态），无一处缺失或指错。
 3. **Given** 版本表的三个闸门布尔与`发布条件`，**When** 校验计算口径，**Then** 三者都是 `gate=true`、`发布条件`是它们的`and`，且数量类字段没有被打标。
 4. **Given** 模板脚本 `data/template_fd_system.py` 的产物，**When** 用同一门禁校验，**Then** 与 `board@3` 差异为 0。
@@ -88,6 +88,7 @@
 - **FR-004**: 提供一致性门禁入口，按 `board@3` 校验全部项目的字段名/类型/顺序、relation 的两列配置、闸门标记与计算口径，输出可机器判定的结果。
 - **FR-005**: 模板脚本 MUST 产出与 `board@3` 一致的版本表与 indep 字段，且纳入同一门禁校验。
 - **FR-006**: 本需求的验收场景 MUST 通过 `ms_update` 同步成 MS 功能用例，用例名以 `018-USn-ASm` 开头，重复同步幂等。
+- **FR-007**: 一致性门禁 MUST 把 enum 字段的取值集合纳入比对（不只比字段名/类型/顺序），并 MUST 报告行内取值不在枚举内的存量数据——BUG-04 就是这类漂移（契约一套、线上另一套、数据里还有自由文本）。
 
 ## Non-Goals
 
