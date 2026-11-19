@@ -71,3 +71,11 @@ python3 scripts/perf_check.py http://127.0.0.1:5173/ --rows 14
 | 1280×800 | x=0, w=1280 | x=0, w=216 | x=216, w=1064 | 1280（无横向溢出） |
 
 截图：`.tmp-shots/007-fix-1915.png`（1915视口，侧栏贴左、内容占满）。
+
+## 7. 上线记录（v0.5.1，2026-11-19）
+
+- 发布前备份：`/srv/tableflow/deploy/data/tableflow.db.bak-20261119-094029`（`integrity_check=ok`，7项目181行），并取回本地 `.tmp-shots/tableflow-predeploy-20261119-094029.db`。
+- 部署：`bash deploy/deploy.sh`（默认模式，无`--seed`）；镜像`tableflow:0.5.1`。
+- 发布后核对：7项目、21张表、181行与部署前一致；线上1915×1070视口下`.app-shell`x=0/w=1915、侧栏x=0/w=216、内容x=216/w=1699，`body.scrollWidth=1915`无横向溢出。
+- 变更单：DEP-03-BR回归状态`passed`、状态`已完成`；v0.5.1发布条件=是。
+- 回滚：`image`改回`tableflow:0.5.0`重新`up -d`；数据恢复同第5节。
