@@ -11,6 +11,16 @@ v0.3.0（002）：
 v0.3.0（003）：
 - 新增 `type=computed`：配置在字段创建/更新时校验，值由 `calculation` 在写事务内重算并落库。
 - 计算字段不接受直接写入；行 PATCH 支持 `overrides`（人工覆盖，带原因、可清除）。
+
+v0.6.2（013）：
+- 写请求的调用者身份由 `auth` 解析，`run_write` 把 `key_id` 落进 `write_audit`；
+  无 key 的旧调用（`X-Agent-Id`）行为不变。
+- 新建行时，负责人字段缺省由调用者身份填充（仅 key 鉴权的调用者；
+  旧调用不改写数据，避免把工具名写进"负责人"）。
+
+v0.6.0 缺陷修复（t9）：
+- V060-04：更新行只校验本次提交的关系字段“目标行必须存在”；
+  存量悬空引用不再锁死无关字段的编辑，显式提交悬空值仍 400。
 """
 
 from __future__ import annotations
@@ -32,6 +42,10 @@ ORIGINS = {"agent", "human-request", "seed"}
 CONSTRAINT_KEYS = {"required", "min", "max", "enum_strict", "relation_must_exist"}
 ROW_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 ORDER_MAX = 100000
+# 负责人字段识别：字段 id 以 -owner 结尾（契约字段 id 规则 <前缀>-<v|i|d>-<短名>），
+# 退一步认名称恰为"负责人"的文本字段。多义时不猜，交人工填。
+OWNER_FIELD_SUFFIX = "-owner"
+OWNER_FIELD_NAME = "负责人"
 
 
 def _now() -> str:
@@ -47,13 +61,16 @@ def _audit_row(
     payload: str | None,
     result: str,
     error: str | None = None,
+    *,
+    key_id: str | None = None,
 ) -> None:
     conn.execute(
         "INSERT INTO write_audit"
-        " (agent_id, origin, action, target, payload, result, error, created_at)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        " (agent_id, key_id, origin, action, target, payload, result, error, created_at)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             agent_id,
+            key_id,
             origin,
             action,
             target,
@@ -65,6 +82,30 @@ def _audit_row(
     )
 
 
+def record_auth_failure(
+    conn: sqlite3.Connection,
+    *,
+    agent_id: str,
+    origin: str,
+    action: str,
+    target: str,
+    payload: str | None,
+    error: str,
+) -> None:
+    """鉴权失败也留痕：key 无效/缺失时写一条 failed 审计（无 key 标识可记）。"""
+    _audit_row(
+        conn,
+        agent_id or "-",
+        origin if origin in ORIGINS else "agent",
+        action,
+        target,
+        payload,
+        "failed",
+        error,
+    )
+    conn.commit()
+
+
 def run_write(
     conn: sqlite3.Connection,
     *,
@@ -74,8 +115,9 @@ def run_write(
     payload: str | None,
     operation: Callable[[], Any],
     origin: str = "agent",
+    key_id: str | None = None,
 ) -> Any:
-    """执行一次写入并保证留下审计记录。"""
+    """执行一次写入并保证留下审计记录；`key_id` 标识本次请求由哪把 key 发起。"""
     if not agent_id:
         _audit_row(conn, "-", "agent", action, target, payload, "failed", "缺少 X-Agent-Id")
         conn.commit()
@@ -91,28 +133,33 @@ def run_write(
             payload,
             "failed",
             f"X-Origin 必须是 {sorted(ORIGINS)} 之一",
+            key_id=key_id,
         )
         conn.commit()
         raise WriteError(f"X-Origin 必须是 {sorted(ORIGINS)} 之一")
 
     try:
         result = operation()
-        _audit_row(conn, agent_id, origin, action, target, payload, "success")
+        _audit_row(conn, agent_id, origin, action, target, payload, "success", key_id=key_id)
         conn.commit()
         return result
     except WriteError as exc:
         conn.rollback()
-        _audit_row(conn, agent_id, origin, action, target, payload, "failed", str(exc))
+        _audit_row(conn, agent_id, origin, action, target, payload, "failed", str(exc), key_id=key_id)
         conn.commit()
         raise
     except sqlite3.Error as exc:
         conn.rollback()
-        _audit_row(conn, agent_id, origin, action, target, payload, "failed", f"数据库错误：{exc}")
+        _audit_row(
+            conn, agent_id, origin, action, target, payload, "failed", f"数据库错误：{exc}", key_id=key_id
+        )
         conn.commit()
         raise WriteError(f"数据库错误：{exc}") from exc
     except Exception as exc:  # noqa: BLE001 - 兜底，保证审计
         conn.rollback()
-        _audit_row(conn, agent_id, origin, action, target, payload, "failed", f"未预期错误：{exc}")
+        _audit_row(
+            conn, agent_id, origin, action, target, payload, "failed", f"未预期错误：{exc}", key_id=key_id
+        )
         conn.commit()
         raise WriteError(f"未预期错误：{exc}") from exc
 
@@ -626,6 +673,31 @@ def _fields_map(conn: sqlite3.Connection, table_id: str) -> dict[str, sqlite3.Ro
     return {row["id"]: row for row in rows}
 
 
+def _owner_field(fields: dict[str, sqlite3.Row]) -> sqlite3.Row | None:
+    """识别本表的负责人字段；多义时不猜（返回 None），交人工填。"""
+    by_id = [
+        field
+        for field in fields.values()
+        if field["type"] == "text" and field["id"].endswith(OWNER_FIELD_SUFFIX)
+    ]
+    candidates = by_id or [
+        field
+        for field in fields.values()
+        if field["type"] == "text" and field["name"] == OWNER_FIELD_NAME
+    ]
+    if len(candidates) != 1:
+        return None
+    return candidates[0]
+
+
+def _fill_owner(fields: dict[str, sqlite3.Row], values: dict[str, Any], caller: str) -> dict[str, Any]:
+    """新建行时负责人缺省由调用者身份填充；已有值/显式值优先。"""
+    owner = _owner_field(fields)
+    if owner is None or not _is_empty(values.get(owner["id"])):
+        return values
+    return {**values, owner["id"]: caller}
+
+
 def _validate_row_id(row_id: Any) -> str:
     if not isinstance(row_id, str) or not ROW_ID_RE.match(row_id):
         raise WriteError("行 id 必须是业务编号，匹配 ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
@@ -657,7 +729,15 @@ def _validate_row_constraints(
     conn: sqlite3.Connection,
     fields: dict[str, sqlite3.Row],
     values: dict[str, Any],
+    *,
+    relation_field_ids: set[str] | None = None,
 ) -> None:
+    """校验行值约束。
+
+    `relation_field_ids` 非空时只校验这些字段的“关联目标必须存在”：
+    更新行只校验本次提交的关系字段，存量悬空引用不阻断无关字段的编辑（V060-04）。
+    必填/min/max/enum 仍按合并后的整行校验，保证行始终合法。
+    """
     for field_id, field in fields.items():
         options = _loads(field["options"])
         if not isinstance(options, dict):
@@ -680,6 +760,8 @@ def _validate_row_constraints(
             if value not in allowed:
                 raise WriteError(f"字段「{field['name']}」的值不在枚举范围内：{value}")
         if field["type"] == "relation" and constraints.get("relation_must_exist") and not _is_empty(value):
+            if relation_field_ids is not None and field_id not in relation_field_ids:
+                continue
             target = options.get("table_id")
             for target_id in value:
                 exists = conn.execute(
@@ -725,6 +807,7 @@ def create_row(
     *,
     actor: str = "-",
     origin: str = "agent",
+    autofill_owner_by: str | None = None,
 ) -> str:
     if conn.execute("SELECT 1 FROM tables WHERE id = ?", (table_id,)).fetchone() is None:
         raise WriteError("表格不存在")
@@ -736,6 +819,9 @@ def create_row(
     if not isinstance(values, dict):
         raise WriteError("values 必须是对象")
     fields = _fields_map(conn, table_id)
+    if autofill_owner_by:
+        # 兼容期只有 key 鉴权的调用者填充负责人；旧 X-Agent-Id 调用保持原样。
+        values = _fill_owner(fields, values, autofill_owner_by)
     _validate_values(conn, table_id, fields, values)
     _validate_row_constraints(conn, fields, values)
     if conn.execute(
@@ -782,7 +868,8 @@ def update_row(
     _validate_values(conn, table_id, fields, values)
     old_values = _loads(row["data"]) or {}
     merged = {**old_values, **values}
-    _validate_row_constraints(conn, fields, merged)
+    # 只对本次提交的关系字段校验“目标行必须存在”；存量悬空引用不阻断无关字段的编辑（V060-04）。
+    _validate_row_constraints(conn, fields, merged, relation_field_ids=set(values))
 
     for field_id, new_value in values.items():
         old_value = old_values.get(field_id)
