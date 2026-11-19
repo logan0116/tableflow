@@ -138,6 +138,12 @@ tables:
       name: 发布时间
       type: datetime
       note: 精确到日
+    - key: ver.gate
+      name: 发布条件
+      type: computed
+      gate: true
+      rule: and(ver.spec_done, ver.change_done, ver.bug_clear)
+      note: 016 FR-006：发布条件排在发布状态之前（版本行最显眼的位置）
     - key: ver.release_status
       name: 发布状态
       type: enum
@@ -189,11 +195,6 @@ tables:
       type: computed
       gate: true
       rule: rollup(ver.bugs, bug.status, all == closed)
-    - key: ver.gate
-      name: 发布条件
-      type: computed
-      gate: true
-      rule: and(ver.spec_done, ver.change_done, ver.bug_clear)
     - key: ver.owner
       name: 负责人
       type: text
