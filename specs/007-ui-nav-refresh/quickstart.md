@@ -49,3 +49,10 @@ python3 scripts/perf_check.py http://127.0.0.1:5173/ --rows 14
 ## 4. 回退方式
 
 回退本次提交即可；无数据迁移、无配置项、无 localStorage 键变化。
+
+## 5. 上线记录（2026-11-19）
+
+- 发布前备份：`/srv/tableflow/deploy/data/tableflow.db.bak-20261119-093510`（容器内 sqlite backup API 生成，`integrity_check=ok`，7项目），并取回本地 `.tmp-shots/tableflow-predeploy-20261119-093510.db`。
+- 部署：`bash deploy/deploy.sh`（默认模式，未带`--seed`）；镜像`tableflow:0.5.0`，数据目录`deploy/data`未重建。
+- 发布后核对：7项目、21张表行数与部署前逐一一致；前端资源`index-BvIc8YMP.js`；线上点刷新发3个GET，当前项目/表格保持。
+- 回滚：把`deploy/docker-compose.yml`的`image`改回`tableflow:0.4.1`后重新`up -d`；数据恢复用备份文件替换`deploy/data/tableflow.db`（先停容器，并删除`-wal`/`-shm`）。

@@ -41,9 +41,10 @@
 - [x] T015 浏览器核验：刷新中按钮禁点且 `aria-busy`；空态/错误态下按钮可点；项目被删时回退首项
 - [x] T016 `python3 scripts/contrast_check.py` 5/5；`perf_check.py` 首屏与滚动不回退
 - [x] T017 tableflow 看板回写：007-AR 场景数/任务数/implement=done；v0.5.0 测试进度与文档状态
+- [x] T018 发布 v0.5.0：版本号四文件、构建、`git tag v0.5.0`、部署 155（发布前备份，不带`--seed`）
 
 ## Dependencies
 
 ```text
-T001..T005 → T006..T010 → T011..T016 → T017
+T001..T005 → T006..T010 → T011..T016 → T017 → T018
 ```
