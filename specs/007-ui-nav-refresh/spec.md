@@ -71,7 +71,7 @@
 
 ### Functional Requirements
 
-- **FR-001**: 项目列表MUST以左侧竖排导航呈现，位于内容区左侧；右侧内容区宽度自适应剩余空间。
+- **FR-001**: 项目列表MUST以左侧竖排导航呈现并贴视口左缘；右侧内容区MUST占满剩余宽度，MUST NOT整体居中留白。
 - **FR-002**: 导航项MUST显示项目 `name`；当前项目MUST有可见选中态并带 `aria-current="page"`。
 - **FR-003**: 侧栏MUST固定宽度并独立滚动；项目数增多MUST NOT挤压表格可用宽度或把表格推出视口。
 - **FR-004**: 页头MUST提供刷新按钮，触发重新拉取项目列表、当前项目表格列表、当前表格数据；MUST NOT新增接口、MUST NOT引入缓存。
@@ -92,7 +92,7 @@
 
 ## Success Criteria *(mandatory)*
 
-- **SC-001**: 1280×800窗口下，项目导航在左、内容在右，页面无横向溢出；项目数超出侧栏高度时侧栏独立滚动，表格区宽度不变。
+- **SC-001**: 1280×800与1915×1070窗口下，侧栏贴视口左缘（x=0）、内容占满剩余宽度，页面无横向溢出；项目数超出侧栏高度时侧栏独立滚动，表格区宽度不变。
 - **SC-002**: 点击刷新，网络面板可见 `GET /api/projects`、`GET /api/projects/{id}/tables`、`GET /api/tables/{id}/table` 各一次；刷新后当前表格与筛选词不变。
 - **SC-003**: 刷新进行中按钮 `aria-busy="true"` 且 `disabled`；结束后两属性恢复。
 - **SC-004**: 前端 `npx tsc --noEmit` 零错误、`npm run build` 成功；后端 `pytest -q` 全绿（不回归）。

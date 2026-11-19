@@ -46,7 +46,7 @@
 
 ### 1. 两栏布局
 
-- `.app-shell` 用 CSS Grid：`grid-template-columns: 216px minmax(0, 1fr)`，`max-width: 1500px` 居中，`min-height: 100vh`。
+- `.app-shell` 用 CSS Grid：`grid-template-columns: 216px minmax(0, 1fr)`，`min-height: 100vh`；不设 `max-width`，侧栏贴视口左缘、内容占满剩余宽度。
 - 侧栏 `position: sticky; top: 0; height: 100vh; overflow-y: auto`，右侧边框用 `--color-border-soft`，与内容区分层；`align-items: start` 让 sticky 生效。
 - 内容区 `min-width: 0`，防止宽表格把 Grid 列撑破；`padding` 沿用现有节奏。
 - 不写 media query：桌面专用，窄窗口由内容区横向滚动兜底（宪法非目标）。

@@ -56,3 +56,18 @@ python3 scripts/perf_check.py http://127.0.0.1:5173/ --rows 14
 - 部署：`bash deploy/deploy.sh`（默认模式，未带`--seed`）；镜像`tableflow:0.5.0`，数据目录`deploy/data`未重建。
 - 发布后核对：7项目、21张表行数与部署前逐一一致；前端资源`index-BvIc8YMP.js`；线上点刷新发3个GET，当前项目/表格保持。
 - 回滚：把`deploy/docker-compose.yml`的`image`改回`tableflow:0.4.1`后重新`up -d`；数据恢复用备份文件替换`deploy/data/tableflow.db`（先停容器，并删除`-wal`/`-shm`）。
+
+## 6. 变更记录：DEP-03-BR（v0.5.1，2026-11-19）
+
+**问题**：v0.5.0的`.app-shell`保留`max-width: 1500px; margin: 0 auto`，1915×1070视口下整体居中：侧栏从x=188开始、内容右侧到x=1688，两侧各留白约200px。
+
+**修复**：去掉`.app-shell`的`max-width`与`margin: auto`，两栏直接铺满视口。
+
+**核验**（headless Chrome，Emulation设置视口）：
+
+| 视口 | `.app-shell` | 侧栏 | 内容区 | 页面`scrollWidth` |
+|---|---|---|---|---|
+| 1915×1070 | x=0, w=1915 | x=0, w=216 | x=216, w=1699 | 1915（无横向溢出） |
+| 1280×800 | x=0, w=1280 | x=0, w=216 | x=216, w=1064 | 1280（无横向溢出） |
+
+截图：`.tmp-shots/007-fix-1915.png`（1915视口，侧栏贴左、内容占满）。

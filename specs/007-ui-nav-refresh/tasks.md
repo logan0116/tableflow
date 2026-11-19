@@ -42,9 +42,10 @@
 - [x] T016 `python3 scripts/contrast_check.py` 5/5；`perf_check.py` 首屏与滚动不回退
 - [x] T017 tableflow 看板回写：007-AR 场景数/任务数/implement=done；v0.5.0 测试进度与文档状态
 - [x] T018 发布 v0.5.0：版本号四文件、构建、`git tag v0.5.0`、部署 155（发布前备份，不带`--seed`）
+- [x] T019 DEP-03-BR：去掉`.app-shell`的`max-width`居中，1915×1070与1280×800双视口核验贴边与无溢出
 
 ## Dependencies
 
 ```text
-T001..T005 → T006..T010 → T011..T016 → T017 → T018
+T001..T005 → T006..T010 → T011..T016 → T017 → T018 → T019
 ```
