@@ -55,8 +55,37 @@ function isBlank(value: unknown): boolean {
   return value === null || value === undefined || value === "";
 }
 
+/** ratio 计算字段：值形如 "3/5"，拆成分子分母用于进度条。 */
+function parseRatio(value: unknown): { done: number; total: number; pct: number } | null {
+  const match = /^(\d+)\/(\d+)$/.exec(String(value ?? ""));
+  if (!match) {
+    return null;
+  }
+  const done = Number(match[1]);
+  const total = Number(match[2]);
+  const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+  return { done, total, pct };
+}
+
 export function Cell({ field, value, truncate, onOpenRelation, onOpenRelationList }: CellProps) {
   const blank = isBlank(value);
+
+  if (field.type === "computed" && optionObject<Record<string, unknown>>(field.options)?.kind === "ratio") {
+    const ratio = parseRatio(value);
+    if (!ratio) {
+      return <span className="cell-text">{blank ? "" : String(value)}</span>;
+    }
+    return (
+      <span className="cell-ratio" title={`${ratio.done}/${ratio.total}`}>
+        <span className="ratio-bar">
+          <i className="ratio-fill" style={{ width: `${ratio.pct}%` }} />
+        </span>
+        <span className="ratio-text">
+          {ratio.done}/{ratio.total}
+        </span>
+      </span>
+    );
+  }
 
   // 数字列（number 与产出数字的计算字段）始终右对齐占位，空值也不破坏列宽。
   if (isNumericField(field)) {
