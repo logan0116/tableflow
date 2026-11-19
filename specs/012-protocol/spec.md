@@ -16,21 +16,21 @@
 
 1. 协议可用，但**不是"带`X-Agent-Id`就完事"**：客户端必须按三态判定树分类响应，并把`503 detail`、网络超时一律当`unknown`回读，不能当成功。
 2. **幂等键目前没有服务端落点**：`write_audit`没有幂等列、没有去重表、接口不认`Idempotency-Key`头。协议定义幂等键语义，同时给出"今天就能用"的业务键+回读补偿配方；服务端改造列为缺口`G1`。
-3. **并发是"单写者+最后写入获胜"**：SQLite WAL单写者、无`busy_timeout`、无行版本/ETag/`If-Match`。锁冲突有两种形态：写事务阶段→`400 failed`（`数据库错误：database is locked`），连接阶段设WAL被锁→`503 {"detail":"数据存储不可用"}`。协议要求客户端串行化、退避重试与读改写自检；服务端改造列为`G3`。
+3. **并发是"单写者+最后写入获胜"**：SQLite WAL单写者、无`busy_timeout`、无行版本/ETag/`If-Match`。锁冲突经HTTP只观测到一种形态：`503 {"detail":"数据存储不可用"}`（写事务遇锁且失败审计同样写不进，应用按存储不可用返回；qa V062-02与我方探针均复现）。`400 failed`且错误含`database is locked`的形态未复现，不纳入协议规则；`400`一律按`failed`处理、不自动重试。协议要求客户端串行化、退避重试与读改写自检；服务端改造列为`G3`。
 4. **审计只覆盖"进入写处理器的请求"**：`405`/`422`与未匹配到写路由的`404`没有审计；`write_audit`只有本机CLI可查，`business_changes`有HTTP查询。远程审计查询列为`G4`。
-5. **`unknown`目前没有产生路径**：`app.py`能把`exc.unknown`映射为`503 {"result":"unknown"}`，但没有任何调用点构造`WriteError(..., unknown=True)`（只有`errors.py:11`的文档字符串提到该参数）。协议把它定义为保留状态，并规定客户端如何从非信封5xx/超时自行判`unknown`（`G2`）。
+5. **`unknown`目前没有产生路径**：`app.py`能把`exc.unknown`映射为`503 {"result":"unknown"}`，但没有任何调用点构造`WriteError(..., unknown=True)`（只有`errors.py`的`WriteError`文档字符串提到该参数）。协议把它定义为保留状态，并规定客户端如何从非信封5xx/超时自行判`unknown`（`G2`）。
 
 ## 背景与问题证据
 
 | 现状 | 证据 | 后果 |
 |---|---|---|
-| 三态只在文档里，代码里没有制造`unknown`的路径 | `backend/src/tableflow/app.py:222-223`映射`exc.unknown`；`grep -rn "unknown=True" backend/src`只命中`errors.py:11`文档字符串，无调用点 | 客户端以为"503就是unknown"，而今天唯一的503是`{"detail":"数据存储不可用"}`；把503一律当unknown会误判"连接失败未执行"为"可能已提交" |
-| 幂等没有协议 | 无`Idempotency-Key`解析、`write_audit`无该列（`db.py:55-66`）、无去重表；重复建行返回`400 failed`，错误"行 id 已存在"（`write_service.py:816`） | 超时重试靠猜：重试建行会拿到失败，客户端可能误报"未落库" |
-| 并发无版本概念 | `db.py:127-133`只设WAL与外键，无`busy_timeout`；`update_row`是字段级合并（`write_service.py:834-891`），无前置条件 | 两个Agent同时改一行的不同字段都成功；改同一字段则后者静默覆盖，无冲突信号 |
-| 锁冲突暴露为两种形态 | 临时库探针：连接A持`BEGIN IMMEDIATE`，连接B直连写入抛`OperationalError: database is locked`，经接口映射为`400 failed`（`write_service.py:146-153`）；同一场景走HTTP时，服务端连接阶段设WAL即被锁，返回`503 {"detail":"数据存储不可用"}` | 客户端把可重试的锁冲突当永久失败或当未知，业务动作半途停下 |
-| 审计查不到 | `write_audit`无HTTP查询接口，只有`backend/scripts/tf_keys.py audit`（本机库）；`business_changes`有`GET .../changes`（`repository.py:203-233`） | "谁在何时改了什么"在远程无法自证，第三方对接只能靠本机运维 |
+| 三态只在文档里，代码里没有制造`unknown`的路径 | `app.py`的`_handle`映射`exc.unknown`；`grep -rn "unknown=True" backend/src`只命中`errors.py`的`WriteError`文档字符串，无调用点 | 客户端以为"503就是unknown"，而今天唯一的503是`{"detail":"数据存储不可用"}`；把503一律当unknown会误判"连接失败未执行"为"可能已提交" |
+| 幂等没有协议 | 无`Idempotency-Key`解析、`write_audit`无该列（`db.py`的`write_audit`建表语句）、无去重表；重复建行返回`400 failed`，错误"行 id 已存在"（`write_service.py`的`create_row`） | 超时重试靠猜：重试建行会拿到失败，客户端可能误报"未落库" |
+| 并发无版本概念 | `db.py`的`connect_write`只设WAL与外键，无`busy_timeout`；`update_row`是字段级合并（`write_service.py`的`update_row`），无前置条件 | 两个Agent同时改一行的不同字段都成功；改同一字段则后者静默覆盖，无冲突信号 |
+| 锁冲突只有503一种可复现形态 | 本机探针：连接A持`BEGIN IMMEDIATE`时，直连sqlite写入抛`OperationalError: database is locked`；同一场景走HTTP写，返回`503 {"detail":"数据存储不可用"}`，且`write_audit`增量为0（失败审计同样写不进），服务层抛`OperationalError`而非`WriteError`。`400 failed`且`error`以`数据库错误：`开头的形态在HTTP锁路径未复现（qa V062-02） | 客户端若把锁冲突当永久失败会半途停下；协议规定按`503 detail`→unknown回读并退避重试 |
+| 审计查不到 | `write_audit`无HTTP查询接口，只有`backend/scripts/tf_keys.py audit`（本机库）；`business_changes`有`GET .../changes`（`repository.py`的`list_changes`） | "谁在何时改了什么"在远程无法自证，第三方对接只能靠本机运维 |
 | 非信封响应混杂 | 临时库探针：缺身份/重复行→`400 {"result":"failed"}`；无效key→`401 {"result":"failed"}`；非法JSON→`422 {"detail":[...]}`；人侧写路由→`405 {"detail":...}`；存储不可用→`503 {"detail":...}`；读404→`404 {"detail":...}` | 客户端若只读`result`字段，会在422/503上抛异常或误判 |
-| 客户端文档把三态简化成"状态码决定" | `skills/tableflow-board/SKILL.md:51`直接写`unknown`（503）；`specs/009-tf-update/spec.md:19/104`同；`skills/tf-update/SKILL.md:43/179`把一切503映射`unknown` | 实际503常是`{"detail":...}`而非result信封，且`400 数据库错误`（锁冲突）没有可重试分类；口径不细化会固化错误重试 |
+| 客户端文档把三态简化成"状态码决定" | `skills/tableflow-board/SKILL.md`的"写接口"一节直接写`unknown`（503）；`specs/009-tf-update/spec.md`的"背景"/"三态"条款同；`skills/tf-update/SKILL.md`的"三态"一节把一切503映射`unknown` | 实际503常是`{"detail":...}`而非result信封；且把HTTP锁冲突的形态写成`400 数据库错误`（实际未复现，qa V062-02），会固化错误重试 |
 
 ## Clarifications
 
@@ -48,6 +48,7 @@
 - Q: 012与013怎么分工？ → A: 012定"审计记哪些字段、何时记、怎么查"与身份头的协议语义；013定"调用者如何被识别"的具体实现（key格式、SHA-256存储、签发/吊销CLI、label语义、负责人自动填充）。两者字段名一致：`agent_id`/`key_id`/`origin`。
 - Q: 错误文本能做机器判定吗？ → A: 不能。机器判定只用HTTP状态与`result`；错误文本只用于人读与日志。服务端无`error_code`，属`G5`。
 - Q: 读接口要不要鉴权？ → A: 现状无鉴权（人只读）。协议假定可信网络；暴露到不可信网络必须由网关前置鉴权（`G8`）。
+- Q: 锁冲突在HTTP上是什么形态？ → A: 只有`503 {"detail":"数据存储不可用"}`一种可复现形态（写事务与失败审计同时遇锁，服务端按存储不可用返回；qa V062-02与我方探针均复现）；`400`且错误`database is locked`的形态未复现，不纳入协议。客户端按`503 detail`→unknown回读+退避重试，`400`一律按failed处理。
 
 ## 使用者与验收场景
 
@@ -65,7 +66,7 @@
 
 ### User Story 2 - 三态判定一致（Priority: P1）
 
-所有Skill与用户系统对同一响应得出同一终态；`unknown`不得当成功，`failed`不得重试（可重试类除外）。
+所有Skill与用户系统对同一响应得出同一终态；`unknown`不得当成功，`failed`不得自动重试（`400/401/404/405/422`）。
 
 **Independent Test**: 对六种响应样例（200 success、400 failed、401、422、503 detail、连接超时）逐一分类，结果与判定树一致。
 
@@ -96,13 +97,13 @@
 **Acceptance Scenarios**:
 
 1. **Given** 两个在途写同一行同一字段，**When** 都返回成功，**Then** 后写覆盖前写，`business_changes`有两条`update`。
-2. **Given** 连接A持有写事务，**When** 连接B写入，**Then** B在无等待下收到锁错误（现状），协议要求客户端退避重试并回读。
+2. **Given** 连接A持有写事务，**When** 连接B发起HTTP写，**Then** B收到`503 {"detail":"数据存储不可用"}`（写事务遇锁，服务端按存储不可用返回），协议要求按unknown回读并退避重试。
 3. **Given** 客户端读改写，**When** 提交前发现关键字段已变，**Then** 放弃提交并重新决策。
 
 ### Edge Cases
 
 - `503 detail`出现在写请求上：无法区分"未执行"与"提交后审计失败"，一律按`unknown`回读，不按`failed`直接放弃。
-- `400`且错误以`数据库错误：`开头：事务已回滚，按可重试失败退避重试，重试后仍需回读。
+- 锁冲突只按`503 detail`识别（写事务与失败审计同时遇锁）：按`unknown`回读并退避重试；`400`不因锁冲突出现（未复现），出现时按`failed`处理并人工核存储状态。
 - HTTP 200但响应体不是JSON（代理/网关改写）：按`unknown`处理，回读定案。
 - 重复建资源但内容与首次不一致：按冲突处理，`failed(conflict)`，不覆盖已有数据。
 - 二次删除同一行：按"删除意图以最终不存在为成功"定案，不把`400`直接报成"没删掉"。
@@ -128,16 +129,16 @@
 | 编号 | 规则 | 现状 | 判定方式 |
 |---|---|---|---|
 | P-004 | 请求与响应均为UTF-8 JSON；写请求必须带`Content-Type: application/json` | 满足 | 任意写请求省略Content-Type时服务端返回`422`（FastAPI默认），带则正常 |
-| P-005 | 服务端时间统一ISO8601、`+08:00`、秒级；客户端不得用本地时钟判断先后 | 满足（`write_service.py:47-49`） | 读任意`business_changes.occurred_at`，格式为`2026-11-19T12:22:16+08:00` |
-| P-006 | 所有响应带`Cache-Control: no-store`，读侧不缓存 | 满足（`app.py:55-59`） | `curl -i`任意GET，响应头含`cache-control: no-store` |
-| P-007 | 读表一次返回全部字段与行，无分页；变更记录有`limit`（1–200，默认50，按id倒序） | 满足（`repository.py:203-233`） | `GET /api/tables/tf-bug/table`一次返回12字段；`GET .../changes?limit=2`最多2条且id递减 |
+| P-005 | 服务端时间统一ISO8601、`+08:00`、秒级；客户端不得用本地时钟判断先后 | 满足（`write_service.py`的`_now`） | 读任意`business_changes.occurred_at`，格式为`2026-11-19T12:22:16+08:00` |
+| P-006 | 所有响应带`Cache-Control: no-store`，读侧不缓存 | 满足（`app.py`的`add_no_store`中间件） | `curl -i`任意GET，响应头含`cache-control: no-store` |
+| P-007 | 读表一次返回全部字段与行，无分页；变更记录有`limit`（1–200，默认50，按id倒序） | 满足（`repository.py`的`list_changes`） | `GET /api/tables/tf-bug/table`一次返回12字段；`GET .../changes?limit=2`最多2条且id递减 |
 | P-008 | 读接口无鉴权，协议假定可信网络；暴露到不可信网络必须由网关前置鉴权 | 缺口（G8） | 不带任何头`curl /api/projects`应200；公网部署须有网关鉴权配置 |
 
 ### 3. 身份与来源
 
 | 编号 | 规则 | 现状 | 判定方式 |
 |---|---|---|---|
-| P-009 | 身份头优先级：有效`X-API-Key`→`agent_id`=key的label、`key_id`=key id；无key→`agent_id`=`X-Agent-Id`、`key_id`为空；两者都无→`400 {"result":"failed"}`且错误含`X-Agent-Id` | 满足（`auth.py`，`app.py:98-103`） | 分别用有效key、仅`X-Agent-Id`、两者都不带写一次，核对响应与审计三条记录 |
+| P-009 | 身份头优先级：有效`X-API-Key`→`agent_id`=key的label、`key_id`=key id；无key→`agent_id`=`X-Agent-Id`、`key_id`为空；两者都无→`400 {"result":"failed"}`且错误含`X-Agent-Id` | 满足（`auth.py`，`app.py`的`caller_headers`） | 分别用有效key、仅`X-Agent-Id`、两者都不带写一次，核对响应与审计三条记录 |
 | P-010 | 出示无效或已吊销的key必须`401 failed`，不得回退到`X-Agent-Id` | 满足 | 带`X-API-Key: tfk_bogus`+合法`X-Agent-Id`写一行：`401`、数据未写、审计`failed` |
 | P-011 | `X-Origin`可选，取值`agent`/`human-request`/`seed`，缺省`agent`；非法值`400 failed` | 满足 | 带`X-Origin: robot`写一次：`400`且错误列出合法枚举 |
 | P-012 | 审计身份只由服务端解析，客户端不得在请求体中提交`agent_id`/`key_id`/审计行 | 满足（无此入参） | 请求体塞`agent_id`不改变审计；审计该列与头部一致 |
@@ -164,23 +165,23 @@
 
 | 编号 | 规则 | 现状 | 判定方式 |
 |---|---|---|---|
-| P-014 | 行写路径为`/api/agent/tables/{table_id}/rows/{row_id}`；`row_id`是业务编号，匹配`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`，创建后不可改；`body.id`若给必须与路径一致 | 满足（`write_service.py:697-701,834-840`） | 提交含`id`不同的body→`400`；PATCH带`id`→`400`，错误"行 id 不可变" |
-| P-015 | `values`的键必须是该表字段id；未知键`400 failed`；`type=computed`只读；relation值为目标行id字符串数组；`null`/`""`/`[]`视为空 | 满足（`write_service.py:703-722`） | 写`{"values":{"nope":1}}`→`400 未知字段键`；写computed字段→`400 计算字段不能直接写入` |
-| P-016 | PATCH为合并语义：给出的字段覆盖、未给出的保留；约束在合并后整行校验；值未变化的字段不产生`business_changes` | 满足（`write_service.py:834-891`） | 同一行PATCH同值两次：两次`200`，`changes`条数不增 |
-| P-017 | 覆盖计算字段用`overrides: {field_id: {value, reason}}`；`reason`必填；`gate: true`的字段只能`value: null`清除，设值`400` | 满足（010，`calculation.py:818-936`） | 覆盖非计算字段→`400`；缺reason→`400`；gate字段设值→`400 闸门字段…禁止人工覆盖` |
-| P-018 | 删除为硬删除；表被relation引用时`400`并列出引用字段；删行不级联清理引用方，悬空由计算侧判未就绪 | 满足（`write_service.py:465-480,893-926`） | 删除被relation引用的表→`400`并列出引用字段；删行后读引用方行仍在且计算值按010规则变化 |
+| P-014 | 行写路径为`/api/agent/tables/{table_id}/rows/{row_id}`；`row_id`是业务编号，匹配`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`，创建后不可改；`body.id`若给必须与路径一致 | 满足（`write_service.py`的`_validate_row_id`/`create_row`/`update_row`） | 提交含`id`不同的body→`400`；PATCH带`id`→`400`，错误"行 id 不可变" |
+| P-015 | `values`的键必须是该表字段id；未知键`400 failed`；`type=computed`只读；relation值为目标行id字符串数组；`null`/`""`/`[]`视为空 | 满足（`write_service.py`的`_validate_values`） | 写`{"values":{"nope":1}}`→`400 未知字段键`；写computed字段→`400 计算字段不能直接写入` |
+| P-016 | PATCH为合并语义：给出的字段覆盖、未给出的保留；约束在合并后整行校验；值未变化的字段不产生`business_changes` | 满足（`write_service.py`的`update_row`） | 同一行PATCH同值两次：两次`200`，`changes`条数不增 |
+| P-017 | 覆盖计算字段用`overrides: {field_id: {value, reason}}`；`reason`必填；`gate: true`的字段只能`value: null`清除，设值`400` | 满足（010，`calculation.py`的`apply_overrides`/`set_override`/`clear_override`） | 覆盖非计算字段→`400`；缺reason→`400`；gate字段设值→`400 闸门字段…禁止人工覆盖` |
+| P-018 | 删除为硬删除；表被relation引用时`400`并列出引用字段；删行不级联清理引用方，悬空由计算侧判未就绪 | 满足（`write_service.py`的`delete_table`/`delete_row`） | 删除被relation引用的表→`400`并列出引用字段；删行后读引用方行仍在且计算值按010规则变化 |
 | P-019 | 不提供批量写；一次请求只写一个资源；请求体多余顶层键被忽略；跨资源一致性由客户端编排（见P-036） | 满足 | 不存在批量路径；body带多余键不影响写入结果（实测行内容只含`values`内字段） |
 
 ### 5. 响应形态与三态判定
 
 | 编号 | 规则 | 现状 | 判定方式 |
 |---|---|---|---|
-| P-020 | 成功：HTTP 200 + `{"result":"success"}`；写操作返回`{"result":"success","id":"<id>"}`；`recompute`返回`{"result":"success","rows":n,"fields":n,"changed":n}` | 满足（`app.py:225-227`） | 建行返回`{"result":"success","id":"..."}`；`POST .../recompute`返回三个计数 |
+| P-020 | 成功：HTTP 200 + `{"result":"success"}`；写操作返回`{"result":"success","id":"<id>"}`；`recompute`返回`{"result":"success","rows":n,"fields":n,"changed":n}` | 满足（`app.py`的`_handle`成功分支） | 建行返回`{"result":"success","id":"..."}`；`POST .../recompute`返回三个计数 |
 | P-021 | 失败：HTTP 400/401 + `{"result":"failed","error":"<中文说明>"}` | 满足 | 非法写入返回400/401且`result=failed` |
-| P-022 | 未知（保留）：HTTP 503 + `{"result":"unknown","error":"..."}`；当前无产生路径（G2） | 缺口（G2） | 无调用点设置`unknown=True`（`errors.py:11`仅文档字符串）；`curl`无法构造该响应，只能按P-024从超时判unknown |
+| P-022 | 未知（保留）：HTTP 503 + `{"result":"unknown","error":"..."}`；当前无产生路径（G2） | 缺口（G2） | 无调用点设置`unknown=True`（仅`errors.py`的`WriteError`文档字符串提及）；G2未落地前服务端不产生该响应，客户端只能按P-024从超时/5xx判unknown |
 | P-023 | 非信封响应：`404/405/422/503`的`{"detail":...}`不属于三态信封；客户端按状态分类：4xx→`failed`，`503 detail`→`unknown`，其他5xx或非JSON→`unknown` | 满足（探针实测四类） | 对不存在的表GET→`404 detail`；非法JSON写→`422 detail`；停库或锁库后写→`503 detail` |
 | P-024 | 三态判定按序：①200且`result=success`→success；②400/401/404/405/422→failed；③503且`result=unknown`→unknown；④503且`detail`→unknown；⑤其他5xx/超时/连接错误/非JSON→unknown；⑥其余→failed（未知响应形态保守判失败，不重试） | 部分（②③④⑤可判，⑥靠客户端） | 用六个样例（200/400/401/422/503detail/超时）逐一分类，与本节一致 |
-| P-025 | 重试矩阵：`401`重试前先修凭据；`400`不重试（`error`以`数据库错误：`开头时可重试）；`404/405/422`修正请求后再发；`503`与网络错误按unknown先回读，回读无法定案才用同一幂等键重试一次 | 部分（依赖客户端纪律） | 锁冲突样例：`400 {"result":"failed","error":"数据库错误：database is locked"}`或`503 {"detail":"数据存储不可用"}`；按矩阵应退避重试 |
+| P-025 | 重试矩阵：`401`重试前先修凭据；`400/404/405/422`不自动重试（修请求或人工核存储状态）；`503`与网络错误按unknown先回读，回读无法定案才用同一幂等键退避重试（100ms起，≤3次），仍不清则报`unknown` | 部分（依赖客户端纪律） | 锁冲突样例：`503 {"detail":"数据存储不可用"}`（qa V062-02复现）；按矩阵应回读+退避重试，不得判success |
 | P-026 | 错误文本只供人读；机器判定只用HTTP状态+`result`；服务端未提供`error_code`（G5） | 缺口（G5） | 同一语义的错误文本可能随版本改；客户端代码中不得出现`if "已存在" in error`这类判定 |
 | P-027 | 响应不带请求标识；客户端必须把`Idempotency-Key`、时间、路径记入本地日志，作为对账线索（G6） | 缺口（G6） | 响应头无`X-Request-Id`；审计表无请求id列 |
 
@@ -190,13 +191,12 @@
 |---|---|---|---|
 | 200 | `success` | 写入成功；recompute完成 | 按客户端清单第8步做回读校验，通过即终态success |
 | 400 | `failed` | 缺身份；`X-Origin`非法；未知字段键；行id非法/不可变；行/表/项目/字段不存在；id已存在；type/options非法；relation目标不存在或跨项目；计算字段直写；覆盖非计算字段或缺reason；`allow_override=false`；gate字段设值；`body.id`不一致 | 不重试，修请求或按幂等配方回读对账 |
-| 400 | `failed`（可重试类） | `error`以`数据库错误：`开头（含`database is locked`） | 指数退避重试≤3次，每次后回读 |
 | 401 | `failed` | 无效key、已吊销key | 不重试，换key或走013签发流程 |
 | 404 | 无（`detail`） | 读接口：项目/表/行不存在 | 按failed处理，核对id |
 | 405 | 无（`detail`） | 对人侧路径发写请求 | 按failed处理，改走`/api/agent` |
 | 422 | 无（`detail`） | JSON语法错误、body类型不符（FastAPI默认校验） | 按failed处理，修请求体；此类请求无审计 |
-| 503 | 无（`detail`） | 存储不可用（读连接或写依赖失败）；锁冲突发生在连接阶段（设WAL被锁）也落此形态 | 按unknown处理，先回读再决定是否重试 |
-| 503 | `unknown` | 保留：提交结果无法判定（当前无产生路径） | 按unknown处理，回读定案 |
+| 503 | 无（`detail`） | 存储不可用（读连接或写依赖失败）；锁冲突的唯一HTTP形态（写事务与失败审计同时遇锁，qa V062-02与我方探针均复现） | 按unknown处理：先回读，不能定案再退避重试同一幂等键 |
+| 503 | `unknown` | 保留：服务端无法确定提交结果时使用（当前无产生路径） | 按unknown处理，回读定案 |
 | 5xx其他/超时/非JSON | 无 | 网关、代理、进程崩溃、网络中断 | 按unknown处理，回读定案 |
 
 ### 7. 幂等
@@ -204,7 +204,7 @@
 | 编号 | 规则 | 现状 | 判定方式 |
 |---|---|---|---|
 | P-028 | 客户端为每个"意图"生成`Idempotency-Key`（1–64字符，建议UUIDv7/ULID）；同一意图的所有重试复用同一键；不得跨意图复用 | 缺口（G1） | 抓包检查重试请求头一致；同一键不出现在两个不同业务动作的日志里 |
-| P-029 | 服务端语义（目标）：24小时内同键同请求指纹（method+path+body哈希）返回首次响应（含`id`），不重复写业务数据与`business_changes`；同键异指纹返回`409 failed` | 缺口（G1） | 未实现前无法判定；实现后以"同键重放两次，第二次响应与首次逐字节一致且`changes`不增"判定 |
+| P-029 | 服务端语义（目标）：24小时内同键同请求指纹（method+path+body哈希）返回首次响应（含`id`），不重复写业务数据与`business_changes`；同键异指纹返回`409 failed` | 缺口（G1） | G1未落地前服务端无此行为（本条为目标语义）；落地后以"同键重放两次，第二次响应与首次逐字节一致且`changes`不增"判定 |
 | P-030 | 服务端缺口清单：不解析该头、`write_audit`无幂等列、无去重表、无409语义 | 缺口（G1） | `grep -rn "Idempotency" backend/src`无命中；审计表无对应列 |
 | P-031 | 过渡配方（建资源）：行id/表id/字段id即业务键；以同一合法请求体重放，收到`400`（错误"…已存在"）→GET回读，内容与意图一致记`success(reconciled)`，不一致记`failed(conflict)`且不覆盖 | 部分（可用） | 重复建同一行：第二次400，回读一致→客户端终态success且`changes`仅首次那批 |
 | P-032 | 过渡配方（改/删/重算）：PATCH同值天然收敛（不新增`business_changes`）；覆盖类会每次新增`override`记录，只重试一次并回读；删除意图以"行最终不存在"为成功；`recompute`可重复调用 | 部分（可用） | PATCH同值两次`changes`不增；DELETE两次：第二次`400`（错误"行不存在"），回读不存在→success |
@@ -218,8 +218,8 @@
 | P-035 | 客户端串行化：同一行/同一表/同一字段同一时刻只有一个在途写；版本级动作（挂关联、改发布条件、批量登记）由单一写者执行 | 部分（靠纪律） | 客户端日志中同一资源无重叠在途请求；压测两客户端并发时业务结果可解释 |
 | P-036 | 跨资源写顺序：先建被引用行（`ver`→`indep`/`dep`/`bug`），再写引用该行的relation；每步回读成功后再进行下一步；失败即停并报告已完成步骤 | 满足（relation约束要求目标行存在） | 先写引用后写目标→`400`（错误"关联目标行不存在"）；按顺序则全部`200` |
 | P-037 | 读改写必须自检：读到的关键字段（状态/验收状态/回归状态/计数/关联数组）与决策时不一致，放弃提交并重新决策 | 部分（无服务端前置条件） | 模拟两人先后改同一行：后提交者若未自检则覆盖；自检者会中止 |
-| P-038 | 服务端并发现状：WAL单写者、无`busy_timeout`、无行版本/ETag/`If-Match`、无`409`；后写覆盖前写 | 缺口（G3） | 双连接探针：A持`BEGIN IMMEDIATE`时B直连写抛`database is locked`、走接口写返回`503 detail`；同字段双写后读回为后写值 |
-| P-039 | 锁冲突处理：①`400 failed`且`error`以`数据库错误：`开头，或②`503 detail`→都按可重试处理：指数退避（100ms起，≤3次）+每次回读；仍失败则报`failed(retryable)`并把回读结果一并报告；不得因锁冲突判`success` | 部分（可补偿） | 构造锁冲突（A持写事务）后按本规则重试：接口实测返回`503 detail`；解除锁后重试成功，回读一致 |
+| P-038 | 服务端并发现状：WAL单写者、无`busy_timeout`、无行版本/ETag/`If-Match`、无`409`；后写覆盖前写 | 缺口（G3） | 双连接探针：A持`BEGIN IMMEDIATE`时B直连写抛`database is locked`、走接口写返回`503 detail`（400形态未复现）；同字段双写后读回为后写值 |
+| P-039 | 锁冲突处理：锁冲突经HTTP表现为`503 detail`；客户端按可重试未知处理——回读，不能定案则指数退避（100ms起，≤3次）重试同一幂等键，仍不清则报`unknown`并附回读结果；不得因锁冲突判`success`；`400`不作为锁冲突形态，出现时按failed处理 | 部分（可补偿） | 制造锁冲突（A持写事务）后发HTTP写：应返回`503 detail`；解除锁后重试成功且回读一致（qa V062-02已复现503，400形态未复现） |
 | P-040 | 禁止多客户端并发发布流程：`发布状态`、`验收状态`、版本关联的写只能由单一写者执行；其他人通过读接口观察 | 部分（靠纪律，G3） | 发布窗口内审计`action`无来自两个`agent_id`的交叉写 |
 
 ### 9. 写入审计口径
@@ -234,12 +234,12 @@
 | `origin` | 文本 | `agent`/`human-request`/`seed`，非法值记`agent` | 满足 |
 | `action` | 文本 | 动作枚举（见P-042） | 满足 |
 | `target` | 文本 | 目标：项目id/表id/字段id/`表id/行id`/`-` | 满足 |
-| `payload` | 文本/null | 请求体JSON，截断至4000字符 | 满足（`write_service.py:73`） |
+| `payload` | 文本/null | 请求体JSON，截断至4000字符 | 满足（`write_service.py`的`_audit_row`） |
 | `result` | 文本 | `success`/`failed`（`unknown`保留） | 满足 |
 | `error` | 文本/null | 失败原因（中文，人读） | 满足 |
 | `created_at` | 文本 | ISO8601`+08:00`秒级 | 满足 |
 
-**判定方式**：`SELECT * FROM write_audit ORDER BY id DESC LIMIT 1`逐列对照；列集合与`db.py:55-66`一致，`payload`长度≤4000。
+**判定方式**：`SELECT * FROM write_audit ORDER BY id DESC LIMIT 1`逐列对照；列集合与`db.py`的`write_audit`建表语句一致，`payload`长度≤4000。
 
 **P-042 `action`与`target`枚举**
 
@@ -264,9 +264,9 @@
 
 | 编号 | 规则 | 现状 | 判定方式 |
 |---|---|---|---|
-| P-043 | 记的时机与原子性：成功审计与业务数据同事务提交；失败先回滚再单独提交失败审计；鉴权失败也留一条`failed`且`key_id`为空；未进入写处理器的请求（405/422/路由404）无审计 | 满足（`write_service.py:105-162,81-103`） | 成功写：数据与审计同时存在或同时不存在（人为断库验证）；422：无审计新增 |
+| P-043 | 记的时机与原子性：成功审计与业务数据同事务提交；失败先回滚再单独提交失败审计；鉴权失败也留一条`failed`且`key_id`为空；存储本身不可用（含锁冲突）时失败审计也写不进，此时无审计记录、响应为`503 detail`；未进入写处理器的请求（405/422/路由404）无审计 | 满足（正常路径；`write_service.py`的`run_write`/`record_auth_failure`） | 成功写：数据与审计同时存在或同时不存在（人为断库验证）；422：无审计新增 |
 | P-044 | `payload`不得包含key明文或任何凭据；客户端不得把密钥写进请求体 | 满足（key只在头） | `grep`审计payload无`tfk_` |
-| P-045 | `business_changes`字段与触发：`occurred_at`/`actor`/`origin`/`table_id`/`row_id`/`field_id`/`field_name`/`old_value`/`new_value`/`change_kind`/`reason`；`change_kind∈create/update/delete/recompute/override`；仅真实变化记录（create只记非空值、update只记变化、delete记非空值、recompute记录计算值变化、override记覆盖）；与写审计同事务；一次PATCH可产生多条 | 满足（`write_service.py:628-662`，`calculation.py:712,728,843-855,920-930`） | 建行3个非空字段→3条`create`（计算字段首次取值另记`recompute`）；改1个字段→1条`update`；重算无变化→0条 |
+| P-045 | `business_changes`字段与触发：`occurred_at`/`actor`/`origin`/`table_id`/`row_id`/`field_id`/`field_name`/`old_value`/`new_value`/`change_kind`/`reason`；`change_kind∈create/update/delete/recompute/override`；仅真实变化记录（create只记非空值、update只记变化、delete记非空值、recompute记录计算值变化、override记覆盖）；与写审计同事务；一次PATCH可产生多条 | 满足（`write_service.py`的`_record_change`，`calculation.py`的`recompute_table`/`set_override`/`clear_override`内的`_record_change`调用） | 建行3个非空字段→3条`create`（计算字段首次取值另记`recompute`）；改1个字段→1条`update`；重算无变化→0条 |
 | P-046 | 查询契约：`business_changes`经`GET /api/tables/{table_id}/rows/{row_id}/changes?limit=1..200`（默认50，按id倒序，行不存在404）；`write_audit`无HTTP接口，仅本机`python scripts/tf_keys.py audit --limit N` | 部分（G4：无远程查询、无过滤、无分页游标） | `GET .../changes?limit=2`返回≤2条且id递减；`curl /api/agent/audit`→404（未提供） |
 | P-047 | 审计不可变：只增不改不删，无删除接口；保留期未定义（G9，建议永久保留并按年归档） | 部分（G9） | 无`DELETE /audit`路由；DB中无更新触发器/清理任务 |
 | P-048 | 与013的字段约定：`agent_id`=key的label（旧调用为`X-Agent-Id`值）、`key_id`=key id（旧调用null）、`origin`由`X-Origin`决定；无效key的失败审计`agent_id`=请求携带的`X-Agent-Id`或`-`、`key_id`为空 | 满足（013已实现） | 有效key写一次：审计`agent_id`=label、`key_id`非空；无效key：`401`、`key_id`空 |
@@ -275,7 +275,7 @@
 
 1. 配置基址与凭据：`base`、`X-API-Key`（有）或`X-Agent-Id`（兼容）；每个写请求带`X-Origin`。
 2. 实现`request(method,path,body)`：JSON编码、超时（建议10s）、记录`Idempotency-Key`与时间。
-3. 实现三态判定`classify(response)`：按P-024顺序，返回`success|failed|unknown`及`retryable`标记。
+3. 实现三态判定`classify(response)`：按P-024顺序，返回`success|failed|unknown`；仅`unknown`可带`retryable`标记（`503 detail`或网络错误）。
 4. 实现幂等封装`write(intent)`：生成键、调用、按P-031/P-032回读对账。
 5. 实现串行队列：同一资源键（`table/row`）串行；版本级动作单写者。
 6. 实现读改写自检：GET行→校验关键字段→PATCH，冲突则重读。
@@ -319,9 +319,9 @@ curl -s "$TF_BASE/api/tables/tf-bug/rows/BUG-01/changes?limit=5"
 
 | 编号 | 缺口 | 现状证据 | 影响 | 建议归属 |
 |---|---|---|---|---|
-| G1 | 幂等键无落点（无头解析/无列/无去重/无409） | `grep Idempotency backend/src`无命中；`db.py:55-66`无该列 | 重试只能靠客户端业务键回读；写审计无法按意图聚合 | 后端（新需求） |
-| G2 | `unknown`无产生路径 | `app.py:222-223`有映射；无调用点设置`unknown=True`（`errors.py:11`仅文档字符串） | 客户端只能从超时/503detail推断；服务端无法主动表达"提交未知" | 后端（010/新需求） |
-| G3 | 并发无前置条件、无`busy_timeout`、无409 | `db.py:127-133`；`write_service.py:834-891` | 锁冲突=503detail或400业务失败；同字段静默覆盖 | 后端（新需求） |
+| G1 | 幂等键无落点（无头解析/无列/无去重/无409） | `grep Idempotency backend/src`无命中；`db.py`的`write_audit`建表语句无该列 | 重试只能靠客户端业务键回读；写审计无法按意图聚合 | 后端（新需求） |
+| G2 | `unknown`无产生路径 | `app.py`的`_handle`有映射；无调用点设置`unknown=True`（仅`errors.py`的`WriteError`文档字符串提及） | 客户端只能从超时/503detail推断；服务端无法主动表达"提交未知" | 后端（010/新需求） |
+| G3 | 并发无前置条件、无`busy_timeout`、无409 | `db.py`的`connect_write`；`write_service.py`的`update_row` | 锁冲突HTTP=503detail（400形态未复现）；同字段静默覆盖 | 后端（新需求） |
 | G4 | `write_audit`无HTTP查询 | 仅`scripts/tf_keys.py audit` | 远程无法自证"谁写的"；第三方对接需运维配合 | 后端（新需求，可复用013口径） |
 | G5 | 错误码非机器可读 | 只有中文`error`文本 | 客户端不敢按文本判定，错误处理粗放 | 后端（可与G1同批） |
 | G6 | 响应无请求标识 | 无`X-Request-Id`；审计无请求id列 | 三态定案后难以与审计行一一对应 | 后端（可与G1同批） |
@@ -356,5 +356,5 @@ curl -s "$TF_BASE/api/tables/tf-bug/rows/BUG-01/changes?limit=5"
 - **三态（Outcome）**：`success`/`failed`/`unknown`；由HTTP状态+`result`判定，不由错误文本判定。
 - **写审计（write_audit）**：服务端生成的请求级记录，10字段，只增不改；覆盖进入写处理器的每个请求。
 - **业务变更（business_changes）**：字段级旧值/新值记录，5种`change_kind`，与写审计同事务。
-- **可重试失败（retryable failed）**：`400`且`error`以`数据库错误：`开头的失败，或`503 detail`；退避重试后仍需回读。
+- **可重试未知（retryable unknown）**：`503 detail`或网络中断；先回读，不能定案时退避重试同一幂等键，最终仍不清则报`unknown`。
 - **单写者（single writer）**：同一资源/版本在任一时刻只允许一个客户端持有写权。

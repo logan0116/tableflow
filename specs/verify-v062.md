@@ -183,3 +183,39 @@ HTTP路由清单未新增（18条，无key管理路由），符合FR-013。
 | `probe_lock400.py` | 锁冲突400形态复现尝试（未复现，503） |
 | `pin-final.txt` | 本轮源码与文档sha256 |
 | `migration_old_db.log` | 旧库升级幂等探针（迁移前无api_keys/无key_id、141条审计保留、二次启动不重复建） |
+
+---
+
+## 九、修复记录（t13，2026-11-19，后端复核）
+
+> 三条缺陷均为文档级：修复由`doc`的`t23`在`specs/012-protocol/spec.md`与`specs/013-user-management/spec.md`落盘；`t13`（backend）负责复核与重跑，**未改任何后端代码**（`db.py`中途试改后已还原，最终sha与验证基线一致）。
+
+### 9.1 逐条复核
+
+| 缺陷 | 结论 | 复核证据 |
+|---|---|---|
+| V062-01[低] | 已修复（文档） | `012`中`*.py:行号`形式引用数=0；改为符号引用（`run_write`/`create_row`/`update_row`/`_validate_row_id`/`_validate_values`/`_validate_values`/`_record_change`/`connect_write`/`_handle`/`caller_headers`/`list_changes`/`WriteError`/`apply_overrides`等），逐个在对应源码中存在（脚本核对：缺失0） |
+| V062-02[低] | 已修复（文档口径，t23修正后复核） | `012`统一为"只有`503 detail`一种可复现形态，`400 数据库错误`不纳入协议"；机制写明：写事务遇锁且**失败审计同样写不进**，`sqlite3.Error`从`run_write`逸出、由应用层映射为`503 detail`，该请求审计增量为0，400只在失败审计能写入时出现（锁场景不可稳定构造）。本任务独立复现（新012 sha）：A持`BEGIN IMMEDIATE`→HTTP写`503 {"detail":"数据存储不可用"}`（10.0s）、**审计增量0**；解除锁后重试`200 success`、回读`{'f':'x'}`、最终审计1条。未改`connect_write`（试改后已还原，`db.py`sha=`f0a82cf3…`=基线） |
+| V062-03[低] | 已修复（文档） | `013`SC-001改为"全绿且用例数不少于`120`（013交付时`120`，v0.6.2验证时`133`）；013前基线`108`"，不再绑定单一数字 |
+
+### 9.2 重跑结果
+
+| 命令 | 结果 | 日志 |
+|---|---|---|
+| `cd backend && .venv/bin/python -m pytest -q` | `133 passed, 1 warning in 4.74s` | `.tmp-shots/repair-v062/pytest.log` |
+| P-039锁冲突端到端（A持写事务→HTTP写→解除→重试） | 持锁`503 detail`（10.0s）→解除后`200 success`→回读`{'f':'x'}` | `.tmp-shots/repair-v062/p039-lock-retry.log` |
+| 符号引用存在性核对（012引用的函数/常量） | 缺失0 | 脚本输出（t13输出） |
+| 012数字行号引用计数 | 0 | `grep -cE "*.py:[0-9]"` |
+| 后端代码基线核对 | `db.py`=`f0a82cf3…`、`write_service.py`=`39b0b102…`、`calculation.py`=`e10b97aa…`，均与§二基线一致 | `sha256sum` |
+
+### 9.3 复核时点与口径
+
+- 复核时点sha（t23晚到修正后）：`specs/012-protocol/spec.md`=`885352d127b842aa9cb70603dd5a52548c09a47a3408482e91fa644847212cd3`、`specs/013-user-management/spec.md`=`b1726170df01c16856ebd09be35c6cc08272b299f45a130c3547258cff38b8d2`；两文件均晚于§二验证基线，`t23`已声明不再改，若再变以定稿为准重跑本表命令。
+- 后端无改动：`t13`未修改任何`backend/src/`文件；文件哈希与§二基线逐项一致。
+
+### 9.4 t23晚到修正的复核（2026-11-19）
+
+- `t23`在§九复核后把`012`的锁冲突**机制表述**改准（sha `10aa6999…`→`885352d1…`，013未动`b1726170…`），行为结论不变：HTTP锁路径仍只有`503 detail`。
+- 修正点：原写“连接阶段设WAL被锁”不准确；实测为写事务遇锁后**失败审计的INSERT同样遇锁**，`sqlite3.Error`从`run_write`逸出被应用层映射为`503 detail`，该请求`write_audit`增量0；服务层直调抛`OperationalError`而非`WriteError`，故HTTP不会产生`400 数据库错误：database is locked`。`012`已同步至结论速览#3、背景证据行、Clarifications、US4-AS2、Edge Case、P-025、503错误码、P-038/P-039、G3，并在P-043补“存储不可用（含锁冲突）时失败审计也写不进、无审计记录、503 detail”。
+- 按新sha重跑：`503 detail`（10.0s）、审计增量0、解锁后`200 success`、回读`{'f':'x'}`、最终审计1条；日志`.tmp-shots/repair-v062/p039-lock-retry-885352d1.log`。
+- 012数字行号引用仍为0，符号引用存在性缺失0；`pytest 133 passed`。
