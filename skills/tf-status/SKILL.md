@@ -68,9 +68,15 @@ CONTRACT = {
             ("change_done", "依赖需求是否完成"), ("bugs", "Bug管理"), ("bug_ratio", "上一版本Bug已修复/总数"),
             ("bug_clear", "上一版本Bug是否清空"), ("owner", "负责人"), ("note", "变更说明")],
     "indep": [("id", "编号"), ("clause", "条款"), ("dir", "规格目录"), ("scenes", "场景数"), ("tasks", "任务总数"),
-              ("implement", "speckit-implement状态"), ("acceptance", "验收状态"), ("owner", "负责人")],
+              ("constitution", "speckit-constitution状态"), ("specify", "speckit-specify状态"),
+              ("plan", "speckit-plan状态"), ("task", "speckit-task状态"),
+              ("implement", "speckit-implement状态"), ("clarify", "speckit-clarify状态"),
+              ("analyze", "speckit-analyze状态"), ("checklist", "speckit-checklist状态"),
+              ("constitution_version", "宪法版本"),
+              ("acceptance", "验收状态"), ("owner", "负责人")],
     "dep": [("id", "编号"), ("clause", "条款"), ("spec", "关联的独立规格需求"), ("impact", "影响面"),
-            ("regress", "回归状态"), ("evidence", "证据"), ("rest", "剩余事项"), ("spec_revision", "规格修订")],
+            ("regress", "回归状态"), ("evidence", "证据"), ("rest", "剩余事项"), ("spec_revision", "规格修订"),
+            ("owner", "负责人")],
     "bug": [("id", "编号"), ("title", "标题"), ("status", "状态"), ("severity", "严重度"), ("source", "来源"),
             ("specs", "关联规格"), ("found_version", "发现版本号"), ("evidence", "证据"),
             ("rest", "剩余事项"), ("ms_case", "MS用例号"), ("owner", "负责人")],
@@ -271,11 +277,24 @@ ver_fields = {f["id"]: f for f in data["ver"]["fields"]}
 cond = ver_fields.get(sem["ver"].get("gate"))
 if cond and (cond.get("options") or {}).get("kind") == "and":
     parts = []
+    got = set()
     for c in cond["options"].get("conditions", []):
         parts.append(f"{ver_fields.get(c['field_id'], {}).get('name', c['field_id'])}={show(c.get('equals'))}")
-    drift.append(f"`发布条件`看板条件为 [{'、'.join(parts)}]，契约应为 [独立需求是否完成、依赖需求是否完成、上一版本Bug是否清空]")
+        got.add(c.get("field_id"))
+    want = {sem["ver"].get("spec_done"), sem["ver"].get("change_done"), sem["ver"].get("bug_clear")}
+    if got != want:
+        drift.append(f"`发布条件`看板条件为 [{'、'.join(parts)}]，契约应为 [独立需求是否完成、依赖需求是否完成、上一版本Bug是否清空]")
 dep_regress = next((f for f in data["dep"]["fields"] if f["id"] == sem["dep"].get("regress")), None)
-if dep_regress and "na" in [o["value"] for o in (dep_regress.get("options") or [])]:
+# enum 的 options 有两种形态：早期是列表，002 起是 {"items": [...], "constraints": ...}；
+# 按列表遍历 dict 会拿到键字符串（BUG-05：tf-status 在 board@3 项目上直接崩）。
+def enum_values(field):
+    opts = field.get("options")
+    if isinstance(opts, dict):
+        opts = opts.get("items") or []
+    return [i.get("value") for i in (opts or []) if isinstance(i, dict)]
+
+
+if dep_regress and "na" in enum_values(dep_regress):
     drift.append("`回归状态`枚举含 `na`，契约已删除该值（确认不受影响记 passed）")
 if bug["state"] in ("ok", "no_prev"):
     found = next((f for f in data["bug"]["fields"] if f["name"] == "发现版本号"), None)
