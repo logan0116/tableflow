@@ -1,0 +1,336 @@
+# board@1 — 看板三表契约（草案 rev3，评审中）
+# 本文件只定义字段口径与派生规则；接口与写入校验执行不在本契约范围；存量迁移只登记（见migrations）不执行。
+meta:
+  id: board@1
+  status: draft
+  revision: 3
+  revised: 2026-11-19
+  revision_note: rev3补闸门标记映射、行id结构化声明、状态域命名空间、sum空集浮点口径（V060-03/05/06/07）
+  updated: 2026-11-19
+  project: tableflow
+  scope:
+    - 三张表的字段：语义键、名称、类型、枚举、必填、只读/可写、是否闸门
+    - 状态定义、完成判定规则、需求分类判定树
+  out_of_scope:
+    - 计算口径的落地、重算与空集/悬空处理（010）
+    - 接口改造与写入校验的实现（拒绝非法值另立需求）
+    - 存量数据迁移与字段重命名（闸门字段打标见migrations，本契约只登记不执行）
+    - 比率的分子（已完成数）与前端呈现（展示阶段处理）
+    - bug 表与"上一版本缺陷"的自动聚合（另立需求）
+
+conventions:
+  semantic_key: 契约主键。体检按语义键比对，字段 id 只是各项目的本地值。
+  field_id: "<项目前缀>-<v|i|d>-<短名>"
+  row_id: 业务编号（v0.6.0 / 008-AR / D01），创建后不可改；每张表的行id字段由tables.<表>.row_id声明，值格式见该字段note
+  gate_tag: "[闸门] 参与发布条件"
+  gate_mapping: "契约字段的gate: true在数据层表达为计算字段的fields.options.gate=true（布尔；010实现，calculation.py校验options.get(\"gate\")）；仅and或rollup的all/any/none允许打标，数量类打标返回400。写接口据此拒绝人工覆盖（清除覆盖仍允许）。给存量字段打标属于迁移，见migrations.gate-tag-existing，本契约不执行。"
+  status_values_scope: "status_definitions每个域自洽且域内互斥；跨域允许字面同名（stage与regress都含todo/doing，语义不同），引用必须带域前缀（如spec.stage.implement、change.regress），判定只看本域字段。"
+
+# ---------- 状态定义：每个状态只回答一个问题 ----------
+status_definitions:
+  stage:
+    field: spec.stage.*
+    values: [todo, doing, done]
+    question: 这份规格的 speckit 各阶段走到哪一步？
+    note: 只有 implement 参与完成判定，其余阶段只是推进记录。
+  acceptance:
+    field: spec.acceptance
+    values: [pending, accepted, rejected]
+    question: 需求方是否确认这份交付物满足条款？
+    note: 规格完成的唯一判据；pending/rejected 即未完成，经"就绪"汇总进发布条件。
+  regress:
+    field: change.regress
+    values: [todo, doing, passed, failed]
+    question: 这张变更单走到哪一步、验证结论是什么？
+    note: 唯一判定字段。todo=未合入，doing=已合入待验，passed=受影响范围验证通过（含"确认不受影响"），failed=不通过。没有 na。
+  release:
+    field: ver.release_status
+    values: [planned, released, dropped]
+    question: 这个版本是否已经实际发出？
+    note: 与"发布条件"不同——发布条件是资格，发布状态是事实。
+
+# ---------- 判定规则：判定字段落在各表，版本表只做统计 ----------
+rules:
+  spec_done: spec.acceptance == accepted
+  change_done: change.regress == passed
+  change_flow: "todo(未合入) → doing(已合入待验) → passed / failed；没有 na"
+  change_evidence: passed 必须能指到证据（提交号/构建/截图/用例号）；确认不受影响也记 passed，理由写进证据
+  spec_done_precondition: 只有 implement == done 时才允许置 accepted（写入期校验，后续需求实现）
+  spec_done_frozen: 置 accepted 后规格冻结，再改动一律开变更单（dep）
+  spec_cancel: 取消的规格从版本关联摘除或删行，不用验收状态表达"不做"，否则就绪被永久卡住
+  single_source: 两张表各只有一个完成判据字段；不另设"状态"字段，避免同一问题两个真相
+  empty_set: 未关联任何行时"就绪"为真，含义是"本版无此类工作"，不是"已验证"
+  empty_set_numbers:
+    count: 空集落库数字0（整数）
+    sum: 空集落库0.0（浮点，带decimals的sum按浮点舍入后落库）；不要按整数0比对
+    percent: 空集落null（不是0）
+    rollup: 空集all/none为真、any为假
+  release_gate: 三项就绪同时为真
+  ratio: 契约只存"总数"与"就绪"；需要分子时再加一个 count 字段（判定已单字段化，可算）
+
+# ---------- 需求分类：看板记录判定结果与依据，不替人判定 ----------
+classify:
+  question: 一条新需求落在哪张表
+  order:
+    - id: in_place
+      when: 现有规格的条款/场景已覆盖，且该规格尚未 accepted
+      action: 改 spec 与 indep 行，不新建行
+    - id: change
+      when: 现有规格已 accepted，需求改变其行为或验收口径
+      action: 在 dep 开一行，挂被改规格（可多份）
+    - id: new_spec
+      when: 现有规格都不覆盖，需要新条款或新场景
+      action: 在 indep 新增一行
+    - id: cross
+      when: 一次改动横切多份已 accepted 规格
+      action: 一张 dep 挂多份规格，影响面分别写清
+    - id: out_of_board
+      when: 不改变产品行为（构建/部署/环境/文档）
+      action: 不进看板，记版本变更说明
+  evidence_required: 判定必须指到规格编号与场景号（或"新增条款"），指不到则不允许登记
+  note: 同时新增能力又改动已完成规格时，拆成一条 indep 与一条 dep，影响面互相引用
+
+# ---------- 表 ----------
+tables:
+  ver:
+    id: "<前缀>-ver"
+    name: 版本管理
+    row_meaning: 一个发布版本
+    row_id: ver.version
+    fields:
+      - key: ver.version
+        name: 版本号
+        type: text
+        required: true
+        note: 行 id；格式 v<主>.<次>.<修>
+      - key: ver.release_date
+        name: 发布时间
+        type: datetime
+        note: 精确到日
+      - key: ver.release_status
+        name: 发布状态
+        type: enum
+        values: [planned, released, dropped]
+        required: true
+      - key: ver.specs
+        name: 独立需求关联
+        type: relation
+        target: indep
+        note: 本版新增的规格
+      - key: ver.spec_total
+        name: 独立需求总数
+        type: computed
+        rule: count(ver.specs)
+      - key: ver.spec_ready
+        name: 独立需求就绪
+        type: computed
+        gate: true
+        rule: "rollup(ver.specs, spec.acceptance, all == accepted)"
+        note: 判定规则见 rules.spec_done；单字段判定，不需要 require
+      - key: ver.changes
+        name: 依赖需求关联
+        type: relation
+        target: dep
+        note: 本版待回归的变更单
+      - key: ver.change_total
+        name: 依赖需求总数
+        type: computed
+        rule: count(ver.changes)
+      - key: ver.change_ready
+        name: 依赖需求就绪
+        type: computed
+        gate: true
+        rule: "rollup(ver.changes, change.regress, all == passed)"
+        note: 判定规则见 rules.change_done
+      - key: ver.bug_total
+        name: 上一版本Bug总数
+        type: number
+        note: bug 表落地前人工填报；落地后改聚合
+      - key: ver.bug_open
+        name: 上一版本Bug未解决数
+        type: number
+        note: 同上；已解决数 = 总数 − 未解决数，不单独存
+      - key: ver.bug_ready
+        name: 上一版本Bug就绪
+        type: computed
+        gate: true
+        rule: "and(ver.bug_open == 0)"
+      - key: ver.gate
+        name: 发布条件
+        type: computed
+        gate: true
+        rule: "and(ver.spec_ready, ver.change_ready, ver.bug_ready)"
+      - key: ver.scene_total
+        name: 场景总数
+        type: computed
+        rule: sum(ver.specs, spec.scenes)
+        note: 空集落0.0（浮点），见rules.empty_set_numbers
+      - key: ver.owner
+        name: 负责人
+        type: text
+      - key: ver.note
+        name: 变更说明
+        type: text
+
+  indep:
+    id: "<前缀>-indep"
+    name: 独立规格需求
+    row_meaning: 一份规格
+    row_id: spec.id
+    fields:
+      - key: spec.id
+        name: 编号
+        type: text
+        required: true
+        note: 行 id；NNN-AR
+      - key: spec.clause
+        name: 条款
+        type: text
+        required: true
+      - key: spec.dir
+        name: 规格目录
+        type: text
+        note: specs/<dir>/
+      - key: spec.scenes
+        name: 场景数
+        type: number
+        min: 0
+        note: spec.md 场景条数
+      - key: spec.tasks
+        name: 任务总数
+        type: number
+        min: 0
+        note: tasks.md 任务条数
+      - key: spec.stage.constitution
+        name: speckit-constitution状态
+        type: enum
+        values: [todo, doing, done, na]
+      - key: spec.stage.specify
+        name: speckit-specify状态
+        type: enum
+        values: [todo, doing, done, na]
+      - key: spec.stage.plan
+        name: speckit-plan状态
+        type: enum
+        values: [todo, doing, done, na]
+      - key: spec.stage.task
+        name: speckit-task状态
+        type: enum
+        values: [todo, doing, done, na]
+      - key: spec.stage.implement
+        name: speckit-implement状态
+        type: enum
+        values: [todo, doing, done]
+        required: true
+        note: 进度记录；是置 accepted 的前置条件，无 na
+      - key: spec.stage.clarify
+        name: speckit-clarify状态
+        type: enum
+        values: [todo, doing, done, na]
+      - key: spec.stage.analyze
+        name: speckit-analyze状态
+        type: enum
+        values: [todo, doing, done, na]
+      - key: spec.stage.checklist
+        name: speckit-checklist状态
+        type: enum
+        values: [todo, doing, done, na]
+      - key: spec.constitution_version
+        name: 宪法版本
+        type: text
+      - key: spec.acceptance
+        name: 验收状态
+        type: enum
+        values: [pending, accepted, rejected]
+        required: true
+        note: 规格完成的唯一判据；implement=done 才允许置 accepted
+      - key: spec.owner
+        name: 负责人
+        type: text
+
+  dep:
+    id: "<前缀>-dep"
+    name: 依赖需求
+    row_meaning: 一张变更单（已完成的规格又被改动）
+    row_id: change.id
+    fields:
+      - key: change.id
+        name: 编号
+        type: text
+        required: true
+        note: 行 id；D01
+      - key: change.clause
+        name: 条款
+        type: text
+        required: true
+        note: 改动点；必须点到规格编号与场景号
+      - key: change.spec
+        name: 关联的独立规格需求
+        type: relation
+        target: indep
+        required: true
+        note: 被改的规格，可多份（横切改动）
+      - key: change.impact
+        name: 影响面
+        type: text
+        required: true
+        note: 受影响的能力/接口/场景/用例/下游
+      - key: change.regress
+        name: 回归状态
+        type: enum
+        values: [todo, doing, passed, failed]
+        required: true
+        note: 唯一判定字段；todo=未合入，doing=已合入待验
+      - key: change.evidence
+        name: 证据
+        type: text
+        note: 提交号/构建/截图/用例号；置 passed 时必须有可核验证据
+      - key: change.rest
+        name: 剩余事项
+        type: text
+        note: 未完成的部分与阻塞；空表示无
+      - key: change.spec_revision
+        name: 规格修订
+        type: enum
+        values: [not_needed, pending, done]
+        note: 改动是否已写回 spec；不参与完成判定，只为防文档与代码脱节
+      - key: change.owner
+        name: 负责人
+        type: text
+
+# ---------- 迁移项：契约已声明、存量尚未落地 ----------
+migrations:
+  - id: gate-tag-existing
+    what: 线上存量闸门字段未打数据层gate标记
+    scope: 7个项目的闸门计算字段（发布条件、独立需求就绪、依赖需求就绪、上一版本Bug就绪等）
+    before: '（迁移前）字段options里没有gate=true；此时"禁覆盖"只靠allow_override缺省（未开启），一旦有人把allow_override改为true再提交overrides，覆盖就会成功，闸门可被绕过'
+    target: '按conventions.gate_mapping给这些布尔判定字段补"gate": true；不改字段类型、公式与数据'
+    owner: backend/t19
+    origin: 原计划另立存量迁移需求（011落地后）
+    defect: specs/verify-v060.md V060-03
+    status: '已执行（2026-11-19）：7个项目的「发布条件」字段已补gate:true'
+    executed_at: 2026-11-19
+    executed_by: backend/t19
+    executed_fields:
+      - demo-bench/ab-ver/ab-v-cond
+      - demo-cnc/cn-ver/cn-v-cond
+      - demo/fd-ver/v-cond
+      - demo-im/imkg-ver/imkg-v-cond
+      - demo-cloud/demo-cloud-ver/demo-cloud-v-cond
+      - demo-edge/demo-edge-ver/demo-edge-v-cond
+      - tableflow/tf-ver/tf-v-cond
+    execution_evidence: 'backend/scripts/tag_gate_fields.py；.tmp-shots/migration-gate/{before,after}.json、apply.log、dry-run.log、rerun.log、diff.log、probe-override.log'
+    effect: '只改字段options、未改行数据（7项目22表193行前后一致）；禁覆盖的gate拦截需部署v0.6.0+（010）后生效——当前线上仍是旧代码，本次不改变运行行为，把allow_override改为true后仍可绕过'
+
+# ---------- 已定 ----------
+decisions:
+  - 版本表不再存"已完成数/总数"这一对；只存总数与就绪，比值由展示阶段派生
+  - 验收状态与回归状态是各自表内唯一完成判据，不另设"状态"字段
+  - 依赖需求补证据/剩余事项/规格修订三个记录字段，判定仍只看回归状态
+  - 回归状态去掉 na：确认不受影响也记 passed，理由写进证据
+  - 需求分类按判定树执行，登记时必须指到规格编号与场景号
+  - 上一版本Bug不存"已解决数"，已解决 = 总数 − 未解决数
+  - '闸门标记在数据层是options.gate=true，契约的gate: true是其映射；存量未打标列入migrations.gate-tag-existing（V060-03）'
+  - 行id字段结构化声明为tables.*.row_id，值即主键、创建后不可改（V060-05）
+  - 状态取值同域互斥、跨域可同名，引用必须带域前缀（V060-06）
+  - sum空集落库0.0（浮点），count空集落库整数0（V060-07）
