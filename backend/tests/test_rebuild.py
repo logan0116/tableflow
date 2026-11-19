@@ -54,8 +54,8 @@ def rebuilt(tmp_path, monkeypatch):
 
 def test_rebuild_row_counts(rebuilt):
     _, counts, _ = rebuilt
-    assert counts["demo"] == {"fd-ver": 4, "fd-indep": 1, "fd-dep": 3}
-    assert counts["tableflow"] == {"tf-ver": 3, "tf-indep": 4, "tf-dep": 1}
+    assert counts["demo"] == {"fd-ver": 4, "fd-indep": 1, "fd-dep": 3, "fd-bug": 0}
+    assert counts["tableflow"] == {"tf-ver": 3, "tf-indep": 4, "tf-dep": 1, "tf-bug": 0}
 
 
 def test_rebuild_is_idempotent(tmp_path, monkeypatch):

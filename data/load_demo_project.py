@@ -36,6 +36,7 @@ ROWS = {
             "i-scenes": 3,
             "i-tasks": 8,
             "i-implement": "done",
+            "i-acceptance": "accepted",
         }),
     ],
     "fd-dep": [
@@ -59,8 +60,6 @@ ROWS = {
         ("7.0.0", {
             "v-ver": "7.0.0",
             "v-status": "released",
-            "v-bug-open": 0,
-            "v-doc": "done",
         }),
         ("7.0.1", {
             "v-ver": "7.0.1",
@@ -68,28 +67,22 @@ ROWS = {
             "v-status": "planned",
             "v-indep": ["UD-04-AR"],
             "v-dep": ["UD-01-BR", "UD-02-BR", "UD-03-BR"],
-            "v-bug-open": 2,
-            "v-doc": "doing",
         }),
         ("7.0.2", {
             "v-ver": "7.0.2",
             "v-date": "2026-11-20T00:00:00+08:00",
             "v-status": "planned",
-            "v-bug-open": 0,
-            "v-doc": "todo",
         }),
         ("7.1.0", {
             "v-ver": "7.1.0",
             "v-date": "2026-11-30T00:00:00+08:00",
             "v-status": "planned",
-            "v-bug-open": 0,
-            "v-doc": "todo",
         }),
     ],
 }
 
-FIELD_ORDER = ["fd-indep", "fd-dep", "fd-ver"]
-ROW_ORDER = ["fd-indep", "fd-dep", "fd-ver"]
+FIELD_ORDER = ["fd-indep", "fd-dep", "fd-bug", "fd-ver"]
+ROW_ORDER = ["fd-indep", "fd-dep", "fd-bug", "fd-ver"]
 
 
 def call(
@@ -120,7 +113,15 @@ def run(client: httpx.Client, *, strict: bool = False) -> None:
     for table_id in FIELD_ORDER:
         table = table_by_id[table_id]
         print(f"表：{table['name']}")
-        for field_id, name, field_type, options in table["fields"]:
+        # 契约顺序里 发布条件 排在前面，但它是 and(三布尔)，必须等被引用的计算字段存在；
+        # 建字段按「基础字段 → 计算字段 → and 字段」三段走，顺序与契约展示顺序解耦。
+        fields = table["fields"]
+        ordered = (
+            [f for f in fields if f[2] != "computed"]
+            + [f for f in fields if f[2] == "computed" and (f[3] or {}).get("kind") != "and"]
+            + [f for f in fields if f[2] == "computed" and (f[3] or {}).get("kind") == "and"]
+        )
+        for field_id, name, field_type, options in ordered:
             call(client, "POST", f"/api/agent/tables/{table_id}/fields",
                  {"id": field_id, "name": name, "type": field_type, "options": options}, strict=strict)
     for table_id in ROW_ORDER:
