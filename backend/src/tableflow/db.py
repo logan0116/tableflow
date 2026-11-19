@@ -11,6 +11,10 @@ v0.3.0（002）表结构变化：
 
 v0.3.0（003）表结构变化：
 - 新增 `computed_values`：计算字段的落库值（`override_*` 为人工覆盖），读侧只读不计算。
+
+v0.6.2（013）表结构变化：
+- 新增 `api_keys`：调用者 key 的摘要、label、吊销信息（只存 SHA-256，不存明文）。
+- `write_audit` 新增 `key_id`：本次写请求由哪把 key 发起；无 key 的旧调用为 NULL。
 """
 
 from __future__ import annotations
@@ -51,6 +55,7 @@ CREATE TABLE IF NOT EXISTS row_records (
 CREATE TABLE IF NOT EXISTS write_audit (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     agent_id   TEXT NOT NULL,
+    key_id     TEXT,
     origin     TEXT NOT NULL DEFAULT 'agent',
     action     TEXT NOT NULL,
     target     TEXT NOT NULL,
@@ -58,6 +63,16 @@ CREATE TABLE IF NOT EXISTS write_audit (
     result     TEXT NOT NULL,
     error      TEXT,
     created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS api_keys (
+    id         TEXT PRIMARY KEY,
+    key_hash   TEXT NOT NULL UNIQUE,
+    label      TEXT NOT NULL,
+    note       TEXT,
+    created_at TEXT NOT NULL,
+    revoked_at TEXT,
+    revoked_by TEXT
 );
 
 CREATE TABLE IF NOT EXISTS business_changes (
@@ -145,7 +160,7 @@ def connect_readonly(path: Path) -> sqlite3.Connection:
 def _ensure_column(
     conn: sqlite3.Connection, table: str, column: str, ddl: str
 ) -> None:
-    """给旧库补列（v0.2 → v0.3 的 write_audit.origin）。"""
+    """给旧库补列（v0.2 → v0.3 的 write_audit.origin，v0.6.2 → 013 的 key_id）。"""
     columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
     if column not in columns:
         conn.execute(f"ALTER TABLE {table} ADD COLUMN {ddl}")
@@ -155,4 +170,5 @@ def init_schema(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA_SQL)
     # executescript 的 CREATE TABLE IF NOT EXISTS 不会给旧表补列，这里显式兜底。
     _ensure_column(conn, "write_audit", "origin", "origin TEXT NOT NULL DEFAULT 'agent'")
+    _ensure_column(conn, "write_audit", "key_id", "key_id TEXT")
     conn.commit()
