@@ -21,15 +21,17 @@
 | 工作目录 | `/home/mozinodey/PycharmProjects/tableflow` |
 | `specs/008-board-contract/board@1.yaml`（rev3） | `142ccf067ab372858a2cb898e78506f7a6dcc8adeb86a1e16210d6d507930537`（队长给定口径基线） |
 | `specs/011-bug-table/board@2.yaml`（rev2） | `d45d159f149497e3269ee4d5445e11fef808ba3683c66b99b4688fa9b4b088a1`（队长给定口径基线） |
-| `backend/src/tableflow/calculation.py` | `f22191bdb0f71e8f2fdc75496dc57db29c29c11adfc47e72d110c766306ec5b9` |
+| `backend/src/tableflow/calculation.py` | `f22191bdb0f71e8f2fdc75496dc57db29c29c11adfc47e72d110c766306ec5b9`（验证时点；t11恢复后为`e10b97aa94fd46ccd48b539244c464951fc37d57c01e4530da98e751d535f719`） |
 | `backend/src/tableflow/write_service.py` | `39b0b1029ae85d2a4b002fa8b99529107fd2e7ed18d3fdda00f087fff498bc7e` |
 | `backend/tests/test_repair_v060.py` | `fd131be273cf5137ea11ec29d1abf8cd7bdddc42798da8ee8247e6d79be164f3` |
 | `skills/tableflow-board/SKILL.md` | `40d8dac50270e45cc7409a679ce93eb7e59403ecef91f62f035cac3d97782175` |
 | `skills/tf-update/SKILL.md` | `4b98f11f0cf226ae5d3443c9643738d272773b488609f099957e8072d71cdbef` |
 | `skills/ft-status/SKILL.md` | `1d1a6b947db38e5c3bce534f13e1a021cada67ce49aec00e34907b3be85440c1` |
-| `skills/ms-summary/assets/ms_summary.py` | `6b7c767257b4881daf46672a62fa091d4f2138995edfe99453934a9f4d74c981` |
+| `skills/ms-summary/assets/ms_summary.py` | `6b7c767257b4881daf46672a62fa091d4f2138995edfe99453934a9f4d74c981`（验证时点；t22改后为`23b721e9c89c19a4aa4fa0b929c000ac3283719d1a9d25c0667f1833888ba8ecd`） |
 | 后端回归 | `123 passed, 1 warning in 4.50s`（12:47，`pytest.log`） |
 | 线上看板 | `http://192.168.1.155:8090`（只读GET；服务端仍为旧代码，010/013未部署） |
+
+> 基线口径：表中哈希是**验证时点快照**；后续任务改动过的文件在括号内标注当前值（`calculation.py`见t11、`ms_summary.py`见t22），重放验证时按括号内当前值比对，差异原因见第十节。
 
 队长口径（本轮按此判定）：
 1. 契约哈希以本节新值为准；旧值`f872e9ce`/`6594c5e9`作废（t19把`migrations.gate-tag-existing`改为“已执行”，其余内容未变）。
@@ -233,7 +235,7 @@ spec：`specs/011-bug-table/spec.md`（4个US共15个验收场景/17FR/5SC）。
 | `specs/008-board-contract/board@1.yaml`（未改，复核） | `142ccf067ab372858a2cb898e78506f7a6dcc8adeb86a1e16210d6d507930537` |
 | `specs/011-bug-table/board@2.yaml`（未改，复核） | `d45d159f149497e3269ee4d5445e11fef808ba3683c66b99b4688fa9b4b088a1` |
 
-### 10.5 复核补充（2026-11-19，按ms对t20的交叉核对）
+### 10.5 复核补充（2026-11-19，t20/t22复核后）
 
 - **V061-07 最终形态**：t22 已把 `ms_summary.py --close` 改为自动并入 `【原剩余事项】` 并加读回必含校验，`SKILL.md` 措辞同步为“脚本自动”。sha256：SKILL.md `5164e686…`、脚本 `23b721e9…`（§10.4 表已同步）。
 - **V061-01/06状态更新**：`t20`已完成——`specs/014-ms-skills/{spec.md,tasks.md}`落盘，看板`014-AR`场景数22/任务总数28、`implement=done`（只读GET核对）；缺陷关闭，不代改、不验收。

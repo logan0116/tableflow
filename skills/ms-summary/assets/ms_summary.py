@@ -238,14 +238,24 @@ def build_row(bug_id: str, cand: dict, found: str, specs: list[str], severity: s
     }
 
 
-def readback(bug_id: str, expect: dict) -> tuple[bool, list[str]]:
-    """写后回读：单行 + 整表各核一次，返回 (是否一致, 差异项)。"""
+def readback(bug_id: str, expect: dict,
+             *, contains: dict[str, list[str]] | None = None) -> tuple[bool, list[str]]:
+    """写后回读：单行 + 整表各核一次，返回 (是否一致, 差异项)。
+
+    `contains` 是"必含子串"校验：{字段: [子串]}，用于文本字段（如证据里的
+    `【原剩余事项】`/`【关闭】`）——只比整值不够，丢了一段也能"看起来成功"。
+    """
     diff: list[str] = []
     try:
         row = tf_get(f"/api/tables/{BUG_TABLE}/rows/{bug_id}")["row"]
         values = row_values(row)
     except Exception as exc:  # noqa: BLE001
         return False, [f"单行读回失败：{exc}"]
+    for field, needles in (contains or {}).items():
+        got = str(values.get(field) or "")
+        for needle in needles:
+            if needle not in got:
+                diff.append(f"{field}: 期望包含「{needle}」，读回没有")
     for k, want in expect.items():
         got = values.get(k)
         if isinstance(want, list) or isinstance(got, list):
@@ -292,12 +302,20 @@ def main() -> int:
             print(f"{args.close} 当前状态 {v.get(F['status'])}；关闭依据：{args.reason}")
             print("→ 关闭需人确认：加 --confirm-close 才会写 closed")
             return 0
+        # 关闭要清空 rest（契约要求），但原待办不能静默丢：先把原文并入证据固定段
+        rest_orig = (v.get(F["rest"]) or "").strip()
+        extra = ""
+        if rest_orig:
+            extra += f"\n【原剩余事项】{rest_orig}"
+        extra += f"\n【关闭】{args.reason}"
+        print(f"原剩余事项：{rest_orig!r}" + ("（将并入证据后清空）" if rest_orig else "（为空，不写【原剩余事项】）"))
         expect = {F["status"]: "closed", F["rest"]: ""}
+        contains = {F["evidence"]: (["【原剩余事项】"] if rest_orig else []) + ["【关闭】"]}
         patch = {"values": {F["status"]: "closed", F["rest"]: "",
-                            F["evidence"]: (v.get(F["evidence"]) or "") + f"\n【关闭】{args.reason}"}}
+                            F["evidence"]: (v.get(F["evidence"]) or "") + extra}}
         result, raw = tf_write("PATCH", f"/api/agent/tables/{BUG_TABLE}/rows/{args.close}", patch)
         print(f"写接口三态：{result} {json.dumps(raw, ensure_ascii=False)[:160]}")
-        ok, diff = readback(args.close, expect)
+        ok, diff = readback(args.close, expect, contains=contains)
         print(f"读回：{'一致' if ok else '不一致'}")
         for d in diff:
             print(f"  ⚠️ {d}")
