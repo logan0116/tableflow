@@ -43,3 +43,4 @@ deploy/.env
 
 # MS 项目映射（含内网项目 id，不入库）
 .ms-projects.json
+data/backups/

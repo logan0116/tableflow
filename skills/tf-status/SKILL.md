@@ -1,9 +1,9 @@
 ---
-name: ft-status
-description: "只读报告tableflow看板某版本距离发布还差什么：按board@3四表契约（版本/独立规格需求/依赖需求/缺陷）逐条列出未满足的闸门、原因与对应行，给出可后移候选与拆版方案，并点出看板计算字段与契约的偏差；三表项目明确提示未迁移而不是当0。触发词：ft_status、版本状态、能不能发、发布条件、差什么、拆版、版本差距、Bug闸门。"
+name: tf-status
+description: "只读报告tableflow看板某版本距离发布还差什么：按board@3四表契约（版本/独立规格需求/依赖需求/缺陷）逐条列出未满足的闸门、原因与对应行，给出可后移候选与拆版方案，并点出看板计算字段与契约的偏差；三表项目明确提示未迁移而不是当0。触发词：tf_status、版本状态、能不能发、发布条件、差什么、拆版、版本差距、Bug闸门。"
 ---
 
-# ft_status：这个版本还差什么，能不能发
+# tf_status：这个版本还差什么，能不能发
 
 输入一个版本号，输出一份**只读**报告：结论（可发/不可发/无法完整判定）→ 四项逐项判定（独立需求是否完成、依赖需求是否完成、上一版本Bug是否清空、发布条件）→ 每个未满足项逐行说清"差哪一步" → 看板口径偏差与数据异常 → 拆分建议。
 
@@ -101,7 +101,7 @@ def load(project):
                               ("dep", "依赖变更需求", "-dep"), ("bug", "缺陷", "-bug")):
         ids[key] = by_name.get(name) or next((t["id"] for t in tables if t["id"].endswith(suffix)), None)
     if not ids["ver"] or not ids["indep"] or not ids["dep"]:
-        raise SystemExit("[ft-status] 项目缺版本/独立规格需求/依赖需求表，无法出报告")
+        raise SystemExit("[tf-status] 项目缺版本/独立规格需求/依赖需求表，无法出报告")
     return ids, {k: (get(f"/api/tables/{ids[k]}/table") if ids[k] else None) for k in ids}
 
 
@@ -152,14 +152,14 @@ def pick_version(rows, sem):
     if WANT:
         hit = [r for r in rows if r["id"] == WANT]
         if not hit:
-            raise SystemExit(f"[ft-status] 版本不存在：{WANT}")
+            raise SystemExit(f"[tf-status] 版本不存在：{WANT}")
         return hit[0], rel_max, rel_max_id, planned
     newer = [r for r in planned if rel_max is None or semver(r["id"]) > rel_max]
     if newer:
         return min(newer, key=lambda r: semver(r["id"])), rel_max, rel_max_id, planned
     if planned:
         return min(planned, key=lambda r: semver(r["id"])), rel_max, rel_max_id, planned
-    raise SystemExit("[ft-status] 没有 planned 版本，无法给出当前版本")
+    raise SystemExit("[tf-status] 没有 planned 版本，无法给出当前版本")
 
 
 def spec_reason(impl, acc):
@@ -419,7 +419,7 @@ PY
 复现时直接从本文件抽取脚本执行：
 
 ```bash
-awk '/^python3 - "\$FT_VERSION"/{f=1} f{print} /^PY$/{if(f)exit}' skills/ft-status/SKILL.md | bash
+awk '/^python3 - "\$FT_VERSION"/{f=1} f{print} /^PY$/{if(f)exit}' skills/tf-status/SKILL.md | bash
 ```
 
 ## 报告怎么读
@@ -478,4 +478,4 @@ awk '/^python3 - "\$FT_VERSION"/{f=1} f{print} /^PY$/{if(f)exit}' skills/ft-stat
 
 ## 实跑记录
 
-`specs/015-ft-status/runbook.md`：`tableflow`（四表，报出Bug闸门）与`fd_system`（三表，未迁移提示）两份真实输出，命令与输出可逐条复现。
+`specs/015-tf-status/runbook.md`：`tableflow`（四表，报出Bug闸门）与`fd_system`（三表，未迁移提示）两份真实输出，命令与输出可逐条复现。
