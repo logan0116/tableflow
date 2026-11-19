@@ -212,14 +212,22 @@ def plan_modules(ms, pid: str) -> list[dict]:
     return ms.request("GET", f"/test-plan/module/tree/{pid}")["data"] or []
 
 
-def first_case_template(ms, rows: list[dict]) -> str:
-    """templateId 从项目内任一条已有用例取（响应里叫 id，不叫 templateId）。"""
-    if not rows:
-        raise SystemExit("项目内没有任何用例，无法确定 templateId；先手工建一条或用 add 的最小集")
-    detail = ms.request("GET", f"/functional/case/detail/{rows[0]['id']}")["data"]
-    tid = detail.get("templateId")
+def first_case_template(ms, pid: str, rows: list[dict]) -> str:
+    """templateId 优先取项目内已有用例（响应里叫 id，不叫 templateId）。
+
+    项目刚建、一条用例都没有时回退到项目默认用例模板
+    `GET /functional/case/default/template/field/{pid}`——新建 MS 项目只有一个
+    `functional_default`，不先建一条脏用例也能开张（018：独立项目首次同步）。
+    """
+    if rows:
+        detail = ms.request("GET", f"/functional/case/detail/{rows[0]['id']}")["data"]
+        tid = detail.get("templateId")
+        if tid:
+            return tid
+    default = ms.request("GET", f"/functional/case/default/template/field/{pid}").get("data") or {}
+    tid = default.get("id")
     if not tid:
-        raise SystemExit("用例详情里没有 templateId，先人工确认模板")
+        raise SystemExit("拿不到用例模板：项目内没有用例，默认模板接口也没返回 id")
     return tid
 
 
@@ -505,7 +513,7 @@ def main() -> int:
           f"｜{'写入' if args.apply else '预览'}")
     module_id = ensure_case_module(ms, pid) if args.apply else (
         module_id or "<待建模块>")
-    template_id = first_case_template(ms, page_cases(ms, pid))
+    template_id = first_case_template(ms, pid, page_cases(ms, pid))
     stats = sync_cases(ms, pid, template_id, priority_field, cases, module_id, apply=args.apply)
     plan = ensure_plan(ms, pid, apply=args.apply)
 
