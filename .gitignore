@@ -40,3 +40,6 @@ deploy/.env
 .specify/integration.json
 .specify/memory/.constitution-template.json
 .specify/.gitignore
+
+# MS 项目映射（含内网项目 id，不入库）
+.ms-projects.json

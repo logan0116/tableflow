@@ -52,18 +52,19 @@ MS_TOOLS_DEFAULT = os.path.expanduser("~/PycharmProjects/cnc_nexus/tools/metersp
 TF_BASE = os.environ.get("TF_BASE", "http://192.168.1.155:8090").rstrip("/")
 TF_AGENT = os.environ.get("TF_AGENT", "agent-tf-ms")
 TF_ORIGIN = "human-request"
-BUG_TABLE = "tf-bug"
-DEFAULT_MODULE = "TF · tableflow v0.6.0"
+PROJECT = os.environ.get("TF_PROJECT", "tableflow")
+BUG_TABLE = None            # 由 configure() 按项目解析，不写死 tf-bug
+DEFAULT_MODULE = None       # 不写死版本号；默认按 "TF · <project>" 前缀匹配
 STATE_DIR = ROOT / ".tmp-shots" / "ms-summary"
 CONSUMED = STATE_DIR / "consumed.json"
 
-# 看板字段（board@2 tables.bug.fields 的本地 id）
-F = {
-    "id": "tf-b-id", "title": "tf-b-title", "status": "tf-b-status",
-    "severity": "tf-b-severity", "source": "tf-b-source", "specs": "tf-b-indep",
-    "found": "tf-b-found", "fix": "tf-b-fix", "evidence": "tf-b-evidence",
-    "rest": "tf-b-rest", "ms": "tf-b-ms", "owner": "tf-b-owner",
+# 缺陷表字段按「名称」解析（board@3 语义键→字段名），不绑死某个项目的 tf-b-* 组合
+FIELD_NAMES = {
+    "id": "编号", "title": "标题", "status": "状态", "severity": "严重度",
+    "source": "来源", "specs": "关联规格", "found": "发现版本号",
+    "evidence": "证据", "rest": "剩余事项", "ms": "MS用例号", "owner": "负责人",
 }
+F: dict[str, str] = {}
 
 
 # ── tableflow 写/读 ─────────────────────────────────────────────────────────
@@ -72,6 +73,26 @@ def tf_get(path: str):
     with urllib.request.urlopen(req, timeout=20) as r:
         return json.loads(r.read().decode("utf-8", "replace"))
 
+
+
+def configure(project: str, table: str | None = None) -> None:
+    """按项目解析缺陷表与其字段 id（board@3 字段按名称匹配），不写死 tf-bug。"""
+    global BUG_TABLE, F
+    tables = tf_get(f"/api/projects/{project}/tables").get("tables", [])
+    if table:
+        tid = table
+    else:
+        cands = [t["id"] for t in tables if t["id"].endswith("-bug")]
+        if not cands:
+            raise SystemExit(f"项目 {project} 没有缺陷表（<前缀>-bug）；请先建表或用 --table 指定")
+        tid = cands[0]
+    fields = tf_get(f"/api/tables/{tid}/table").get("fields", [])
+    by_name = {f["name"]: f["id"] for f in fields}
+    missing = [n for n in FIELD_NAMES.values() if n not in by_name]
+    if missing:
+        raise SystemExit(f"{tid} 缺字段：{missing}（board@3 口径不匹配，先对齐契约）")
+    BUG_TABLE = tid
+    F = {k: by_name[n] for k, n in FIELD_NAMES.items()}
 
 def tf_write(method: str, path: str, body: dict) -> tuple[str, dict]:
     """写接口三态：success / failed(400) / unknown(503)，只认响应体里的 result。"""
@@ -106,6 +127,49 @@ def load_ms():
     from ms_env import ids, ms_client  # noqa: PLC0415
 
     return ms_client(), ids()[0]
+
+
+def ms_projects_map() -> dict:
+    """tableflow 项目 → MeterSphere 项目 id 的映射。
+
+    路径 $MS_PROJECTS_FILE，默认 ~/.config/ms/projects.json，形如
+    {"fd_system": "1699362720433840128", "tableflow": "1695095876583694336"}。
+    """
+    candidates = [os.environ.get("MS_PROJECTS_FILE"),
+                  str(ROOT / ".ms-projects.json"),
+                  os.path.expanduser("~/.config/ms/projects.json")]
+    for path in candidates:
+        if not path:
+            continue
+        try:
+            with open(path, encoding="utf-8") as fh:
+                data = json.load(fh)
+            if isinstance(data, dict):
+                return data
+        except FileNotFoundError:
+            continue
+        except Exception:  # noqa: BLE001
+            continue
+    return {}
+
+
+def load_ms_project(ms_project: str | None, project: str) -> tuple:
+    """多产品共用一个 MS 实例：命令行 > 映射文件 > ms_env，并把来源打印出来。"""
+    ms, env_pid = load_ms()
+    if ms_project:
+        pid, source = ms_project, "命令行 --ms-project"
+    else:
+        mapped = ms_projects_map().get(project)
+        pid, source = (str(mapped), "映射文件") if mapped else (env_pid, "ms_env 默认")
+    try:
+        name = ms.request("GET", f"/project/get/{pid}")["data"]["name"]
+    except Exception:  # noqa: BLE001
+        name = "（名称未知）"
+    print(f"MS 项目：{name}（{pid}）｜来源：{source}")
+    if source == "ms_env 默认":
+        print(f"  ⚠ 未配置 {project} → MS 项目映射，正在读 ms_env 的默认项目；"
+              f"若这不是 {project} 的测试数据，请用 --ms-project 或写 ~/.config/ms/projects.json")
+    return ms, pid
 
 
 def collect(ms, pid: str, module: str | None, plan_filter: list[str]) -> list[dict]:
@@ -232,8 +296,10 @@ def build_row(bug_id: str, cand: dict, found: str, specs: list[str], severity: s
         )
     return {
         F["id"]: bug_id, F["title"]: title, F["status"]: "open",
-        F["severity"]: severity, F["source"]: "test", F["specs"]: specs,
-        F["found"]: [found], F["fix"]: [], F["evidence"]: evidence.strip(),
+        F["severity"]: severity,
+        F["source"]: "manual" if cand.get("scope") == "manual" else "ms_case",
+        F["specs"]: specs,
+        F["found"]: found, F["evidence"]: evidence.strip(),
         F["rest"]: "", F["ms"]: ms_id, F["owner"]: TF_AGENT,
     }
 
@@ -273,11 +339,15 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="MS 执行结果 → tf-bug（ms-summary）")
     ap.add_argument("--dry-run", action="store_true", help="只打印将写入的行")
     ap.add_argument("--apply", action="store_true", help="真写看板")
-    ap.add_argument("--module", default=DEFAULT_MODULE, help="用例级结果只取该模块（空串=全项目）")
+    ap.add_argument("--project", default=PROJECT, help="tableflow 项目 id（默认 tableflow）")
+    ap.add_argument("--ms-project", default=None, help="MeterSphere 项目 id（默认取 ms_env 的 MS_PROJECT_ID）")
+    ap.add_argument("--table", help="缺陷表 id（默认按 <前缀>-bug 解析）")
+    ap.add_argument("--module", default=None,
+                    help="用例级结果只取该模块；默认按 'TF · <project>' 前缀匹配（空串=全项目）")
     ap.add_argument("--plans", nargs="*", default=[], help="限定计划名（默认全部计划）")
     ap.add_argument("--block-reason", action="append", default=[],
                     help="判为产品缺陷的 BLOCKED：<caseId或record_id>=<原因>")
-    ap.add_argument("--found", default="v0.6.0", help="发现版本行 id（挂接键，必填单值）")
+    ap.add_argument("--found", required=False, help="发现版本号（文本，如 v0.6.4；写缺陷时必填）")
     ap.add_argument("--specs", nargs="*", default=[], help="关联规格行 id，如 014-AR")
     ap.add_argument("--severity", default="major", choices=["blocker", "critical", "major", "minor"])
     ap.add_argument("--defect-file", help="人工确认的缺陷 JSON（字段：title/severity/source/specs/evidence/ms/rest/detail）")
@@ -286,7 +356,9 @@ def main() -> int:
     ap.add_argument("--confirm-close", action="store_true", help="人已确认关闭")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
-
+    configure(args.project, args.table)
+    if args.module is None:
+        args.module = f"TF · {args.project}"
     if not (args.dry_run or args.apply or args.close):
         ap.error("至少给一个动作：--dry-run / --apply / --close")
 
@@ -321,7 +393,7 @@ def main() -> int:
             print(f"  ⚠️ {d}")
         return 0 if (result == "success" and ok) else 1
 
-    ms, pid = load_ms()
+    ms, pid = load_ms_project(args.ms_project, args.project)
     records = collect(ms, pid, args.module or None, args.plans)
     block_reasons = {}
     for item in args.block_reason:

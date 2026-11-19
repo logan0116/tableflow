@@ -43,9 +43,10 @@ from pathlib import Path
 # ── 常量：v0.6.0 的 spec 范围与本项目在 MS 的落点 ────────────────────────────
 ROOT = Path(__file__).resolve().parents[3]          # skills/ms-update/assets → 仓库根
 DEFAULT_SPECS = ("008-board-contract", "009-tf-update", "010-computation", "015-ft-status")
-CASE_MODULE = "TF · tableflow v0.6.0"               # 功能用例模块（新建）
-PLAN_MODULE = "TF · tableflow"                       # 测试计划模块（新建）
-PLAN_NAME = "tableflow v0.6.0 · 契约与技能验收"
+# 以下三项由 main() 按 --project/--version/--ms-project 覆盖，不再写死 tableflow v0.6.0
+CASE_MODULE = ""                                    # 功能用例模块（新建）
+PLAN_MODULE = ""                                     # 测试计划模块（新建）
+PLAN_NAME = ""                                       # 测试计划名
 PLAN_DESC = (
     "按 specs/008/009/010/015 的验收场景建立的回归计划。"
     "执行由 skills/ms-implement 负责：逐条跑、截图、把结果与证据回写。"
@@ -68,7 +69,24 @@ SEEN_BLOCK_START = re.compile(r"^\*\*Acceptance Scenarios\*\*")
 
 
 # ── 1. 凭据与客户端 ─────────────────────────────────────────────────────────
-def load_ms():
+
+def _ms_projects_map() -> dict:
+    """tableflow 项目 → MS 项目 id；$MS_PROJECTS_FILE > <repo>/.ms-projects.json > ~/.config/ms/projects.json。"""
+    cands = [os.environ.get("MS_PROJECTS_FILE"), str(ROOT / ".ms-projects.json"),
+             os.path.expanduser("~/.config/ms/projects.json")]
+    for path in cands:
+        if not path:
+            continue
+        try:
+            with open(path, encoding="utf-8") as fh:
+                data = json.load(fh)
+            if isinstance(data, dict):
+                return data
+        except Exception:  # noqa: BLE001
+            continue
+    return {}
+
+def load_ms(ms_project: str | None = None):
     """导入项目统一客户端 ms_env（凭据在 ms_creds.env，不打印、不外发）。"""
     tools = os.environ.get("MS_TOOLS_DIR") or MS_TOOLS_DEFAULT
     if not (Path(tools) / "ms_env.py").exists():
@@ -78,7 +96,7 @@ def load_ms():
 
     ms = ms_client()
     pid, tid, priority_field = ids()
-    return ms, pid, tid, priority_field
+    return ms, (ms_project or pid), tid, priority_field
 
 
 def multipart(ms, path: str, payload: dict) -> dict:
@@ -444,6 +462,12 @@ def report(ms, pid: str, module_id: str | None) -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="spec 场景 → MS 用例 + 测试计划（ms-update）")
+    ap.add_argument("--project", default="tableflow", help="tableflow 项目 id（用于模块/计划命名）")
+    ap.add_argument("--version", default="", help="版本号（如 v0.6.4），拼进模块与计划名")
+    ap.add_argument("--module", help="功能用例模块名（默认 TF · <project> v<version>）")
+    ap.add_argument("--plan-module", help="测试计划模块名（默认 TF · <project>）")
+    ap.add_argument("--plan-name", help="测试计划名（默认 <project> v<version> · 契约与技能验收）")
+    ap.add_argument("--ms-project", default=None, help="MeterSphere 项目 id（默认取 ms_env）")
     ap.add_argument("--specs", nargs="*", default=list(DEFAULT_SPECS),
                     help="specs/ 下的目录名（默认 008 009 010 015）")
     ap.add_argument("--apply", action="store_true", help="真正写入 MS（默认只预览）")
@@ -451,7 +475,14 @@ def main() -> int:
     ap.add_argument("--json", action="store_true", help="末尾输出机器可读摘要")
     args = ap.parse_args()
 
-    ms, pid, _tid, priority_field = load_ms()
+    global CASE_MODULE, PLAN_MODULE, PLAN_NAME
+    CASE_MODULE = args.module or (f"TF · {args.project}" + (f" {args.version}" if args.version else ""))
+    PLAN_MODULE = args.plan_module or f"TF · {args.project}"
+    PLAN_NAME = args.plan_name or (
+        f"{args.project} {args.version} · 契约与技能验收" if args.version
+        else f"{args.project} · 契约与技能验收")
+    resolved_ms = args.ms_project or _ms_projects_map().get(args.project)
+    ms, pid, _tid, priority_field = load_ms(resolved_ms)
     mods = [n for n in case_modules(ms, pid) if (n.get("name") or "") == CASE_MODULE]
     module_id = mods[0]["id"] if mods else None
 
