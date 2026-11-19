@@ -4,7 +4,7 @@ import { fetchProjects, fetchTable, fetchTables } from "./api";
 import { displayText } from "./field-utils";
 import { DataTable } from "./components/DataTable";
 import { EmptyState } from "./components/EmptyState";
-import { ProjectSwitcher } from "./components/ProjectSwitcher";
+import { ProjectNav } from "./components/ProjectNav";
 import { RelationListModal } from "./components/RelationListModal";
 import { RelationModal } from "./components/RelationModal";
 import { TableTabs } from "./components/TableTabs";
@@ -31,7 +31,7 @@ export default function App() {
   const [tableId, setTableId] = useState<string | null>(null);
 
   const [tableState, setTableState] = useState<TableState>({ status: "loading" });
-  const [reloadKey, setReloadKey] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const [modal, setModal] = useState<{ tableId: string; rowId: string } | null>(null);
   const [relationList, setRelationList] = useState<{
     tableId: string;
@@ -45,6 +45,18 @@ export default function App() {
 
   const seq = useRef(0);
   const lastFieldCount = useRef(DEFAULT_SKELETON_COLUMNS);
+  /** 刷新令牌：导航会自增以作废进行中的刷新，避免旧结果覆盖新选中项。 */
+  const refreshToken = useRef(0);
+  const projectIdRef = useRef<string | null>(null);
+  const tableIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    projectIdRef.current = projectId;
+  }, [projectId]);
+
+  useEffect(() => {
+    tableIdRef.current = tableId;
+  }, [tableId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,7 +67,7 @@ export default function App() {
           return;
         }
         setProjects(list);
-        setProjectId((previous) => previous ?? list[0]?.id ?? null);
+        setProjectId(list[0]?.id ?? null);
       })
       .catch((error: Error) => {
         if (!cancelled) {
@@ -65,10 +77,12 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [reloadKey]);
+  }, []);
 
   useEffect(() => {
     if (!projectId) {
+      setTables(null);
+      setTableId(null);
       return;
     }
     let cancelled = false;
@@ -91,14 +105,14 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [projectId, reloadKey]);
+  }, [projectId]);
 
   useEffect(() => {
+    setFilter("");
     if (!tableId) {
       return;
     }
     const current = ++seq.current;
-    setFilter("");
     setTableState({ status: "loading" });
     fetchTable(tableId)
       .then((table) => {
@@ -112,7 +126,99 @@ export default function App() {
           setTableState({ status: "error", message: error.message });
         }
       });
-  }, [tableId, reloadKey]);
+  }, [tableId]);
+
+  /**
+   * 全部重拉：项目 → 当前项目表格 → 当前表格数据。
+   * 直接保留旧内容直到新结果返回（不闪骨架），并保留当前项目、表格与筛选词。
+   */
+  const refreshAll = async () => {
+    const token = ++refreshToken.current;
+    setRefreshing(true);
+    let stage: "projects" | "tables" | "table" = "projects";
+    try {
+      const list = await fetchProjects();
+      if (token !== refreshToken.current) {
+        return;
+      }
+      setProjects(list);
+      setProjectsError(null);
+
+      const activeProject = projectIdRef.current;
+      const nextProject =
+        activeProject && list.some((project) => project.id === activeProject)
+          ? activeProject
+          : list[0]?.id ?? null;
+      if (nextProject !== activeProject) {
+        setProjectId(nextProject);
+        return;
+      }
+      if (!nextProject) {
+        setTables([]);
+        setTableId(null);
+        return;
+      }
+
+      stage = "tables";
+      const nextTables = await fetchTables(nextProject);
+      if (token !== refreshToken.current) {
+        return;
+      }
+      setTables(nextTables);
+      setTablesError(null);
+
+      const activeTable = tableIdRef.current;
+      const nextTableId =
+        activeTable && nextTables.some((table) => table.id === activeTable)
+          ? activeTable
+          : nextTables[0]?.id ?? null;
+      if (nextTableId !== activeTable) {
+        setTableId(nextTableId);
+        return;
+      }
+      if (!nextTableId) {
+        return;
+      }
+
+      stage = "table";
+      const table = await fetchTable(nextTableId);
+      if (token !== refreshToken.current) {
+        return;
+      }
+      lastFieldCount.current = table.fields.length || DEFAULT_SKELETON_COLUMNS;
+      setTableState({ status: "ready", table });
+    } catch (error) {
+      if (token !== refreshToken.current) {
+        return;
+      }
+      const message = error instanceof Error ? error.message : "刷新失败，请重试";
+      if (stage === "projects") {
+        setProjectsError(message);
+      } else if (stage === "tables") {
+        setTablesError(message);
+      } else {
+        setTableState({ status: "error", message });
+      }
+    } finally {
+      if (token === refreshToken.current) {
+        setRefreshing(false);
+      }
+    }
+  };
+
+  /** 导航即作废进行中的刷新，保证后发起的选中项优先。 */
+  const selectProject = (nextId: string) => {
+    refreshToken.current += 1;
+    setRefreshing(false);
+    setProjectsError(null);
+    setProjectId(nextId);
+  };
+
+  const selectTable = (nextId: string) => {
+    refreshToken.current += 1;
+    setRefreshing(false);
+    setTableId(nextId);
+  };
 
   const filteredRows = useMemo(() => {
     if (tableState.status !== "ready") {
@@ -131,7 +237,6 @@ export default function App() {
     );
   }, [tableState, filter]);
 
-  const retry = () => setReloadKey((key) => key + 1);
   const hasColumnWidths = Object.keys(widths).length > 0;
 
   const currentProject = projects?.find((project) => project.id === projectId) ?? null;
@@ -141,7 +246,7 @@ export default function App() {
 
   let content: ReactNode;
   if (projectsError) {
-    content = <EmptyState kind="error" message={projectsError} onRetry={retry} />;
+    content = <EmptyState kind="error" message={projectsError} onRetry={refreshAll} />;
   } else if (projects === null) {
     content = (
       <div className="state">
@@ -153,10 +258,8 @@ export default function App() {
   } else {
     content = (
       <>
-        <ProjectSwitcher projects={projects} currentId={projectId} onSelect={setProjectId} />
-
         {tablesError ? (
-          <EmptyState kind="error" message={tablesError} onRetry={retry} />
+          <EmptyState kind="error" message={tablesError} onRetry={refreshAll} />
         ) : tables === null ? (
           <div className="state">
             <InlineSkeleton />
@@ -165,11 +268,11 @@ export default function App() {
           <EmptyState kind="no-tables" />
         ) : (
           <>
-            <TableTabs tables={tables} currentId={tableId} onSelect={setTableId} />
+            <TableTabs tables={tables} currentId={tableId} onSelect={selectTable} />
             {tableState.status === "loading" ? (
               <TableSkeleton columns={lastFieldCount.current} />
             ) : tableState.status === "error" ? (
-              <EmptyState kind="error" message={tableState.message} onRetry={retry} />
+              <EmptyState kind="error" message={tableState.message} onRetry={refreshAll} />
             ) : tableState.table.fields.length === 0 ? (
               <EmptyState kind="no-fields" />
             ) : (
@@ -208,30 +311,60 @@ export default function App() {
   }
 
   return (
-    <main className="app">
-      <header className="page-header">
-        <h1>
-          {currentProject ? (
-            <>
-              <span className="crumb-project">{currentProject.name}</span>
-              {currentTable ? (
-                <>
-                  <span className="crumb-sep">›</span>
-                  <span className="crumb-table">{currentTable.name}</span>
-                </>
-              ) : null}
-            </>
-          ) : (
-            <span className="crumb-table">只读状态看板</span>
-          )}
-        </h1>
-        {totalRows !== null && totalRows > 0 ? (
-          <span className="page-count">
-            {isFiltering ? `${filteredRows.length} / ${totalRows} 条` : `共 ${totalRows} 条`}
-          </span>
-        ) : null}
-      </header>
-      {content}
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="brand">
+          <span className="brand-name">TableFlow</span>
+          <span className="brand-note">只读看板</span>
+        </div>
+        <ProjectNav
+          projects={projects}
+          currentId={projectId}
+          onSelect={selectProject}
+          error={projectsError}
+        />
+      </aside>
+
+      <main className="app-main">
+        <header className="page-header">
+          <h1>
+            {currentProject ? (
+              <>
+                <span className="crumb-project">{currentProject.name}</span>
+                {currentTable ? (
+                  <>
+                    <span className="crumb-sep">›</span>
+                    <span className="crumb-table">{currentTable.name}</span>
+                  </>
+                ) : null}
+              </>
+            ) : (
+              <span className="crumb-table">只读状态看板</span>
+            )}
+          </h1>
+          <div className="header-actions">
+            {totalRows !== null && totalRows > 0 ? (
+              <span className="page-count">
+                {isFiltering ? `${filteredRows.length} / ${totalRows} 条` : `共 ${totalRows} 条`}
+              </span>
+            ) : null}
+            <button
+              type="button"
+              className={`refresh-button${refreshing ? " is-loading" : ""}`}
+              onClick={refreshAll}
+              disabled={refreshing}
+              aria-busy={refreshing}
+              title="重新拉取项目、表格与当前表数据"
+            >
+              <span className="refresh-icon" aria-hidden="true">
+                ⟳
+              </span>
+              {refreshing ? "刷新中" : "刷新"}
+            </button>
+          </div>
+        </header>
+        {content}
+      </main>
 
       {relationList ? (
         <RelationListModal
@@ -253,6 +386,6 @@ export default function App() {
           onClose={() => setModal(null)}
         />
       ) : null}
-    </main>
+    </div>
   );
 }
