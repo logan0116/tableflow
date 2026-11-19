@@ -34,10 +34,17 @@ export MS_TOOLS_DIR=~/PycharmProjects/demo-cnc/tools/metersphere   # ms_env.py �
 - **绝不打印AK/SK**，也不把`ms_creds.env`复制进本仓库、贴进聊天记录、放进skill包；
 - 请求只能发往凭据文件声明的host（`ms_env._guard_host`会拦），换实例要改凭据文件而不是改脚本。
 
-实测实例：`http://localhost:8081`（MeterSphere CE v3.6.9-lts），组织100001，项目`demo-cnc v3.0`；
-`projectId/templateId/priorityFieldId`从`ms_env.ids()`取，不硬编码。
+实测实例：`http://localhost:8081`（MeterSphere CE v3.6.9-lts），组织100001；
+`projectId/templateId/priorityFieldId`从`ms_env.ids()`取，可用`--ms-project`覆盖。
 
-## 落点与命名（v0.6.0）
+**多产品**：MS项目按 `--ms-project` > `$MS_PROJECTS_FILE`/仓库根`.ms-projects.json`/`~/.config/ms/projects.json` > `ms_env` 默认解析；
+模块与计划名按 `--project`/`--version` 生成，不再写死 `tableflow v0.6.0`：
+
+```bash
+python3 assets/ms_sync.py --project demo --version v7.0.2 --apply   # 生成 "TF · demo v7.0.2" 与 "demo v7.0.2 · 契约与技能验收"
+```
+
+## 落点与命名（以下为 v0.6.0 的实例，实际按参数生成）
 
 | 对象 | 名称 | id（2026-11-19实测） |
 |---|---|---|

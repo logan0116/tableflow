@@ -41,13 +41,30 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 MS_TOOLS_DEFAULT = os.path.expanduser("~/PycharmProjects/demo-cnc/tools/metersphere")
-PLAN_NAME = "tableflow v0.6.0 · 契约与技能验收"
+PLAN_NAME = ""   # 由 --plan 指定；不再写死 tableflow v0.6.0
 EVIDENCE_DIR = ROOT / ".tmp-shots" / "ms-evidence"
 ALLOWED_RESULTS = ("SUCCESS", "ERROR")   # 实测唯一会被服务端处理的两个值
 
 
 # ── 凭据与客户端（同 ms_sync.py：走项目统一 ms_env，不打印 AK/SK） ───────────
-def load_ms():
+
+def _ms_projects_map() -> dict:
+    """tableflow 项目 → MS 项目 id；$MS_PROJECTS_FILE > <repo>/.ms-projects.json > ~/.config/ms/projects.json。"""
+    cands = [os.environ.get("MS_PROJECTS_FILE"), str(ROOT / ".ms-projects.json"),
+             os.path.expanduser("~/.config/ms/projects.json")]
+    for path in cands:
+        if not path:
+            continue
+        try:
+            with open(path, encoding="utf-8") as fh:
+                data = json.load(fh)
+            if isinstance(data, dict):
+                return data
+        except Exception:  # noqa: BLE001
+            continue
+    return {}
+
+def load_ms(ms_project: str | None = None):
     tools = os.environ.get("MS_TOOLS_DIR") or MS_TOOLS_DEFAULT
     if not (Path(tools) / "ms_env.py").exists():
         raise SystemExit(f"找不到 ms_env.py：{tools}（用 MS_TOOLS_DIR 指定目录）")
@@ -56,6 +73,7 @@ def load_ms():
 
     ms = ms_client()
     pid, _tid, _prio = ids()
+    pid = ms_project or pid
     return ms, pid
 
 
@@ -144,7 +162,10 @@ def write_result(ms, pid: str, plan_id: str, row: dict, result: str, *, dry: boo
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="计划用例执行结果回写（ms-implement）")
-    ap.add_argument("--plan", default=PLAN_NAME, help=f"计划名（默认 {PLAN_NAME}）")
+    ap.add_argument("--project", default="", help="tableflow 项目 id（用于查 .ms-projects.json 映射）")
+    ap.add_argument("--plan", required=False, help="测试计划名，如 'demo-bench v0.1.0 · 契约与技能验收'")
+    ap.add_argument("--plan-id", help="直接给测试计划 id，跳过按名查找")
+    ap.add_argument("--ms-project", default=None, help="MeterSphere 项目 id（默认取 ms_env）")
     ap.add_argument("--list", action="store_true", help="列出计划内用例与最近结果")
     ap.add_argument("--case", help="用例名或场景号前缀，如 008-US1-AS1")
     ap.add_argument("--result", choices=ALLOWED_RESULTS, help="SUCCESS / ERROR（ERROR 用于失败/阻塞，原因写 --note）")
@@ -154,7 +175,10 @@ def main() -> int:
     ap.add_argument("--json", action="store_true", help="输出机器可读摘要")
     args = ap.parse_args()
 
-    ms, pid = load_ms()
+    if not args.plan and not args.plan_id and not args.list:
+        ap.error("需要 --plan 或 --plan-id（不再有写死的默认计划名）")
+    resolved_ms = args.ms_project or _ms_projects_map().get(getattr(args, "project", "") or "")
+    ms, pid = load_ms(resolved_ms)
     plan = find_plan(ms, pid, args.plan)
     rows = plan_cases(ms, plan["id"])
 

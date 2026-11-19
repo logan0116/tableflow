@@ -76,24 +76,42 @@ curl -X POST "http://localhost:8090/api/agent/tables/tf-bug/rows/BUG-01" \
 - 三态只认响应体：`success`/`failed`(400)/`unknown`(503)；`unknown`必须回读判定，**不得当成功**；
 - 写后回读**单行**`GET /api/tables/tf-bug/rows/{id}`并比对每个字段，再对整表查一次该id在不在；
 - 字段值格式：枚举用英文`value`（`open/fixing/verifying/closed`、`blocker/critical/major/minor`、
-  `test/prod/review/user`）；关系字段是**行id数组**（`["v0.6.0"]`、`["014-AR"]`），不存在的行会被
+  `ms_case/manual/prod/review`）；关系字段是**行id数组**（`["v0.6.0"]`、`["014-AR"]`），不存在的行会被
   `relation_must_exist`拒绝。
 
-## 字段映射（tf-bug，12字段）
+## 字段映射（按名称解析，不绑死 tf-b-*）
 
-| 契约键 | 本地字段 | 取值 |
+脚本启动时用 `GET /api/tables/{bug表}/table` 读字段，按**名称**映射到本地 id；
+缺任一字段即退出，不会写到错的列上：
+
+| 契约键 | 字段名 | 取值 |
 |---|---|---|
-| `bug.id` | `tf-b-id` | `BUG-NN`，全局递增不复用 |
-| `bug.title` | `tf-b-title` | 一句话说清现象与位置，不写修复方案 |
-| `bug.status` | `tf-b-status` | 新建固定`open`；`closed`只经人确认 |
-| `bug.severity` | `tf-b-severity` | 记录用，不进闸门；默认`major` |
-| `bug.source` | `tf-b-source` | 执行结果来的记`test`；人工确认可给`review` |
-| `bug.specs` | `tf-b-indep` | 行id数组，空数组=暂未归因 |
-| `bug.found` | `tf-b-found` | **挂接键**，单值`["v0.6.0"]`，不从规格反查 |
-| `bug.fix` | `tf-b-fix` | 修复发布时填，不修复留空 |
-| `bug.evidence` | `tf-b-evidence` | 必须能指到MS用例号：`【MS】<num>…【归类】…【复现】N次【现象】…` |
-| `bug.rest` | `tf-b-rest` | 未完成部分与阻塞；`closed`时必须为空 |
-| `bug.ms_case` | `tf-b-ms` | MS用例号（num），多条逗号分隔 |
+| `bug.id` | 编号 | `BUG-NN`，全局递增不复用 |
+| `bug.title` | 标题 | 一句话说清现象与位置，不写修复方案 |
+| `bug.status` | 状态 | 新建固定`open`；`closed`只经人确认 |
+| `bug.severity` | 严重度 | 记录用，不进闸门；默认`major` |
+| `bug.source` | 来源 | MS执行结果记`ms_case`；人工确认记`manual` |
+| `bug.specs` | 关联规格 | 行id数组，空数组=暂未归因 |
+| `bug.found_version` | 发现版本号 | **文本**，如`v0.6.4`；不从规格反查 |
+| `bug.evidence` | 证据 | 必须能指到MS用例号：`【MS】<num>…【归类】…【复现】N次【现象】…` |
+| `bug.rest` | 剩余事项 | 未完成部分与阻塞；`closed`时必须为空 |
+| `bug.ms_case` | MS用例号 | MS用例号（num），多条逗号分隔 |
+| `bug.owner` | 负责人 | 写接口的 `X-Agent-Id` |
+
+## 多项目：表与MS项目都不是写死的
+
+| 参数 | 作用 | 缺省 |
+|---|---|---|
+| `--project` | tableflow 项目 id | `tableflow` |
+| `--table` | 缺陷表 id | 按 `<前缀>-bug` 自动解析 |
+| `--ms-project` | MeterSphere 项目 id | 映射文件 → `ms_env` 默认 |
+| `--module` | 只取该模块的用例级结果 | `TF · <project>` 前缀 |
+| `--found` | 发现版本号（写缺陷时必填） | 无 |
+
+**MS 项目映射**：`$MS_PROJECTS_FILE` > 仓库根 `.ms-projects.json` > `~/.config/ms/projects.json`，
+内容形如 `{"demo":"1699362720433840128","tableflow":"1695095876583694336"}`。
+脚本开头会打印解析到的 MS 项目名与来源；回退到 `ms_env` 默认时会打 `⚠` 警告——
+**这时很可能读的是别的产品的执行结果**。
 | `bug.owner` | `tf-b-owner` | 执行者身份，默认`agent-tf-ms` |
 
 ## 关闭（必须人确认）
@@ -133,7 +151,7 @@ python3 skills/ms-summary/assets/ms_summary.py --dry-run --block-reason 100337=�
 ## 本轮实测（2026-11-19，155:8081 + 155:8090）
 
 - 扫描执行记录23条：`ERROR`0、`BLOCKED`7（无产品缺陷原因→全部待判定）、`SUCCESS`16；
-- 真写`BUG-01`一行（`status=open`、`severity=major`、`source=test`、`found=["v0.6.0"]`、
+- 真写`BUG-01`一行（`状态=open`、`严重度=major`、`来源=ms_case`、`发现版本号=v0.6.0`、
   `specs=["014-AR"]`、`ms=100337`），单行+整表回读一致；重跑→`skip`（轴1生效）；
 - 关闭提示未误报：`008-US1-AS1`的SUCCESS早于缺陷登记时刻，故不给关闭建议（时间比较生效）。
 
