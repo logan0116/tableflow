@@ -10,7 +10,8 @@
 - 悬空引用（010）：布尔 rollup 不把悬空当"没有"——all/none 一律判否（判定不成立）；
   数量类 count/sum/percent 维持 003 的"忽略悬空"（描述现存行）。
 - 闸门字段（010）：`options.gate=true` 的布尔判定字段，人工覆盖一律拒绝
-  （400），清除历史覆盖仍允许。"""
+  （400），清除历史覆盖仍允许。
+"""
 
 from __future__ import annotations
 
