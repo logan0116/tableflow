@@ -56,7 +56,6 @@ def main() -> int:
             "values": {
                 "tf-i-id": item_id,
                 "tf-i-clause": name,
-                "tf-i-status": "待办",
             },
         })
     print(f"完成：{len(ITEMS)} 条改进需求写入 {TABLE}")

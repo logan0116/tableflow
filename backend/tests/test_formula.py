@@ -646,79 +646,74 @@ def test_rebuild_computed_values_idempotent(tmp_path, monkeypatch):
 # ---------- tf 项目落地实例 ----------
 
 def test_tf_project_computed_fields(tmp_path, monkeypatch):
+    """tf 项目的计算字段按 board@3：三布尔 + 发布条件，没有开发进度/未清Bug数。"""
     db = tmp_path / "tf-formula.db"
     monkeypatch.setenv("TABLEFLOW_DB", str(db))
     with TestClient(app) as client:
         rebuild_v030.rebuild(db, client, backup=False)
         payload = client.get("/api/tables/tf-ver/table").json()
         fields = {field["id"]: field for field in payload["fields"]}
-        assert fields["tf-v-dev"]["type"] == "computed"
-        assert fields["tf-v-cond"]["type"] == "computed"
-        assert "tf-v-bug" not in fields
-        assert fields["tf-v-bug-open"]["type"] == "number"
+        for fid, kind in (
+            ("tf-v-spec-done", "rollup"),
+            ("tf-v-change-done", "rollup"),
+            ("tf-v-bug-clear", "rollup"),
+            ("tf-v-cond", "and"),
+        ):
+            assert fields[fid]["type"] == "computed"
+            assert fields[fid]["options"]["kind"] == kind
+        for gone in ("tf-v-dev", "tf-v-test", "tf-v-bug-open", "tf-v-doc", "tf-v-regress"):
+            assert gone not in fields
 
-        rows = {row["id"]: row["values"] for row in payload["rows"]}
-        assert rows["v0.3.0"]["tf-v-dev"] == 100.0
-        # DEP-01-BR 已完成且回归通过，v0.3.0 四条件全满足
-        assert rows["v0.3.0"]["tf-v-cond"] is True
-        assert rows["v0.3.0"]["tf-v-bug-clear"] is True
-        assert rows["v0.3.0"]["tf-v-regress"] is True
-        assert rows["v0.3.0"]["tf-v-dep-count"] == 1
-        assert rows["v0.3.0"]["tf-v-scenes"] == 12
-        assert rows["v0.3.0"]["tf-v-tasks"] == 30
-        # v0.2.0 四条件全满足
-        assert rows["v0.2.0"]["tf-v-dev"] == 100.0
-        assert rows["v0.2.0"]["tf-v-cond"] is True
+        row = {r["id"]: r["values"] for r in payload["rows"]}["v0.3.0"]
+        assert row["tf-v-cond"] == (
+            row["tf-v-spec-done"] and row["tf-v-change-done"] and row["tf-v-bug-clear"]
+        )
+        assert row["tf-v-spec-ratio"].count("/") == 1
 
-        # 手工改底层数据但不重算：读接口仍返回旧值
+        # 把本版一条需求从 accepted 改回 pending → 独立需求是否完成转否，发布条件转否
+        assert client.patch(
+            "/api/agent/tables/tf-indep/rows/002-AR",
+            json={"values": {"tf-i-acceptance": "pending"}},
+            headers=HEADERS,
+        ).json()["result"] == "success"
+        row = {r["id"]: r["values"] for r in client.get("/api/tables/tf-ver/table").json()["rows"]}["v0.3.0"]
+        assert row["tf-v-spec-done"] is False
+        assert row["tf-v-cond"] is False
+
+        # 改回 accepted → rollup 恢复，发布条件跟着恢复
+        client.patch(
+            "/api/agent/tables/tf-indep/rows/002-AR",
+            json={"values": {"tf-i-acceptance": "accepted"}},
+            headers=HEADERS,
+        )
+        row = {r["id"]: r["values"] for r in client.get("/api/tables/tf-ver/table").json()["rows"]}["v0.3.0"]
+        assert row["tf-v-spec-done"] is True
+        assert row["tf-v-cond"] == (
+            row["tf-v-spec-done"] and row["tf-v-change-done"] and row["tf-v-bug-clear"]
+        )
+
+        # 手工改底层数据但不重算：读接口仍返回存储值
         conn = sqlite3.connect(db)
         try:
-            row = conn.execute(
-                "SELECT data FROM row_records WHERE table_id='tf-indep' AND id='004-AR'"
+            raw = conn.execute(
+                "SELECT data FROM row_records WHERE table_id='tf-indep' AND id='003-AR'"
             ).fetchone()
-            values = json.loads(row[0])
-            values["tf-i-implement"] = "doing"
+            values = json.loads(raw[0])
+            values["tf-i-acceptance"] = "pending"
             conn.execute(
-                "UPDATE row_records SET data = ? WHERE table_id='tf-indep' AND id='004-AR'",
+                "UPDATE row_records SET data = ? WHERE table_id='tf-indep' AND id='003-AR'",
                 (json.dumps(values, ensure_ascii=False),),
             )
             conn.commit()
         finally:
             conn.close()
-        rows = {row["id"]: row["values"] for row in client.get("/api/tables/tf-ver/table").json()["rows"]}
-        assert rows["v0.3.0"]["tf-v-dev"] == 100.0
+        row = {r["id"]: r["values"] for r in client.get("/api/tables/tf-ver/table").json()["rows"]}["v0.3.0"]
+        assert row["tf-v-spec-done"] is True
 
-        # 显式重算后跟着变（2/3 = 66.7）
+        # 显式重算后跟着变
         assert client.post("/api/agent/tables/tf-ver/recompute", headers=HEADERS).json()["result"] == "success"
-        rows = {row["id"]: row["values"] for row in client.get("/api/tables/tf-ver/table").json()["rows"]}
-        assert rows["v0.3.0"]["tf-v-dev"] == 66.7
+        row = {r["id"]: r["values"] for r in client.get("/api/tables/tf-ver/table").json()["rows"]}["v0.3.0"]
+        assert row["tf-v-spec-done"] is False
+        assert row["tf-v-cond"] is False
 
-        # 经写接口把 004 改回完成 → 100.0；依赖已完成，发布条件保持为是
-        client.patch(
-            "/api/agent/tables/tf-indep/rows/004-AR",
-            json={"values": {"tf-i-implement": "done"}},
-            headers=HEADERS,
-        )
-        rows = {row["id"]: row["values"] for row in client.get("/api/tables/tf-ver/table").json()["rows"]}
-        assert rows["v0.3.0"]["tf-v-dev"] == 100.0
-        assert rows["v0.3.0"]["tf-v-cond"] is True
 
-        # 依赖回退为待办：回归不通过，发布条件必须转否（rollup require 行级前置条件）
-        client.patch(
-            "/api/agent/tables/tf-dep/rows/DEP-01-BR",
-            json={"values": {"tf-d-status": "待办", "tf-d-regress": "todo"}},
-            headers=HEADERS,
-        )
-        rows = {row["id"]: row["values"] for row in client.get("/api/tables/tf-ver/table").json()["rows"]}
-        assert rows["v0.3.0"]["tf-v-regress"] is False
-        assert rows["v0.3.0"]["tf-v-cond"] is False
-
-        # 把依赖标记为已完成且回归通过 → 发布条件才为是
-        client.patch(
-            "/api/agent/tables/tf-dep/rows/DEP-01-BR",
-            json={"values": {"tf-d-status": "已完成", "tf-d-regress": "passed"}},
-            headers=HEADERS,
-        )
-        rows = {row["id"]: row["values"] for row in client.get("/api/tables/tf-ver/table").json()["rows"]}
-        assert rows["v0.3.0"]["tf-v-regress"] is True
-        assert rows["v0.3.0"]["tf-v-cond"] is True

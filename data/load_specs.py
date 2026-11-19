@@ -21,7 +21,7 @@ HEADERS = {"X-Agent-Id": "agent-tableflow", "X-Origin": "seed"}
 
 GOVERNANCE = {
     "tf-i-constitution-version": "v6.0.0",
-    "tf-i-acceptance": "pending",
+    "tf-i-acceptance": "accepted",
 }
 
 SPECS = [
@@ -31,17 +31,15 @@ SPECS = [
         "tf-i-dir": "specs/002-field-system",
         "tf-i-scenes": 5,
         "tf-i-tasks": 12,
-        "tf-i-status": "已完成",
-        "tf-i-constitution": "完成（v6.0.0）",
-        "tf-i-specify": "完成",
-        "tf-i-plan": "完成",
-        "tf-i-task": "完成",
+        "tf-i-constitution": "done",
+        "tf-i-specify": "done",
+        "tf-i-plan": "done",
+        "tf-i-task": "done",
         "tf-i-implement": "done",
         "tf-i-clarify": "done",
         "tf-i-analyze": "done",
         "tf-i-checklist": "done",
         "tf-i-owner": "schema-dev",
-        "tf-i-priority": "P0",
         **GOVERNANCE,
     }),
     ("003-AR", {
@@ -50,17 +48,15 @@ SPECS = [
         "tf-i-dir": "specs/003-calculated-fields",
         "tf-i-scenes": 4,
         "tf-i-tasks": 10,
-        "tf-i-status": "已完成",
-        "tf-i-constitution": "完成（v6.0.0）",
-        "tf-i-specify": "完成",
-        "tf-i-plan": "完成",
-        "tf-i-task": "完成",
+        "tf-i-constitution": "done",
+        "tf-i-specify": "done",
+        "tf-i-plan": "done",
+        "tf-i-task": "done",
         "tf-i-implement": "done",
         "tf-i-clarify": "todo",
         "tf-i-analyze": "todo",
         "tf-i-checklist": "done",
         "tf-i-owner": "schema-dev",
-        "tf-i-priority": "P1",
         **GOVERNANCE,
     }),
     ("004-AR", {
@@ -69,17 +65,15 @@ SPECS = [
         "tf-i-dir": "specs/004-ui-polish",
         "tf-i-scenes": 3,
         "tf-i-tasks": 8,
-        "tf-i-status": "已完成",
-        "tf-i-constitution": "完成（v6.0.0）",
-        "tf-i-specify": "完成",
-        "tf-i-plan": "完成",
-        "tf-i-task": "完成",
+        "tf-i-constitution": "done",
+        "tf-i-specify": "done",
+        "tf-i-plan": "done",
+        "tf-i-task": "done",
         "tf-i-implement": "done",
         "tf-i-clarify": "todo",
         "tf-i-analyze": "todo",
         "tf-i-checklist": "done",
         "tf-i-owner": "ui-dev",
-        "tf-i-priority": "P1",
         **GOVERNANCE,
     }),
 ]
@@ -90,20 +84,15 @@ VERSION = ("v0.3.0", {
     "tf-v-status": "released",
     "tf-v-indep": ["002-AR", "003-AR", "004-AR"],
     "tf-v-dep": ["DEP-01-BR"],
-    "tf-v-bug-open": 0,
-    "tf-v-doc": "done",
-    "tf-v-test": "pytest 97 passed",
     "tf-v-note": "字段体系 + 计算字段 + 界面体验",
 })
 
 DEP = ("DEP-01-BR", {
     "tf-d-id": "DEP-01-BR",
     "tf-d-clause": "宪法 v6.0.0（计算字段、人经 Agent 写）与 v7.0.0（只读筛选）修订",
-    "tf-d-spec": "constitution.md",
     "tf-d-indep": ["003-AR"],
     "tf-d-impact": "003 全部；004 的状态色依赖 002 的 tone 字段；筛选受 v7.0.0 约束",
     "tf-d-regress": "passed",
-    "tf-d-status": "已完成",
 })
 
 

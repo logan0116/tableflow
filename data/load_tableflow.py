@@ -35,11 +35,10 @@ ROWS = {
             "tf-i-dir": "specs/001-readonly-dashboard",
             "tf-i-scenes": 3,
             "tf-i-tasks": 36,
-            "tf-i-status": "实现中",
-            "tf-i-constitution": "完成（v5.0.0）",
-            "tf-i-specify": "完成",
-            "tf-i-plan": "完成",
-            "tf-i-task": "完成",
+            "tf-i-constitution": "done",
+            "tf-i-specify": "done",
+            "tf-i-plan": "done",
+            "tf-i-task": "done",
             "tf-i-implement": "done",
             "tf-i-clarify": "done",
             "tf-i-analyze": "done",
@@ -47,7 +46,6 @@ ROWS = {
             "tf-i-constitution-version": "v5.0.0",
             "tf-i-acceptance": "accepted",
             "tf-i-owner": "captain",
-            "tf-i-priority": "P0",
         }),
     ],
     "tf-dep": [],
@@ -55,8 +53,6 @@ ROWS = {
         ("v0.1.0", {
             "tf-v-ver": "v0.1.0",
             "tf-v-status": "dropped",
-            "tf-v-bug-open": 0,
-            "tf-v-doc": "na",
             "tf-v-note": "单表只读看板（已被 v0.2.0 取代）",
         }),
         ("v0.2.0", {
@@ -64,16 +60,13 @@ ROWS = {
             "tf-v-date": "2026-11-30T00:00:00+08:00",
             "tf-v-status": "planned",
             "tf-v-indep": ["001-AR"],
-            "tf-v-test": "pytest 27 passed",
-            "tf-v-bug-open": 0,
-            "tf-v-doc": "done",
             "tf-v-note": "多维表格：项目→多表 + relation 关联 + Agent 写接口",
         }),
     ],
 }
 
-FIELD_ORDER = ["tf-indep", "tf-dep", "tf-ver"]
-ROW_ORDER = ["tf-indep", "tf-dep", "tf-ver"]
+FIELD_ORDER = ["tf-indep", "tf-dep", "tf-bug", "tf-ver"]
+ROW_ORDER = ["tf-indep", "tf-dep", "tf-bug", "tf-ver"]
 
 
 def call(
@@ -103,7 +96,15 @@ def run(client: httpx.Client, *, strict: bool = False) -> None:
     table_by_id = {table["id"]: table for table in TABLES}
     for table_id in FIELD_ORDER:
         table = table_by_id[table_id]
-        for field_id, name, field_type, options in table["fields"]:
+        # 契约顺序里 发布条件 排在前面，但它是 and(三布尔)，必须等被引用的计算字段存在；
+        # 建字段按「基础字段 → 计算字段 → and 字段」三段走，顺序与契约展示顺序解耦。
+        fields = table["fields"]
+        ordered = (
+            [f for f in fields if f[2] != "computed"]
+            + [f for f in fields if f[2] == "computed" and (f[3] or {}).get("kind") != "and"]
+            + [f for f in fields if f[2] == "computed" and (f[3] or {}).get("kind") == "and"]
+        )
+        for field_id, name, field_type, options in ordered:
             call(client, "POST", f"/api/agent/tables/{table_id}/fields",
                  {"id": field_id, "name": name, "type": field_type, "options": options}, strict=strict)
     for table_id in ROW_ORDER:
@@ -115,7 +116,7 @@ def run(client: httpx.Client, *, strict: bool = False) -> None:
 def main() -> int:
     with httpx.Client(base_url=BASE, timeout=10) as client:
         run(client)
-    print("完成：tableflow（3 表，结构同 fd_system）")
+    print("完成：tableflow（4 表，结构同 fd_system）")
     return 0
 
 
