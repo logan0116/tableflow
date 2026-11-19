@@ -1,12 +1,16 @@
 """计算字段：配置校验、依赖图、五种 kind、写侧重算与人工覆盖。
 
-硬约束（003 spec / 宪法 v6.0.0）：
+硬约束（003 spec / 010 spec / 宪法 v6.0.0）：
 - 计算在写事务内完成并落 `computed_values`；读侧只读，不做任何业务计算。
 - kind 封闭为 count / percent / sum / rollup / and；不做用户表达式、跨表任意聚合。
 - 依赖只来自本表 relation 指向的目标行；`and` 可引用同表计算字段，依赖必须无环。
 - 计算异常 / 配置非法 → `WriteError`，由 `run_write` 整体回滚。
 - 覆盖值优先于重算结果，带原因、可清除；清除后立即重算。
-"""
+- 空集语义（010）：count=0、sum=0、rollup all/none=true、percent=null。
+- 悬空引用（010）：布尔 rollup 不把悬空当"没有"——all/none 一律判否（判定不成立）；
+  数量类 count/sum/percent 维持 003 的"忽略悬空"（描述现存行）。
+- 闸门字段（010）：`options.gate=true` 的布尔判定字段，人工覆盖一律拒绝
+  （400），清除历史覆盖仍允许。"""
 
 from __future__ import annotations
 
@@ -213,6 +217,8 @@ def validate_computed_options(
         raise WriteError(f"computed.kind 必须是 {sorted(KINDS)} 之一")
     if "allow_override" in options and not isinstance(options["allow_override"], bool):
         raise WriteError("allow_override 必须是布尔值")
+    if "gate" in options and not isinstance(options["gate"], bool):
+        raise WriteError("gate 必须是布尔值")
 
     fields = _field_rows(conn, table_id)
 
@@ -295,6 +301,12 @@ def validate_computed_options(
                     raise WriteError("rollup.require 不能引用计算字段")
                 if "equals" not in cond:
                     raise WriteError("rollup.require 每项必须含 equals")
+
+    # 闸门字段只对布尔判定成立：and，或 rollup 的 all/any/none。数量类没有"放行/不放行"的含义。
+    if options.get("gate") and not (
+        kind == "rollup" and options.get("aggregate") in BOOLEAN_AGGREGATES
+    ):
+        raise WriteError("gate 只能标记布尔判定字段（and 或 rollup all/any/none）")
 
     return options
 
@@ -404,20 +416,27 @@ def _selected_target_rows(
     row_values: dict[str, Any],
     target_table: str,
     rows_cache: dict[str, dict[str, dict[str, Any]]],
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], int]:
+    """返回（仍存在的目标行, 悬空引用数）。
+
+    悬空引用 = relation 值里指向目标表已不存在行的 id；空值/非数组/重复 id 不算悬空。
+    """
     ids = row_values.get(source)
     if not isinstance(ids, list):
-        return []
+        return [], 0
     target = _target_rows(conn, target_table, rows_cache)
     selected: list[dict[str, Any]] = []
     seen: set[str] = set()
+    dangling = 0
     for target_id in ids:
         if not isinstance(target_id, str) or target_id in seen:
             continue
         seen.add(target_id)
         if target_id in target:
             selected.append(target[target_id])
-    return selected
+        else:
+            dangling += 1
+    return selected, dangling
 
 
 def _compute_relation_kind(
@@ -434,7 +453,9 @@ def _compute_relation_kind(
     target_table = _relation_target(_loads(source_field["options"]))
     if target_table is None:
         raise WriteError("source relation 缺少目标表")
-    selected = _selected_target_rows(conn, source, row_values, target_table, rows_cache)
+    selected, dangling = _selected_target_rows(
+        conn, source, row_values, target_table, rows_cache
+    )
     where = options.get("where")
     matched = selected
     if isinstance(where, dict):
@@ -445,6 +466,7 @@ def _compute_relation_kind(
         ]
 
     if kind == "count":
+        # 数量描述"仍然存在的行"，悬空引用不计入（003 FR-016）。
         return len(matched)
 
     if kind == "percent":
@@ -482,11 +504,15 @@ def _compute_relation_kind(
                 _matches(values_) and values_.get(target_field) == equals
                 for values_ in selected
             ]
+            # 悬空引用 = 集合里有一行无法核验（目标行已不存在）。
+            # 开世界假设：无法核验的成员既不能证明"全部满足/all"，也不能证明"没有任何满足/none"，
+            # 因此 all/none 在有悬空时判否（未确立），不得因"数不到"而让就绪变真（010）。
+            # any 只断言"存在"，已核验成员命中即为真，悬空不改变已有事实。
             if aggregate == "all":
-                return all(results)
+                return dangling == 0 and all(results)
             if aggregate == "any":
                 return any(results)
-            return not any(results)
+            return dangling == 0 and not any(results)
         if aggregate == "count_distinct":
             distinct = {
                 json.dumps(value, ensure_ascii=False, sort_keys=True)
@@ -924,6 +950,10 @@ def apply_overrides(
             raise WriteError(f"计算字段「{field['name']}」配置损坏")
         if not isinstance(entry, dict) or "value" not in entry:
             raise WriteError("overrides 每项必须形如 {value, reason}")
+        # 闸门字段（board@1 的 gate 标记）是"放行/不放行"的判定结论，不允许人工改写；
+        # 清除（value=null）仍放开，否则历史覆盖会永久卡住。
+        if options.get("gate") and entry["value"] is not None:
+            raise WriteError(f"闸门字段「{field['name']}」禁止人工覆盖")
         if entry["value"] is None:
             clear_override(
                 conn,
