@@ -168,6 +168,30 @@ def _payload_text(body: dict[str, Any] | None) -> str | None:
     return json.dumps(body, ensure_ascii=False) if body is not None else None
 
 
+# 请求体允许的顶层键（protocol@2，012-AR 的 P-019 由“忽略多余键”改为“拒绝”）：
+# 写错形状静默 success 比报错危险得多——2026-11-19 一次 PATCH 把字段名放在顶层、
+# 返回 success 却一字未写，读回才发现（BUG-03 同期发现）。
+BODY_KEYS: dict[str, frozenset[str]] = {
+    "project.create": frozenset({"id", "name"}),
+    "table.create": frozenset({"id", "name", "order"}),
+    "table.update": frozenset({"name", "order"}),
+    "field.create": frozenset({"id", "name", "type", "options", "order", "visible"}),
+    "field.update": frozenset({"name", "type", "options", "order", "visible"}),
+    "row.create": frozenset({"id", "values"}),
+    "row.update": frozenset({"values", "overrides"}),
+}
+
+
+def _reject_unknown_keys(action: str, body: dict[str, Any]) -> None:
+    """拒绝请求体里不认识的顶层键；整请求失败，不做部分写入。"""
+    allowed = BODY_KEYS[action]
+    unknown = sorted(set(body) - allowed)
+    if unknown:
+        raise WriteError(
+            f"请求体含未知顶层键：{unknown}；{action} 只接受 {sorted(allowed)}"
+        )
+
+
 def _require_name(body: dict[str, Any]) -> str:
     name = body.get("name")
     if not isinstance(name, str) or not name.strip():
@@ -405,6 +429,7 @@ def _validate_options(
 # ---------- 项目 ----------
 
 def create_project(conn: sqlite3.Connection, body: dict[str, Any]) -> str:
+    _reject_unknown_keys("project.create", body)
     name = _require_name(body)
     project_id = body.get("id") or f"p-{uuid.uuid4().hex[:8]}"
     if conn.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone():
@@ -435,6 +460,7 @@ def delete_project(conn: sqlite3.Connection, project_id: str) -> str:
 def create_table(conn: sqlite3.Connection, project_id: str, body: dict[str, Any]) -> str:
     if conn.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone() is None:
         raise WriteError("项目不存在")
+    _reject_unknown_keys("table.create", body)
     name = _require_name(body)
     table_id = body.get("id") or f"t-{uuid.uuid4().hex[:8]}"
     order = body.get("order")
@@ -456,6 +482,7 @@ def create_table(conn: sqlite3.Connection, project_id: str, body: dict[str, Any]
 def update_table(conn: sqlite3.Connection, table_id: str, body: dict[str, Any]) -> str:
     if conn.execute("SELECT 1 FROM tables WHERE id = ?", (table_id,)).fetchone() is None:
         raise WriteError("表格不存在")
+    _reject_unknown_keys("table.update", body)
     if "name" in body:
         conn.execute("UPDATE tables SET name = ? WHERE id = ?", (_require_name(body), table_id))
     if "order" in body:
@@ -493,6 +520,7 @@ def create_field(
 ) -> str:
     if conn.execute("SELECT 1 FROM tables WHERE id = ?", (table_id,)).fetchone() is None:
         raise WriteError("表格不存在")
+    _reject_unknown_keys("field.create", body)
     name = _require_name(body)
     field_type = body.get("type")
     if field_type not in FIELD_TYPES:
@@ -542,6 +570,7 @@ def update_field(
     ).fetchone()
     if field is None:
         raise WriteError("字段不存在")
+    _reject_unknown_keys("field.update", body)
 
     if "type" in body or "options" in body:
         field_type = body.get("type", field["type"])
@@ -717,6 +746,13 @@ def _validate_values(
         raise WriteError(f"计算字段不能直接写入：{sorted(computed_keys)}")
     for key, value in values.items():
         field = fields[key]
+        if field["type"] == "enum" and not _is_empty(value):
+            items = _enum_items(_loads(field["options"]))
+            allowed = [item.get("value") for item in items if isinstance(item, dict)]
+            if allowed and value not in allowed:
+                raise WriteError(
+                    f"字段「{field['name']}」的值不在枚举范围内：{value!r}；合法取值：{allowed}"
+                )
         if field["type"] != "relation":
             continue
         if value is None:
@@ -812,6 +848,7 @@ def create_row(
     if conn.execute("SELECT 1 FROM tables WHERE id = ?", (table_id,)).fetchone() is None:
         raise WriteError("表格不存在")
     _validate_row_id(row_id)
+    _reject_unknown_keys("row.create", body)
     body_id = body.get("id")
     if body_id is not None and body_id != row_id:
         raise WriteError("body.id 与路径 row_id 不一致")
@@ -856,6 +893,7 @@ def update_row(
 ) -> str:
     if "id" in body:
         raise WriteError("行 id 不可变")
+    _reject_unknown_keys("row.update", body)
     row = conn.execute(
         "SELECT data FROM row_records WHERE table_id = ? AND id = ?", (table_id, row_id)
     ).fetchone()
