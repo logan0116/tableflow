@@ -143,7 +143,7 @@ key调用者新建行时，负责人字段缺省由key的label填充，不用再
 
 ### Measurable Outcomes
 
-- **SC-001**: `cd backend && .venv/bin/python -m pytest -q`全绿；新增后`120 passed`（013前基线`108 passed`）。
+- **SC-001**: `cd backend && .venv/bin/python -m pytest -q`全绿且用例数不少于`120`（013交付时为`120`，v0.6.2验证时为`133`）；013前基线`108`。
 - **SC-002**: 四种情形各有用例：兼容期旧调用（`test_legacy_*`）、key审计（`test_api_key_*`/`test_key_takes_priority_*`）、无效key拒绝（`test_invalid_key_*`/`test_revoked_key_*`）、负责人填充（`test_owner_*`）；另含CLI与旧库迁移用例。
 - **SC-003**: 现有skill/脚本调用方式不被打断：只带`X-Agent-Id`的写入成功，且审计`key_id`为空、负责人不被填充。
 - **SC-004**: 线上仅更新看板`013-AR`行；其余业务数据、字段定义不动，`api_keys`与`key_id`由发布时启动迁移补齐。

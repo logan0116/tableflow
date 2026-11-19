@@ -58,7 +58,7 @@
 **Acceptance Scenarios**:
 
 1. **Given** 状态枚举`open`/`fixing`/`verifying`/`closed`，**When** 统计未解决数，**Then** 只排除`closed`，其余三个都计入。
-2. **Given** 一条缺陷要置`closed`，**When** 走写入期校验，**Then** 必须满足其一：修复版本有值且证据可核验，或证据写明不修复结论与依据且剩余事项为空。
+2. **Given** 一条缺陷要置`closed`，**When** 走写入期校验，**Then** 必须满足其一：修复版本有值且证据可核验，或证据写明不修复结论与依据且剩余事项为空（**待实现**：见FR-009，写入期校验为后续需求，当前写接口不强制，验收该条时应记为未验证）。
 3. **Given** 一条缺陷已被置`closed`，**When** 读取版本表上一版本未解决数，**Then** 该缺陷不再计入，且历史证据无改动。
 4. **Given** 契约，**When** 检查`bug.status`的枚举，**Then** 不含`na`/`wontfix`，终态只有`closed`。
 

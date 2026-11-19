@@ -366,8 +366,22 @@ def ensure_plan(ms, pid: str, *, apply: bool) -> dict:
     return {"id": plan_id, "created": True}
 
 
+def _exc_status(exc: Exception) -> int | None:
+    """尽量从客户端异常里取 HTTP 状态码；取不到返回 None，不猜。"""
+    for attr in ("status", "status_code", "code"):
+        value = getattr(exc, attr, None)
+        if isinstance(value, int) and 100 <= value <= 599:
+            return value
+    text = str(getattr(exc, "body", "") or exc)
+    match = re.search(r"\b([45]\d\d)\b", text)
+    return int(match.group(1)) if match else None
+
+
 def probe_association(ms) -> dict:
-    """关联写入端点的实测缺口：18个候选路径逐个探测，全部不存在就明确报"无API"。"""
+    """关联写入端点的实测缺口：18个候选路径逐个探测，全部不可达就明确报"无API"。
+
+    返回实际状态码与示例响应，不写死任何结论码（历史上曾把结论码写错，实测为 500）。
+    """
     cands = [
         "/test-plan/functional/case/batch/add/0", "/test-plan/functional/case/batch/relate/0",
         "/test-plan/functional/case/relate/0", "/test-plan/functional/case/relate",
@@ -379,15 +393,29 @@ def probe_association(ms) -> dict:
         "/test-plan/functional/case/copy/0", "/test-plan/functional/case/batch/copy/0",
         "/test-plan/functional/case/add-case/0", "/test-plan/functional/case/association",
     ]
-    alive = []
+    alive: list[str] = []
+    failures: list[dict] = []
     for path in cands:
         try:
             ms.request("POST", path, {})
             alive.append(path)
         except Exception as exc:  # noqa: BLE001
-            if "No static resource" not in getattr(exc, "body", str(exc)):
+            body = str(getattr(exc, "body", "") or exc)
+            if "No static resource" not in body:
                 alive.append(path)
-    return {"candidates": len(cands), "reachable": alive}
+                continue
+            failures.append({"path": path, "status": _exc_status(exc), "body": body[:160]})
+    statuses = sorted({item["status"] for item in failures if item["status"] is not None})
+    return {"candidates": len(cands), "reachable": alive, "failures": failures, "statuses": statuses}
+
+
+def describe_association(api: dict) -> str:
+    """把 probe_association 的结果格式化成一行（状态码来自实测，不写死）。"""
+    if api["reachable"]:
+        return f"可达：{api['reachable']}"
+    codes = "、".join(str(code) for code in api["statuses"]) or "无HTTP状态"
+    sample = api["failures"][0]["body"] if api["failures"] else ""
+    return f"无（{api['candidates']}个候选全部不可达，实测状态码：{codes}；示例：{sample}）"
 
 
 def plan_case_count(ms, plan_id: str) -> int:
@@ -457,8 +485,7 @@ def main() -> int:
         stats["association_api"] = probe_association(ms)
         print(f"\n计划：{PLAN_NAME} → {plan['id']}"
               f"（{'新建' if plan['created'] else '复用'}）｜已关联用例 {stats['plan']['linked_cases']} 条")
-        print("关联写入端点：", "无（候选全 404）" if not stats["association_api"]["reachable"]
-              else stats["association_api"]["reachable"])
+        print("关联写入端点：" + describe_association(stats["association_api"]))
         print("→ 关联须在 MS 界面「计划详情 → 功能用例 → 关联用例」完成，或用 08 手册的直写 DB 法")
         print(f"\n汇总：新建 {stats['created']}｜更新 {stats['updated']}｜跳过 {stats['skipped']}"
               f"｜失败 {stats['failed']}｜读回核对通过 {stats.get('verified', 0)}/{len(cases)}")
