@@ -1,6 +1,6 @@
 ---
 name: tableflow-board
-description: "用tableflow多维表格看板管理项目：查项目/表格/数据与变更记录，定义表与字段，写入需求、版本与缺陷，配置计算字段。字段口径以specs/011-bug-table/board@2.yaml（四表：版本/独立规格需求/依赖需求/缺陷）为准。触发词：tableflow、多维表格、需求表、版本表、缺陷表、看板、依赖变更需求。"
+description: "用tableflow多维表格看板管理项目：查项目/表格/数据与变更记录，定义表与字段，写入需求、版本与缺陷，配置计算字段。字段口径以specs/011-bug-table/board@3.yaml（四表：版本/独立规格需求/依赖需求/缺陷）为准。触发词：tableflow、多维表格、需求表、版本表、缺陷表、看板、依赖变更需求。"
 ---
 
 # tableflow多维表格：用Agent写接口管项目
@@ -93,119 +93,117 @@ export TF_AGENT=agent-my-task                 # 写操作必带，写入审计
 {"kind":"and","conditions":[{"field_id":"...","equals":true}]}
 ```
 
-rollup的`aggregate`只认`all`/`any`/`none`/`min`/`max`/`count_distinct`；`all`/`any`/`none`必须同时给`equals`（写成`all_true`这类会400）。契约口径是**单字段判定**，不要给rollup配`require`（board@2明确不设行级前置）。
+rollup的`aggregate`只认`all`/`any`/`none`/`min`/`max`/`count_distinct`；`all`/`any`/`none`必须同时给`equals`（写成`all_true`这类会400）。契约口径是**单字段判定**，不要给rollup配`require`（board@3明确不设行级前置）。
 
 relation的值是**目标行id的字符串数组**（单值也写`["v0.6.0"]`）。计算字段不可直接写；要人工覆盖用行PATCH的`overrides`，闸门字段不得覆盖（见下文）。
 
-## 看板四表契约（board@2）
+## 看板四表契约（board@3）
 
-字段口径的唯一来源是`specs/011-bug-table/board@2.yaml`（它取代`board@1.yaml`，board@1留档）。本节只对齐口径；计算落地、写入校验、存量迁移不在契约范围。
+字段口径的唯一来源是`specs/017-bug-relation/board@3.yaml`（它取代`board@2`与`board@1`，前两版留档）。本节只对齐口径；存量迁移与写入校验不在契约范围。
 
 四张表记的是四类不同的东西：
 
 | 表 | 表id | 一行代表什么 | 解决什么问题 | 被谁引用 |
 |---|---|---|---|---|
-| 版本管理 | `<前缀>-ver` | 一个发布版本（`v1.0.0`） | 发哪一版、发什么、够不够条件发 | 看板主视图；引用indep与dep行；被bug的发现版本/修复版本引用 |
-| 独立规格需求 | `<前缀>-indep` | **一份规格**（业务编号`008-AR`） | 做哪些规格、每份规格走到哪一步 | ver的`独立需求关联`、dep的`关联的独立规格需求`、bug的`关联规格` |
-| 依赖需求 | `<前缀>-dep` | **一张变更单**（业务编号`D01`） | 已完成规格被改动时，改了哪些影响面、回归做完没有 | ver的`依赖需求关联` |
-| 缺陷 | `<前缀>-bug` | **一个缺陷**（业务编号`BUG-01`） | 发现/修复到哪一步，修在哪个版本 | ver的`上一版本Bug`按缺陷的`发现版本`汇总；bug的`关联规格`指向indep |
+| 版本管理 | `<前缀>-ver` | 一个发布版本（`v1.0.0`） | 发哪一版、发什么、够不够条件发 | 看板主视图；引用indep、dep、bug三类行 |
+| 独立规格需求 | `<前缀>-indep` | **一份规格**（业务编号`008-AR`） | 做哪些规格、每份规格走到哪一步 | ver的`独立需求管理`、dep的`关联的独立规格需求`、bug的`关联规格` |
+| 依赖需求 | `<前缀>-dep` | **一张变更单**（业务编号`D01`） | 已完成规格被改动时，改了哪些影响面、回归做完没有 | ver的`依赖需求管理` |
+| 缺陷 | `<前缀>-bug` | **一个缺陷**（业务编号`BUG-01`） | 哪坏了、修没修、修在哪版 | ver的`Bug管理`（本版需清零的缺陷）；bug的`关联规格`指向indep |
 
-引用关系四条：**ver→indep**（本版交付哪些规格）、**ver→dep**（本版有哪些变更单待回归）、**bug→ver**（`发现版本`必填单值，是版本表"上一版本Bug"的唯一挂接键；`修复版本`只作记录）、**bug→indep**（多对多，可暂未归因）。
+三条引用关系：**ver→indep**（本版交付哪些规格）、**ver→dep**（本版待回归的变更单）、**ver→bug**（本版需清零的缺陷，通常来自上一版本）。缺陷的`发现版本号`是**文本**，只记来源；它不反向持有关联，避免与`ver→bug`构成双向。
 
-一句话：indep回答"要做哪些规格"，dep回答"已做完的规格又被改了什么"，bug回答"哪里坏了、修没修、修在哪版"，ver回答"发哪一版、能不能发"。**需求不单独建表**，它以`条款`字段挂在规格行上；任务与场景不进表，只在规格行上汇总成数。
+一句话：indep回答"要做哪些规格"，dep回答"已做完的规格又被改了什么"，bug回答"哪里坏了、修没修"，ver回答"发哪一版、能不能发"。**需求不单独建表**，它以`条款`字段挂在规格行上。
 
 ### 字段id与行id
 
-字段id用`<项目前缀>-<表前缀字母>-<字段短名>`：`-v-`（ver）、`-i-`（indep）、`-d-`（dep）、`-b-`（bug）。行id是业务编号：版本`v<主>.<次>.<修>`、规格`NNN-AR`、变更单`D01`、缺陷`BUG-01`。字段id全局唯一，四张表不能复用同一id。
+字段id用`<项目前缀>-<表前缀字母>-<字段短名>`：`-v-`（ver）、`-i-`（indep）、`-d-`（dep）、`-b-`（bug）。行id是业务编号：版本`v<主>.<次>.<修>`、规格`NNN-AR`、变更单`D01`、缺陷`BUG-01`。字段id全局唯一。
 
-### 版本管理`<前缀>-ver`（16字段）
+### 版本管理`<前缀>-ver`（15字段）
 
 | 字段 | 字段id | 类型 | 说明 |
 |---|---|---|---|
-| 版本号 | `<前缀>-v-ver` | text | 行id；`v1.0.0` |
-| 发布时间 | `<前缀>-v-date` | datetime | 精确到日；上一版本判定不看它 |
-| 发布状态 | `<前缀>-v-status` | enum | `planned`/`released`/`dropped` |
-| 独立需求关联 | `<前缀>-v-specs` | relation→indep | 本版交付的规格 |
-| 独立需求总数 | `<前缀>-v-spec-total` | computed | `count(独立需求关联)` |
-| 独立需求就绪 | `<前缀>-v-spec-ready` | computed（闸门） | 关联规格`验收状态`全为`accepted` |
-| 依赖需求关联 | `<前缀>-v-changes` | relation→dep | 本版待回归的变更单 |
-| 依赖需求总数 | `<前缀>-v-change-total` | computed | `count(依赖需求关联)` |
-| 依赖需求就绪 | `<前缀>-v-change-ready` | computed（闸门） | 关联变更单`回归状态`全为`passed` |
-| 上一版本Bug总数 | `<前缀>-v-bug-total` | number | 口径见bug的`发现版本`；自动聚合落地前由脚本或人工填 |
-| 上一版本Bug未解决数 | `<前缀>-v-bug-open` | number | 已解决数 = 总数 − 未解决数，不单独存 |
-| 上一版本Bug就绪 | `<前缀>-v-bug-ready` | computed（闸门） | `上一版本Bug未解决数=0` |
-| 发布条件 | `<前缀>-v-gate` | computed（闸门） | 三项就绪同时为真 |
-| 场景总数 | `<前缀>-v-scenes` | computed | 本版规格的场景数之和 |
-| 负责人 | `<前缀>-v-owner` | text | |
-| 变更说明 | `<前缀>-v-note` | text | 本版范围/口径变化 |
+| 版本号 | `<前缀>-v-version` | text | 行 id；格式 v<主>.<次>.<修> |
+| 发布时间 | `<前缀>-v-release_date` | datetime | 精确到日 |
+| 发布状态 | `<前缀>-v-release_status` | enum：planned/released/dropped |  |
+| 独立需求管理 | `<前缀>-v-specs` | relation→indep | 本版新增的规格 |
+| 独立需求已完成/总数 | `<前缀>-v-spec_ratio` | computed | ratio(ver.specs, spec.acceptance == accepted) |
+| 独立需求是否完成 | `<前缀>-v-spec_done` | computed（闸门） | rollup(ver.specs, spec.acceptance, all == accepted) |
+| 依赖需求管理 | `<前缀>-v-changes` | relation→dep | 本版待回归的变更单 |
+| 依赖需求已完成/总数 | `<前缀>-v-change_ratio` | computed | ratio(ver.changes, change.regress == passed) |
+| 依赖需求是否完成 | `<前缀>-v-change_done` | computed（闸门） | rollup(ver.changes, change.regress, all == passed) |
+| Bug管理 | `<前缀>-v-bugs` | relation→bug | 本版需清零的缺陷（通常来自上一版本） |
+| 上一版本Bug已修复/总数 | `<前缀>-v-bug_ratio` | computed | ratio(ver.bugs, bug.status == closed) |
+| 上一版本Bug是否清空 | `<前缀>-v-bug_clear` | computed（闸门） | rollup(ver.bugs, bug.status, all == closed) |
+| 发布条件 | `<前缀>-v-gate` | computed（闸门） | and(ver.spec_done, ver.change_done, ver.bug_clear) |
+| 负责人 | `<前缀>-v-owner` | text |  |
+| 变更说明 | `<前缀>-v-note` | text |  |
 
 七个计算字段的options（照抄，只改id前缀）：
 
 ```jsonc
-{"kind":"count","source":"px-v-specs"}
-{"kind":"rollup","source":"px-v-specs","field_id":"px-i-acceptance","aggregate":"all","equals":"accepted"}
-{"kind":"count","source":"px-v-changes"}
-{"kind":"rollup","source":"px-v-changes","field_id":"px-d-regress","aggregate":"all","equals":"passed"}
-{"kind":"and","conditions":[{"field_id":"px-v-bug-open","equals":0}],"true_label":"是","false_label":"否"}
-{"kind":"and","conditions":[{"field_id":"px-v-spec-ready","equals":true},{"field_id":"px-v-change-ready","equals":true},{"field_id":"px-v-bug-ready","equals":true}],"true_label":"是","false_label":"否"}
-{"kind":"sum","source":"px-v-specs","field_id":"px-i-scenes","decimals":0}
+{"kind":"ratio","source":"px-v-indep","where":{"field_id":"px-i-acceptance","equals":"accepted"}}
+{"kind":"ratio","source":"px-v-dep","where":{"field_id":"px-d-regress","equals":"passed"}}
+{"kind":"ratio","source":"px-v-bug","where":{"field_id":"px-b-status","equals":"closed"}}
+{"kind":"rollup","source":"px-v-indep","field_id":"px-i-acceptance","aggregate":"all","equals":"accepted","gate":true,"true_label":"是","false_label":"否"}
+{"kind":"rollup","source":"px-v-dep","field_id":"px-d-regress","aggregate":"all","equals":"passed","gate":true,"true_label":"是","false_label":"否"}
+{"kind":"rollup","source":"px-v-bug","field_id":"px-b-status","aggregate":"all","equals":"closed","gate":true,"true_label":"是","false_label":"否"}
+{"kind":"and","conditions":[{"field_id":"px-v-spec-done","equals":true},{"field_id":"px-v-change-done","equals":true},{"field_id":"px-v-bug-clear","equals":true}],"gate":true,"true_label":"是","false_label":"否"}
 ```
 
-**闸门字段**：`独立需求就绪`、`依赖需求就绪`、`上一版本Bug就绪`、`发布条件`四个只由计算得出，不要人工写值、也不要开人工覆盖。
+**闸门字段**：`独立需求是否完成`、`依赖需求是否完成`、`上一版本Bug是否清空`、`发布条件`四个只由计算得出，不要人工写值、也不要开人工覆盖。
 
 ### 独立规格需求`<前缀>-indep`（16字段）
 
 | 字段 | 字段id | 类型 | 说明 |
 |---|---|---|---|
-| 编号 | `<前缀>-i-id` | text | 行id；`008-AR` |
-| 条款 | `<前缀>-i-clause` | text | 这份规格要满足的需求条款原文或摘要 |
-| 规格目录 | `<前缀>-i-dir` | text | speckit产物目录，如`specs/008-board-contract/` |
-| 场景数 | `<前缀>-i-scenes` | number | `spec.md`场景条数 |
-| 任务总数 | `<前缀>-i-tasks` | number | `tasks.md`任务条数 |
-| speckit-constitution状态 | `<前缀>-i-constitution` | enum | `todo`/`doing`/`done`/`na` |
-| speckit-specify状态 | `<前缀>-i-specify` | enum | 同上 |
-| speckit-plan状态 | `<前缀>-i-plan` | enum | 同上 |
-| speckit-task状态 | `<前缀>-i-task` | enum | 同上 |
-| speckit-implement状态 | `<前缀>-i-implement` | enum | **`todo`/`doing`/`done`，没有`na`**；是置`accepted`的前置条件 |
-| speckit-clarify状态 | `<前缀>-i-clarify` | enum | `todo`/`doing`/`done`/`na` |
-| speckit-analyze状态 | `<前缀>-i-analyze` | enum | 同上 |
-| speckit-checklist状态 | `<前缀>-i-checklist` | enum | 同上 |
-| 宪法版本 | `<前缀>-i-constitution-version` | text | |
-| 验收状态 | `<前缀>-i-acceptance` | enum | `pending`/`accepted`/`rejected`；**规格完成的唯一判据** |
-| 负责人 | `<前缀>-i-owner` | text | |
+| 编号 | `<前缀>-i-id` | text | 行 id；NNN-AR |
+| 条款 | `<前缀>-i-clause` | text |  |
+| 规格目录 | `<前缀>-i-dir` | text | specs/<dir>/ |
+| 场景数 | `<前缀>-i-scenes` | number | spec.md 场景条数 |
+| 任务总数 | `<前缀>-i-tasks` | number | tasks.md 任务条数 |
+| speckit-constitution状态 | `<前缀>-i-stage-constitution` | enum：todo/doing/done/na |  |
+| speckit-specify状态 | `<前缀>-i-stage-specify` | enum：todo/doing/done/na |  |
+| speckit-plan状态 | `<前缀>-i-stage-plan` | enum：todo/doing/done/na |  |
+| speckit-task状态 | `<前缀>-i-stage-task` | enum：todo/doing/done/na |  |
+| speckit-implement状态 | `<前缀>-i-stage-implement` | enum：todo/doing/done | 进度记录；是置 accepted 的前置条件，无 na |
+| speckit-clarify状态 | `<前缀>-i-stage-clarify` | enum：todo/doing/done/na |  |
+| speckit-analyze状态 | `<前缀>-i-stage-analyze` | enum：todo/doing/done/na |  |
+| speckit-checklist状态 | `<前缀>-i-stage-checklist` | enum：todo/doing/done/na |  |
+| 宪法版本 | `<前缀>-i-constitution_version` | text |  |
+| 验收状态 | `<前缀>-i-acceptance` | enum：pending/accepted/rejected | 规格完成的唯一判据；implement=done 才允许置 accepted |
+| 负责人 | `<前缀>-i-owner` | text |  |
 
-八个speckit阶段状态**全部是enum**：`constitution`/`specify`/`plan`/`task`/`implement`/`clarify`/`analyze`/`checklist`；除`implement`外都可取`na`。不另设"状态"字段（同一问题两个真相），也不设`优先级`。
+八个speckit阶段状态**全部是enum**：`constitution`/`specify`/`plan`/`task`/`implement`/`clarify`/`analyze`/`checklist`；除`implement`外都可取`na`。不另设"状态"字段，也不设`优先级`。
 
 ### 依赖需求`<前缀>-dep`（9字段）
 
 | 字段 | 字段id | 类型 | 说明 |
 |---|---|---|---|
-| 编号 | `<前缀>-d-id` | text | 行id；`D01` |
+| 编号 | `<前缀>-d-id` | text | 行 id；D01 |
 | 条款 | `<前缀>-d-clause` | text | 改动点；必须点到规格编号与场景号 |
 | 关联的独立规格需求 | `<前缀>-d-spec` | relation→indep | 被改的规格，可多份（横切改动） |
 | 影响面 | `<前缀>-d-impact` | text | 受影响的能力/接口/场景/用例/下游 |
-| 回归状态 | `<前缀>-d-regress` | enum | `todo`/`doing`/`passed`/`failed`；**唯一判据，没有`na`** |
-| 证据 | `<前缀>-d-evidence` | text | 提交号/构建/截图/用例号；置`passed`时必须有 |
-| 剩余事项 | `<前缀>-d-rest` | text | 未完成部分与阻塞；空表示无 |
-| 规格修订 | `<前缀>-d-spec-revision` | enum | `not_needed`/`pending`/`done`；不参与判定 |
-| 负责人 | `<前缀>-d-owner` | text | |
+| 回归状态 | `<前缀>-d-regress` | enum：todo/doing/passed/failed | 唯一判定字段；todo=未合入，doing=已合入待验 |
+| 证据 | `<前缀>-d-evidence` | text | 提交号/构建/截图/用例号；置 passed 时必须有可核验证据 |
+| 剩余事项 | `<前缀>-d-rest` | text | 未完成的部分与阻塞；空表示无 |
+| 规格修订 | `<前缀>-d-spec_revision` | enum：not_needed/pending/done | 改动是否已写回 spec；不参与完成判定，只为防文档与代码脱节 |
+| 负责人 | `<前缀>-d-owner` | text |  |
 
-### 缺陷`<前缀>-bug`（12字段）
+### 缺陷`<前缀>-bug`（11字段）
 
 | 字段 | 字段id | 类型 | 说明 |
 |---|---|---|---|
-| 编号 | `<前缀>-b-id` | text | 行id；`BUG-01`，全局递增不复用 |
-| 标题 | `<前缀>-b-title` | text | 一句话说清现象与位置，不写修复方案 |
-| 状态 | `<前缀>-b-status` | enum | `open`/`fixing`/`verifying`/`closed`；**唯一判据，`closed`是唯一终态，没有`na`** |
-| 严重度 | `<前缀>-b-severity` | enum | `blocker`/`critical`/`major`/`minor`；记录字段，不进任何闸门 |
-| 来源 | `<前缀>-b-source` | enum | `test`/`prod`/`review`/`user`；不参与判定 |
-| 关联规格 | `<前缀>-b-specs` | relation→indep | 多对多；空数组=暂未归因，不阻塞流转 |
-| 发现版本 | `<前缀>-b-found` | relation→ver | **必填单值**；版本表"上一版本Bug"的唯一挂接键 |
-| 修复版本 | `<前缀>-b-fix` | relation→ver | 单值；修在哪版，不参与判定；不修复留空 |
-| 证据 | `<前缀>-b-evidence` | text | 复现步骤/提交号/构建/用例号；置`closed`时必须有 |
-| 剩余事项 | `<前缀>-b-rest` | text | 置`closed`时必须为空 |
-| MS用例号 | `<前缀>-b-ms-case` | text | 多个用逗号分隔，可空 |
-| 负责人 | `<前缀>-b-owner` | text | |
+| 编号 | `<前缀>-b-id` | text | 行 id；BUG-01 |
+| 标题 | `<前缀>-b-title` | text |  |
+| 状态 | `<前缀>-b-status` | enum：open/fixing/verifying/closed | closed 为完成判据 |
+| 严重度 | `<前缀>-b-severity` | enum：blocker/critical/major/minor |  |
+| 来源 | `<前缀>-b-source` | enum：ms_case/manual/prod/review |  |
+| 关联规格 | `<前缀>-b-indep` | relation→indep | 可多份、可暂未归因 |
+| 发现版本号 | `<前缀>-b-found_version` | text | 017：由 relation 改文本，避免与版本表双向 |
+| 证据 | `<前缀>-b-evidence` | text |  |
+| 剩余事项 | `<前缀>-b-rest` | text |  |
+| MS用例号 | `<前缀>-b-ms_case` | text |  |
+| 负责人 | `<前缀>-b-owner` | text |  |
 
 ## dep的真实语义：变更单，不是"规格之间的依赖"
 
@@ -226,11 +224,11 @@ dep的一行=**一张变更单**：某份**已经完成**的规格，之后又�
 2. 关联被改规格：`关联的独立规格需求`填`["008-AR"]`（relation）。
 3. 填影响面：哪些能力/字段/接口/验收用例/下游规格受影响。
 4. 推进回归：`回归状态`按`todo → doing → passed`；失败填`failed`；确认不受影响也填`passed`，理由写进`证据`（契约没有`na`）。
-5. 挂到版本：把变更单填进受影响版本的`依赖需求关联`。挂上`todo`的变更单后该版本`依赖需求就绪`立即转"否"；回归推到`passed`后才恢复"是"，`发布条件`才可能成立。
+5. 挂到版本：把变更单填进受影响版本的`依赖需求关联`。挂上`todo`的变更单后该版本`依赖需求是否完成`立即转"否"；回归推到`passed`后才恢复"是"，`发布条件`才可能成立。
 
-### 空集语义：没挂变更单时"依赖需求就绪"显示"是"
+### 空集语义：没挂变更单时"依赖需求是否完成"显示"是"
 
-`依赖需求就绪`= `rollup all`（本版dep行的`回归状态` `equals` `passed`）。**没挂任何变更单时`all`作用于空集，结果为true**，界面显示"是"。
+`依赖需求是否完成`= `rollup all`（本版dep行的`回归状态` `equals` `passed`）。**没挂任何变更单时`all`作用于空集，结果为true**，界面显示"是"。
 
 它的意思是"本版没有待回归的变更项"，**不是**"已经做过回归验证"。同理，新建版本三项就绪都是真、`发布条件`也会显示"是"——那是**"无待办"**，不是"可交付"。要判断某版能不能发，用`ft-status`看逐行缺口，不要只看这一个格子。
 
@@ -262,9 +260,9 @@ dep的一行=**一张变更单**：某份**已经完成**的规格，之后又�
 
 1. 项目下**只有4张表**：`<前缀>-ver`、`<前缀>-indep`、`<前缀>-dep`、`<前缀>-bug`（顺序：版本在前，缺陷在最后）。
 2. `<前缀>-dep`与`<前缀>-bug`初始**0行**。
-3. 每个ver行初始：`独立需求总数=0`、`独立需求就绪=是`、`依赖需求总数=0`、`依赖需求就绪=是`、`上一版本Bug总数=0`、`上一版本Bug未解决数=0`、`上一版本Bug就绪=是`、`发布条件=是`（空集语义：是"无待办"不是"可交付"）、两个relation为`[]`。
+3. 每个ver行初始：`独立需求已完成/总数=0/0`、`独立需求是否完成=是`、`依赖需求已完成/总数=0/0`、`依赖需求是否完成=是`、`上一版本Bug已修复/总数=0/0`、`上一版本Bug是否清空=是`、`发布条件=是`（空集语义：是"无待办"不是"可交付"）、两个relation为`[]`。
 4. 命名：表id=`<项目短前缀>-ver/-indep/-dep/-bug`；字段id=`<项目短前缀>-<v|i|d|b>-<字段短名>`，**全局唯一**；行id=业务编号（`v1.0.0`/`008-AR`/`D01`/`BUG-01`）。
-5. 建字段顺序：**先indep字段 → 再dep字段 → 再bug字段 → 最后ver的relation与计算字段**。ver的`独立需求就绪`/`依赖需求就绪`是rollup，创建时就要解析indep的`验收状态`与dep的`回归状态`，目标字段没建完会400（`rollup.field_id 必须是目标表字段`）；bug的relation要指向已存在的ver与indep表。
+5. 建字段顺序：**先indep字段 → 再dep字段 → 再bug字段 → 最后ver的relation与计算字段**。ver的`独立需求是否完成`/`依赖需求是否完成`/`上一版本Bug是否清空`是rollup，创建时就要解析indep的`验收状态`、dep的`回归状态`与bug的`状态`，目标字段没建完会400（`rollup.field_id 必须是目标表字段`）；bug的relation要指向已存在的ver与indep表。
 6. 建行顺序：先ver行，再indep行、dep行、bug行，最后PATCH挂relation（relation的目标行必须已存在，否则400）。
 
 ## 常用配方
@@ -273,109 +271,94 @@ dep的一行=**一张变更单**：某份**已经完成**的规格，之后又�
 
 ```bash
 H=(-H "X-Agent-Id: $TF_AGENT" -H 'Content-Type: application/json')
-
 curl -s "${H[@]}" -X POST $TF_BASE/api/agent/projects -d '{"id":"proj-x","name":"新项目"}'
 curl -s "${H[@]}" -X POST $TF_BASE/api/agent/projects/proj-x/tables -d '{"id":"px-ver","name":"版本管理","order":1}'
 curl -s "${H[@]}" -X POST $TF_BASE/api/agent/projects/proj-x/tables -d '{"id":"px-indep","name":"独立规格需求","order":2}'
 curl -s "${H[@]}" -X POST $TF_BASE/api/agent/projects/proj-x/tables -d '{"id":"px-dep","name":"依赖需求","order":3}'
 curl -s "${H[@]}" -X POST $TF_BASE/api/agent/projects/proj-x/tables -d '{"id":"px-bug","name":"缺陷","order":4}'
 
-# 字段：顺序 indep → dep → bug → ver（ver的rollup要解析indep/dep的判定字段）。
-# 完整字段清单见「四表契约」，这里只示意顺序。
+# 字段顺序：indep → dep → bug → ver（ver的rollup要解析三张表的判定字段）。完整清单见四表契约。
 curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-indep/fields \
-  -d '{"id":"px-i-implement","name":"speckit-implement状态","type":"enum",
-       "options":[{"value":"todo","label":"未开始","tone":"neutral"},{"value":"doing","label":"进行中","tone":"info"},{"value":"done","label":"完成","tone":"success"}]}'
+  -d '{"id":"px-i-acceptance","name":"验收状态","type":"enum","options":[
+       {"value":"pending","label":"待验收","tone":"warning"},{"value":"accepted","label":"已验收","tone":"success"},{"value":"rejected","label":"未通过","tone":"danger"}]}'
 curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-indep/fields -d '{"id":"px-i-id","name":"编号","type":"text","options":{"constraints":{"required":true}}}'
-curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-indep/fields -d '{"id":"px-i-clause","name":"条款","type":"text"}'
-curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-indep/fields -d '{"id":"px-i-scenes","name":"场景数","type":"number","options":{"decimals":0}}'
-curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-indep/fields -d '{"id":"px-i-tasks","name":"任务总数","type":"number","options":{"decimals":0}}'
-curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-indep/fields \
-  -d '{"id":"px-i-acceptance","name":"验收状态","type":"enum",
-       "options":[{"value":"pending","label":"未验收","tone":"neutral"},{"value":"accepted","label":"已验收","tone":"success"},{"value":"rejected","label":"不通过","tone":"danger"}]}'
+curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-indep/fields -d '{"id":"px-i-implement","name":"speckit-implement状态","type":"enum","options":[{"value":"todo","label":"未开始","tone":"neutral"},{"value":"doing","label":"进行中","tone":"info"},{"value":"done","label":"完成","tone":"success"}]}'
 
-curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-dep/fields -d '{"id":"px-d-id","name":"编号","type":"text"}'
+curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-dep/fields \
+  -d '{"id":"px-d-regress","name":"回归状态","type":"enum","options":[
+       {"value":"todo","label":"未开始","tone":"neutral"},{"value":"doing","label":"进行中","tone":"info"},{"value":"passed","label":"通过","tone":"success"},{"value":"failed","label":"失败","tone":"danger"}]}'
 curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-dep/fields \
   -d '{"id":"px-d-spec","name":"关联的独立规格需求","type":"relation","options":{"table_id":"px-indep","display_field":"px-i-clause","status_field":"px-i-acceptance"}}'
-curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-dep/fields \
-  -d '{"id":"px-d-regress","name":"回归状态","type":"enum",
-       "options":[{"value":"todo","label":"未开始","tone":"neutral"},{"value":"doing","label":"进行中","tone":"info"},{"value":"passed","label":"通过","tone":"success"},{"value":"failed","label":"失败","tone":"danger"}]}'
 
-curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-bug/fields -d '{"id":"px-b-id","name":"编号","type":"text"}'
 curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-bug/fields \
-  -d '{"id":"px-b-status","name":"状态","type":"enum",
-       "options":[{"value":"open","label":"待修","tone":"danger"},{"value":"fixing","label":"修复中","tone":"warning"},{"value":"verifying","label":"已修待验","tone":"info"},{"value":"closed","label":"已关闭","tone":"success"}]}'
-curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-bug/fields \
-  -d '{"id":"px-b-found","name":"发现版本","type":"relation","options":{"table_id":"px-ver","constraints":{"relation_must_exist":true}}}'
+  -d '{"id":"px-b-status","name":"状态","type":"enum","options":[
+       {"value":"open","label":"待处理","tone":"danger"},{"value":"fixing","label":"修复中","tone":"warning"},{"value":"verifying","label":"待验证","tone":"info"},{"value":"closed","label":"已关闭","tone":"success"}]}'
+curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-bug/fields -d '{"id":"px-b-found-ver","name":"发现版本号","type":"text"}'
 
 curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-ver/fields \
-  -d '{"id":"px-v-specs","name":"独立需求关联","type":"relation","options":{"table_id":"px-indep","display_field":"px-i-clause","status_field":"px-i-acceptance"}}'
+  -d '{"id":"px-v-indep","name":"独立需求管理","type":"relation","options":{"table_id":"px-indep","display_field":"px-i-clause","status_field":"px-i-acceptance"}}'
 curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-ver/fields \
-  -d '{"id":"px-v-changes","name":"依赖需求关联","type":"relation","options":{"table_id":"px-dep","display_field":"px-d-clause","status_field":"px-d-regress"}}'
-curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-ver/fields -d '{"id":"px-v-ver","name":"版本号","type":"text"}'
-curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-ver/fields -d '{"id":"px-v-bug-open","name":"上一版本Bug未解决数","type":"number","options":{"decimals":0}}'
+  -d '{"id":"px-v-dep","name":"依赖需求管理","type":"relation","options":{"table_id":"px-dep","display_field":"px-d-clause","status_field":"px-d-regress"}}'
 curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-ver/fields \
-  -d '{"id":"px-v-spec-ready","name":"独立需求就绪","type":"computed",
-       "options":{"kind":"rollup","source":"px-v-specs","field_id":"px-i-acceptance","aggregate":"all","equals":"accepted"}}'
+  -d '{"id":"px-v-bug","name":"Bug管理","type":"relation","options":{"table_id":"px-bug","display_field":"px-b-title","status_field":"px-b-status"}}'
+curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-ver/fields \
+  -d '{"id":"px-v-spec-ratio","name":"独立需求已完成/总数","type":"computed","options":{"kind":"ratio","source":"px-v-indep","where":{"field_id":"px-i-acceptance","equals":"accepted"}}}'
+curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-ver/fields \
+  -d '{"id":"px-v-change-ratio","name":"依赖需求已完成/总数","type":"computed","options":{"kind":"ratio","source":"px-v-dep","where":{"field_id":"px-d-regress","equals":"passed"}}}'
+curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-ver/fields \
+  -d '{"id":"px-v-bug-ratio","name":"上一版本Bug已修复/总数","type":"computed","options":{"kind":"ratio","source":"px-v-bug","where":{"field_id":"px-b-status","equals":"closed"}}}'
+curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-ver/fields \
+  -d '{"id":"px-v-spec-done","name":"独立需求是否完成","type":"computed","options":{"kind":"rollup","source":"px-v-indep","field_id":"px-i-acceptance","aggregate":"all","equals":"accepted","gate":true,"true_label":"是","false_label":"否"}}'
+curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-ver/fields \
+  -d '{"id":"px-v-change-done","name":"依赖需求是否完成","type":"computed","options":{"kind":"rollup","source":"px-v-dep","field_id":"px-d-regress","aggregate":"all","equals":"passed","gate":true,"true_label":"是","false_label":"否"}}'
+curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-ver/fields \
+  -d '{"id":"px-v-bug-clear","name":"上一版本Bug是否清空","type":"computed","options":{"kind":"rollup","source":"px-v-bug","field_id":"px-b-status","aggregate":"all","equals":"closed","gate":true,"true_label":"是","false_label":"否"}}'
+curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-ver/fields \
+  -d '{"id":"px-v-cond","name":"发布条件","type":"computed","options":{"kind":"and","gate":true,"conditions":[
+       {"field_id":"px-v-spec-done","equals":true},{"field_id":"px-v-change-done","equals":true},{"field_id":"px-v-bug-clear","equals":true}],"true_label":"是","false_label":"否"}}'
 
-# 行：先写被关联的行，再写引用方。上一版本Bug未解决数写0，否则上一版本Bug就绪恒为否
-curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-ver/rows/v0.1.0 \
-  -d '{"values":{"px-v-ver":"v0.1.0","px-v-specs":[],"px-v-changes":[],"px-v-bug-open":0}}'
+# 行：先写被关联的行，再写引用方（relation目标必须已存在）
+curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-ver/rows/v0.1.0 -d '{"values":{"px-v-ver":"v0.1.0","px-v-indep":[],"px-v-dep":[],"px-v-bug":[]}}'
 curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-indep/rows/008-AR \
-  -d '{"values":{"px-i-id":"008-AR","px-i-clause":"…","px-i-scenes":10,"px-i-tasks":10,"px-i-acceptance":"pending","px-i-implement":"todo"}}'
-curl -s "${H[@]}" -X PATCH $TF_BASE/api/agent/tables/px-ver/rows/v0.1.0 -d '{"values":{"px-v-specs":["008-AR"]}}'
+  -d '{"values":{"px-i-id":"008-AR","px-i-implement":"todo","px-i-acceptance":"pending"}}'
+curl -s "${H[@]}" -X PATCH $TF_BASE/api/agent/tables/px-ver/rows/v0.1.0 -d '{"values":{"px-v-indep":["008-AR"]}}'
 ```
 
 ### 2. 加一个计算字段并重算
 
 ```bash
 curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-ver/fields \
-  -d '{"id":"px-v-spec-total","name":"独立需求总数","type":"computed",
-       "options":{"kind":"count","source":"px-v-specs"}}'
+  -d '{"id":"px-v-change-ratio2","name":"依赖需求已完成/总数(2)","type":"computed",
+       "options":{"kind":"ratio","source":"px-v-dep","where":{"field_id":"px-d-regress","equals":"passed"}}}'
 curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-ver/recompute
 ```
 
 ### 3. 改状态 / 人工覆盖
 
 ```bash
-# 改状态：PATCH是合并语义；写入后下游计算字段自动重算
-curl -s "${H[@]}" -X PATCH $TF_BASE/api/agent/tables/px-indep/rows/008-AR -d '{"values":{"px-i-implement":"done"}}'
+# 改验收状态：PATCH 是合并语义；写入后下游比率与是否完成同事务重算
+curl -s "${H[@]}" -X PATCH $TF_BASE/api/agent/tables/px-indep/rows/008-AR -d '{"values":{"px-i-acceptance":"accepted"}}'
 
-# 人工覆盖只对非闸门的计算字段有意义（原因必填；clear=true清除后立即重算）
-curl -s "${H[@]}" -X PATCH $TF_BASE/api/agent/tables/px-ver/rows/v0.1.0 \
-  -d '{"overrides":[{"field_id":"px-v-scenes","value":12,"reason":"口径说明","clear":false}]}'
-
-# 闸门字段（spec-ready/change-ready/bug-ready/gate）不得覆盖：要实现"例外"，改行数据或走变更单
+# 闸门字段（px-v-spec-done 等）禁止人工覆盖，会 400；非闸门计算字段可覆盖，须给原因
 ```
 
 ### 4. 开一张变更单（建行 + 关联规格 + 推进回归）
 
 ```bash
-# ① 开单：dep建行，登记被改规格与影响面
 curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-dep/rows/D01 -d '{
-  "values":{"px-d-id":"D01","px-d-clause":"008-AR#US1-AS2 指标权重改为按类别绑定默认方案",
-            "px-d-spec":["008-AR"],"px-d-impact":"指标树、权重方案接口、下游取数",
-            "px-d-regress":"todo"}}'
-
-# ② 挂到受影响版本（假设v0.2.0已存在）：该版本"依赖需求就绪"立刻转"否"，"发布条件"转"否"
-curl -s "${H[@]}" -X PATCH $TF_BASE/api/agent/tables/px-ver/rows/v0.2.0 -d '{"values":{"px-v-changes":["D01"]}}'
-
-# ③ 回归完成后推进状态：依赖需求就绪恢复"是"
-curl -s "${H[@]}" -X PATCH $TF_BASE/api/agent/tables/px-dep/rows/D01 \
-  -d '{"values":{"px-d-regress":"passed","px-d-evidence":"pytest 108 passed / 构建 2026-11-19"}}'
+  "values":{"px-d-clause":"S05指标权重改为按类别绑定默认方案","px-d-spec":["S05"],
+            "px-d-impact":"指标树、权重方案接口、S07/S08下游取数","px-d-regress":"todo"}}'
+curl -s "${H[@]}" -X PATCH $TF_BASE/api/agent/tables/px-ver/rows/v0.2.0 -d '{"values":{"px-v-dep":["D01"]}}'
+curl -s "${H[@]}" -X PATCH $TF_BASE/api/agent/tables/px-dep/rows/D01 -d '{"values":{"px-d-regress":"passed","px-d-evidence":"提交 abc123；回归 21/21"}}'
 ```
 
 ### 5. 记一个缺陷
 
 ```bash
-# 发现版本必填单值；状态closed的准入见「bug的真实语义」
 curl -s "${H[@]}" -X POST $TF_BASE/api/agent/tables/px-bug/rows/BUG-01 -d '{
-  "values":{"px-b-id":"BUG-01","px-b-title":"看板刷新后筛选词丢失","px-b-status":"open",
-            "px-b-severity":"major","px-b-source":"test","px-b-found":["v0.6.0"],
-            "px-b-specs":["008-AR"],"px-b-evidence":"复现：输入筛选→点刷新→筛选清空"}}'
-
-# 修复并关闭：修复版本 + 证据，剩余事项必须为空
-curl -s "${H[@]}" -X PATCH $TF_BASE/api/agent/tables/px-bug/rows/BUG-01 \
-  -d '{"values":{"px-b-status":"closed","px-b-fix":["v0.6.1"],"px-b-evidence":"fix 提交 a1b2c3d；用例 test_refresh_keeps_filter 通过"}}'
+  "values":{"px-b-title":"设置页在窄屏下溢出","px-b-status":"open","px-b-severity":"major",
+            "px-b-source":"manual","px-b-found-ver":"v0.6.4","px-b-evidence":"截图 attached"}}'
+curl -s "${H[@]}" -X PATCH $TF_BASE/api/agent/tables/px-ver/rows/v0.6.4 -d '{"values":{"px-v-bug":["BUG-01"]}}'
 ```
 
 ### 6. 查变更记录
@@ -390,9 +373,9 @@ curl -s $TF_BASE/api/tables/px-indep/rows/008-AR/changes
 |---|---|
 | 把规格间依赖写进dep | dep只收"已完成规格又被改"的变更单，见上文反例清单 |
 | 缺陷当需求登记 | 缺陷不进需求分类树，直接进`bug`表 |
-| 空版本发布条件显示"是" | 三项就绪在空集时都为真，`发布条件`随之显示"是"；含义是"无待办"，不是"可交付" |
+| 空版本发布条件显示"是" | 三项布尔在空集时都为真，`发布条件`随之显示"是"；含义是"无待办"，不是"可交付" |
 | 回归状态写`na` | 契约没有`na`；确认不受影响记`passed`，理由写`证据` |
-| `修复版本`当挂接键 | 版本表"上一版本Bug"按`发现版本`取；修复版本只记录 |
+| 缺陷反挂版本 | 缺陷表只有文本`发现版本号`；关联由版本表的`Bug管理`正向持有，禁止再建双向relation |
 | 不修复就不关单 | 不修复也置`closed`，证据写明"不修复"的依据，剩余事项留空 |
 | 严重度进闸门 | 严重度只是记录字段，发布条件只数未解决数 |
 | dep初始就有行 | 新项目dep与bug必须0行 |
@@ -404,9 +387,9 @@ curl -s $TF_BASE/api/tables/px-indep/rows/008-AR/changes
 | 给rollup配`require` | 契约是单字段判定，不设行级前置；配了`require`会与契约口径冲突 |
 | rollup建在目标字段之前 | 建ver计算字段前，indep的`验收状态`与dep的`回归状态`必须已存在，否则400；顺序indep→dep→bug→ver |
 | 计算字段不可直写 | 只读`computed_values`；闸门字段不得`overrides`，非闸门要覆盖走`overrides` |
-| 上一版本Bug未解决数留空 | 空≠0，`上一版本Bug就绪`恒为"否"，`发布条件`永远不成立；建ver行时就写`0` |
+| 忘了挂`Bug管理` | 空集判"是"（无缺陷要清）；挂了`open`的缺陷才转"否" |
 | 删除是硬删除 | 删表级联删字段与行；删行不级联，引用方显示"关联已失效"（010起悬空关联会让`就绪`判否） |
-| 存量项目字段照抄 | 存量项目按board@1/v0.5.x建的字段未迁移（迁移不在board@2范围）；新建项目一律按四表契约 |
+| 存量项目字段照抄 | 7个项目已于v0.6.4统一到board@3；新建项目一律按四表契约 |
 | seed脚本全量替换 | `scripts/seed_data.py`/`rebuild_v030.py`会清空业务表，别在真实数据上重跑 |
 | 未知字段键 | 行values的键必须是该表已有字段id，否则400且不落库 |
 | 写接口无鉴权 | 只靠`X-Agent-Id`留痕，不要把实例暴露到不可信网络 |
