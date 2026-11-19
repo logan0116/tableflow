@@ -24,7 +24,7 @@ from typing import Any
 from .errors import WriteError
 
 TZ = timezone(timedelta(hours=8))
-KINDS = {"count", "percent", "sum", "rollup", "and"}
+KINDS = {"count", "percent", "sum", "rollup", "and", "ratio"}
 AGGREGATES = {"all", "any", "none", "min", "max", "count_distinct"}
 BOOLEAN_AGGREGATES = {"all", "any", "none"}
 
@@ -470,6 +470,10 @@ def _compute_relation_kind(
         # 数量描述"仍然存在的行"，悬空引用不计入（003 FR-016）。
         return len(matched)
 
+    if kind == "ratio":
+        # 比率文本：已完成/总数。分母取仍然存在的关联行（与 count 同口径），空集为 "0/0"。
+        return f"{len(matched)}/{len(selected)}"
+
     if kind == "percent":
         total = len(selected)
         if total == 0:
@@ -588,7 +592,7 @@ def compute_value(
     kind = options.get("kind")
     if kind == "and":
         return _compute_and(conn, table_id, row_id, options, fields, row_values, cache, stored)
-    if kind in {"count", "percent", "sum", "rollup"}:
+    if kind in {"count", "percent", "sum", "rollup", "ratio"}:
         return _compute_relation_kind(conn, field, options, fields, row_values, rows_cache)
     raise WriteError(f"未知计算类型：{kind}")
 

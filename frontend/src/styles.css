@@ -893,3 +893,35 @@ td.empty-cell {
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* 比率计算字段（016）：进度条 + 已完成/总数 */
+.cell-ratio {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.ratio-bar {
+  flex: 1 1 auto;
+  height: 6px;
+  min-width: 32px;
+  max-width: 120px;
+  border-radius: 3px;
+  background: var(--line, #e5e7eb);
+  overflow: hidden;
+}
+
+.ratio-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent, #2563eb);
+}
+
+.ratio-text {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted, #6b7280);
+}
