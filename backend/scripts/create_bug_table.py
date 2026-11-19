@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 """在线上tableflow项目建缺陷表tf-bug（011-bug-table一次性建表脚本）。
 
+【历史·已废弃（2026-11-19）】本脚本按 board@2 建表：缺陷的「发现版本」是 tf-ver 关系、
+另有「修复版本」关系，且 relation 状态列指向 speckit-implement状态。board@3
+（specs/017-bug-relation/board@3.yaml）已把发现版本号改为文本、去掉两个版本关系、状态列改为
+验收状态。重跑本脚本会造出与 board@3 不一致的表，不得再用；建表口径一律以 board@3 为准。
+（BUG-03：状态列指向同一个坑，已在 data/migrate_relation_display.py 修正）
+
 契约唯一来源：specs/011-bug-table/board@2.yaml的tables.bug（12字段）。
 本脚本只做一件事：确保线上存在tf-bug表与其12个字段，建后回读逐字段核对。
 

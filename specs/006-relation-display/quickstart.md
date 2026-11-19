@@ -34,6 +34,8 @@ python3 data/migrate_relation_display.py --base http://<host>:8090
 
 规则：`display_field` 取目标表第 2 个 text 字段（第 1 个是编号），`status_field` 取目标表第 1 个 enum 字段。
 
+> **修正（2026-11-19，BUG-03）**：`status_field` 取"第 1 个 enum"只在 board@2 时期成立；board@3 下 indep 表第 1 个 enum 是 `speckit-constitution状态`，会把阶段进度当完成判据。现行口径见 `specs/017-bug-relation/board@3.yaml` 的 `conventions.relation_status_column`：状态列指向完成判据字段（indep→验收状态、dep→回归状态、bug→状态）。下表 status 列的旧值已在 v0.6.4 按新口径改为各项目 `-i-acceptance`。
+
 | 项目 | relation 字段 | 目标表 | display | status |
 |---|---|---|---|---|
 | cnc_nexus | cn-ver.cn-v-indep | cn-indep | 条款 | speckit-implement状态 |
