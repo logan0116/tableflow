@@ -1,3 +1,4 @@
+# 【历史】已被 board@3（specs/017-bug-relation/board@3.yaml）取代，仅作留档，不要据此建表。
 # board@1 — 看板三表契约（草案 rev3，评审中）
 # 本文件只定义字段口径与派生规则；接口与写入校验执行不在本契约范围；存量迁移只登记（见migrations）不执行。
 meta:

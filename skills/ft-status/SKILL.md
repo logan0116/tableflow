@@ -62,27 +62,29 @@ WANT = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] not in ("", "-") else No
 AS_JSON = os.environ.get("FT_JSON") == "1"
 
 CONTRACT = {
-    "ver": [("version", "版本号"), ("release_date", "发布时间"), ("release_status", "发布状态"),
-            ("specs", "需求关联（独立）"), ("changes", "需求关联（依赖）"), ("spec_total", "独立需求总数"),
-            ("spec_ready", "独立需求就绪"), ("change_total", "依赖需求总数"), ("change_ready", "依赖需求就绪"),
-            ("bug_total", "上一版本Bug总数"), ("bug_open", "上一版本Bug未解决数"), ("bug_ready", "上一版本Bug就绪"),
-            ("gate", "发布条件"), ("scenes", "场景总数"), ("owner", "负责人"), ("note", "变更说明")],
+    "ver": [("version", "版本号"), ("release_date", "发布时间"), ("gate", "发布条件"),
+            ("release_status", "发布状态"), ("specs", "独立需求管理"), ("spec_ratio", "独立需求已完成/总数"),
+            ("spec_done", "独立需求是否完成"), ("changes", "依赖需求管理"), ("change_ratio", "依赖需求已完成/总数"),
+            ("change_done", "依赖需求是否完成"), ("bugs", "Bug管理"), ("bug_ratio", "上一版本Bug已修复/总数"),
+            ("bug_clear", "上一版本Bug是否清空"), ("owner", "负责人"), ("note", "变更说明")],
     "indep": [("id", "编号"), ("clause", "条款"), ("dir", "规格目录"), ("scenes", "场景数"), ("tasks", "任务总数"),
               ("implement", "speckit-implement状态"), ("acceptance", "验收状态"), ("owner", "负责人")],
     "dep": [("id", "编号"), ("clause", "条款"), ("spec", "关联的独立规格需求"), ("impact", "影响面"),
             ("regress", "回归状态"), ("evidence", "证据"), ("rest", "剩余事项"), ("spec_revision", "规格修订")],
     "bug": [("id", "编号"), ("title", "标题"), ("status", "状态"), ("severity", "严重度"), ("source", "来源"),
-            ("specs", "关联规格"), ("found", "发现版本"), ("fix", "修复版本"), ("evidence", "证据"),
+            ("specs", "关联规格"), ("found_version", "发现版本号"), ("evidence", "证据"),
             ("rest", "剩余事项"), ("ms_case", "MS用例号"), ("owner", "负责人")],
 }
 # 存量项目字段命名（board@2之前的叫法），按语义键兜底解析
-ALIAS = {"ver": {"specs": ["独立需求关联"], "changes": ["依赖需求关联"], "change_total": ["依赖需求数"],
-                 "bug_open": ["未清Bug数"], "bug_ready": ["Bug已清空"]}}
+# board@2/board@1 时代的旧名，仍按语义键兜底解析（存量项目已迁到 board@3，保留以防漏迁）
+ALIAS = {"ver": {"specs": ["需求关联（独立）", "独立需求关联"], "changes": ["需求关联（依赖）", "依赖需求关联"],
+                 "bug_clear": ["Bug已清空"], "spec_done": ["独立需求就绪"], "change_done": ["依赖需求就绪"],
+                 "bug_ratio": ["上一版本Bug总数"]}}
 RULES = {
-    "spec_ready": "rollup(ver.specs, spec.acceptance, all == accepted)",
-    "change_ready": "rollup(ver.changes, change.regress, all == passed)",
-    "bug_ready": "and(count({bug | bug.found == 上一版本 and bug.status != closed}) == 0)",
-    "gate": "and(ver.spec_ready, ver.change_ready, ver.bug_ready)",
+    "spec_done": "rollup(ver.specs, spec.acceptance, all == accepted)",
+    "change_done": "rollup(ver.changes, change.regress, all == passed)",
+    "bug_clear": "rollup(ver.bugs, bug.status, all == closed)",
+    "gate": "and(ver.spec_done, ver.change_done, ver.bug_clear)",
 }
 
 
@@ -237,9 +239,9 @@ bug = bug_gate(data["bug"], sem["bug"], data["ver"]["rows"], sem["ver"], cur)
 bug_open_field = value(current, sem["ver"], "bug_open")
 bug_total_field = value(current, sem["ver"], "bug_total")
 
-spec_ready = not spec_gap and not dangling_specs
-change_ready = not change_gap and not dangling_changes
-gate = (spec_ready and change_ready and bug["value"]) if bug["value"] is not None else None
+spec_done = not spec_gap and not dangling_specs
+change_done = not change_gap and not dangling_changes
+gate = (spec_done and change_done and bug["value"]) if bug["value"] is not None else None
 
 notes = {r["id"] for r in specs}
 edges = {}
@@ -274,17 +276,14 @@ if cond and (cond.get("options") or {}).get("kind") == "and":
     parts = []
     for c in cond["options"].get("conditions", []):
         parts.append(f"{ver_fields.get(c['field_id'], {}).get('name', c['field_id'])}={show(c.get('equals'))}")
-    drift.append(f"`发布条件`看板条件为 [{'、'.join(parts)}]，契约应为 [独立需求就绪、依赖需求就绪、上一版本Bug就绪]")
-regress_field = next((f for f in data["ver"]["fields"] if f["name"] == "回归通过"), None)
-if regress_field and (regress_field.get("options") or {}).get("require"):
-    names = {f["id"]: f["name"] for f in data["dep"]["fields"]}
-    reqs = "、".join(f"{names.get(q['field_id'], q['field_id'])}={show(q['equals'])}" for q in regress_field["options"]["require"])
-    drift.append(f"`回归通过`带行级 require（{reqs}），契约要求单字段判定（只看 change.regress）")
+    drift.append(f"`发布条件`看板条件为 [{'、'.join(parts)}]，契约应为 [独立需求是否完成、依赖需求是否完成、上一版本Bug是否清空]")
 dep_regress = next((f for f in data["dep"]["fields"] if f["id"] == sem["dep"].get("regress")), None)
 if dep_regress and "na" in [o["value"] for o in (dep_regress.get("options") or [])]:
     drift.append("`回归状态`枚举含 `na`，契约已删除该值（确认不受影响记 passed）")
 if bug["state"] in ("ok", "no_prev"):
-    drift.append("`上一版本Bug总数/未解决数`两个number字段在自动聚合落地前是填报值；本报告按缺陷表重算")
+    found = next((f for f in data["bug"]["fields"] if f["name"] == "发现版本号"), None)
+    if found is None or found.get("type") != "text":
+        drift.append("缺陷表的版本来源应为文本`发现版本号`；当前不是，检查是否残留 relation")
 
 anomalies = []
 if rel_max is not None:
@@ -304,11 +303,11 @@ report = {
     "tables": {k: ids[k] for k in ids},
     "contract": "board@2",
     "gates": {
-        "spec_ready": {"value": spec_ready, "rule": RULES["spec_ready"], "field": sem["indep"].get("acceptance"),
+        "spec_done": {"value": spec_done, "rule": RULES["spec_done"], "field": sem["indep"].get("acceptance"),
                        "blocking": [g["id"] for g in spec_gap], "dangling": dangling_specs, "empty": not spec_ids},
-        "change_ready": {"value": change_ready, "rule": RULES["change_ready"], "field": sem["dep"].get("regress"),
+        "change_done": {"value": change_done, "rule": RULES["change_done"], "field": sem["dep"].get("regress"),
                          "blocking": [g["id"] for g in change_gap], "dangling": dangling_changes, "empty": not change_ids},
-        "bug_ready": {"value": bug["value"], "rule": RULES["bug_ready"], "state": bug["state"],
+        "bug_clear": {"value": bug["value"], "rule": RULES["bug_clear"], "state": bug["state"],
                       "prev": bug.get("prev"), "total": bug.get("total"), "open": bug.get("open", []),
                       "detail": bug["detail"], "field": sem["bug"].get("found")},
         "gate": {"value": gate, "rule": RULES["gate"],
@@ -338,18 +337,18 @@ if gate is None:
 elif gate:
     head = "**可发布**：三项就绪同时为真"
 else:
-    head = f"**不可发布**：未满足项 {sum([not spec_ready, not change_ready, not (bug['value'] is True)])} 项，阻塞 {blocked} 行"
+    head = f"**不可发布**：未满足项 {sum([not spec_done, not change_done, not (bug['value'] is True)])} 项，阻塞 {blocked} 行"
 print("## 结论\n")
 print(head + "\n")
 print("| 闸门 | 契约规则 | 判定 | 依据 |")
 print("|---|---|---|---|")
-print(f"| 独立需求就绪 | `{RULES['spec_ready']}` | {mark(spec_ready)} | {len(spec_gap)}/{len(specs)} 行未 accepted（`{sem['indep'].get('acceptance')}`）{'；空集：本版无此类工作' if not spec_ids else ''} |")
-print(f"| 依赖需求就绪 | `{RULES['change_ready']}` | {mark(change_ready)} | {len(change_gap)}/{len(changes)} 行未 passed（`{sem['dep'].get('regress')}`）{'；空集：本版无变更单' if not change_ids else ''} |")
+print(f"| 独立需求就绪 | `{RULES['spec_done']}` | {mark(spec_done)} | {len(spec_gap)}/{len(specs)} 行未 accepted（`{sem['indep'].get('acceptance')}`）{'；空集：本版无此类工作' if not spec_ids else ''} |")
+print(f"| 依赖需求就绪 | `{RULES['change_done']}` | {mark(change_done)} | {len(change_gap)}/{len(changes)} 行未 passed（`{sem['dep'].get('regress')}`）{'；空集：本版无变更单' if not change_ids else ''} |")
 if bug["value"] is None:
     bug_cell = bug_mark.get(bug["state"], "无法判定")
 else:
     bug_cell = mark(bug["value"])
-print(f"| 上一版本Bug就绪 | `{RULES['bug_ready']}` | {bug_cell} | {bug['detail']} |")
+print(f"| 上一版本Bug就绪 | `{RULES['bug_clear']}` | {bug_cell} | {bug['detail']} |")
 if gate is None:
     print(f"| 发布条件 | `{RULES['gate']}` | 无法完整判定 | Bug闸门未启用，只能给两项就绪的结论 |\n")
 else:
@@ -433,7 +432,7 @@ awk '/^python3 - "\$FT_VERSION"/{f=1} f{print} /^PY$/{if(f)exit}' skills/ft-stat
 1. **结论行**：`可发布`／`不可发布`／`无法完整判定`。第三种只在项目未迁移到board@2（缺缺陷表）或缺陷表缺字段时出现，**不要**把它读成"可发"或"不可发"。
 2. **四项判定**：三项就绪 + 发布条件，每项给契约规则原文、判定与依据字段；空集项标注"本版无此类工作"。
 3. **距离发布还差什么**：逐行给`行 id / 字段现值 / 还差什么`；Bug闸门列出未closed的缺陷（编号/状态/严重度/标题）。
-4. **看板口径偏差**：缺字段、存量叫法、契约外字段、`发布条件`条件集差异、`回归通过`的`require`、`回归状态`含`na`。
+4. **看板口径偏差**：缺字段、存量叫法、契约外字段、`发布条件`条件集差异、`回归状态`含`na`。
 5. **数据异常**：`planned`版本号小于已发布版本、缺陷表为空、版本行没有Bug字段值等。
 6. **拆分建议**：依赖边、被引用次数、可后移候选、方案A/B、下一版本。
 

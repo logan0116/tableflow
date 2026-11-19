@@ -7,7 +7,7 @@ description: "把用户口述的一条需求，按board@2判定树分类（就�
 
 一条口述需求进来，本技能只做三件事：**判定它落在哪张表**、**把行写进去并挂到目标版本**、**回读证明它真的在了**。不做第四件：不写规格、不改验收、不猜版本。
 
-依据唯一来源：`specs/011-bug-table/board@2.yaml`（四表契约，取代board@1；`classify`两版一致）。其中`classify.order`是判定树，`tables.*.fields`是字段口径，`rules`是完成判定。字段按名称解析，不绑死某个项目的字段id。
+依据唯一来源：`specs/017-bug-relation/board@3.yaml`（四表契约，取代board@2与board@1；`classify`各版一致）。其中`classify.order`是判定树，`tables.*.fields`是字段口径，`rules`是完成判定。字段按名称解析，不绑死某个项目的字段id。
 
 ## 何时用
 
@@ -254,8 +254,10 @@ def main():
         print(json.dumps(report, ensure_ascii=False, indent=1))
         return 1
     ver_names = {f["name"]: f["id"] for f in ver_data["fields"]}
-    rel_field = (ver_names.get("需求关联（独立）") or ver_names.get("独立需求关联")) if kind == "indep" \
-        else (ver_names.get("需求关联（依赖）") or ver_names.get("依赖需求关联"))
+    rel_field = (ver_names.get("独立需求管理") or ver_names.get("独立需求关联")
+                 or ver_names.get("需求关联（独立）")) if kind == "indep" \
+        else (ver_names.get("依赖需求管理") or ver_names.get("依赖需求关联")
+              or ver_names.get("需求关联（依赖）"))
     report["version"] = target["id"]
 
     already = False
@@ -410,7 +412,7 @@ curl -s -o /dev/null -w '099-AR http=%{http_code}\n' $TF_BASE/api/tables/tf-inde
 | 没给版本就登记 | 参数里没有`version`一律`failed`并追问，不自动选版本 |
 | 自动取"最早planned" | 线上`v0.2.0`仍是planned且日期更早，自动取就会把新需求挂回老版本（V060-02） |
 | 版本不晚于已发布 | `version`必须晚于最近一个已发布版本，否则拒绝登记 |
-| 挂dep后没提后果 | 挂`todo`的变更单会让该版本`回归通过`转否，报告必须点明 |
+| 挂dep后没提后果 | 挂`todo`的变更单会让该版本`依赖需求是否完成`转否，报告必须点明 |
 | 写`accepted` | 验收是需求方的判定，Agent只登记 |
 | 重试400 | `failed`是确定性的，重试只会再失败；只有`unknown`才回读/重试一次 |
 | 覆盖已有行 | 同id不同条款是冲突，不是更新；覆盖会改掉别人的需求 |
