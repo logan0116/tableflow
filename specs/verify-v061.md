@@ -194,13 +194,13 @@ spec：`specs/011-bug-table/spec.md`（4个US共15个验收场景/17FR/5SC）。
 
 | 缺陷 | 结论 | 动作与证据 |
 |---|---|---|
-| V061-01[高] | 转`t20`处置 | 014的spec与tasks由ms在`t20`补齐；本任务不改`specs/014-ms-skills`，避免与t20并行覆盖 |
+| V061-01[高] | 已由`t20`关闭（只读核对） | `specs/014-ms-skills/{spec.md,tasks.md}`已落盘；看板`014-AR`回填场景数22/任务总数28、`implement=done`、验收仍pending。本任务未改014文件 |
 | V061-02[中] | 按契约延后（不热修） | 契约`rules.bug_closed_evidence`明标“写入期校验，后续需求实现”，本报告亦建议另立需求；本轮不改写接口 |
 | V061-03[中] | **已修复** | 新增`backend/src/tableflow/contracts.py`（重复键报错的YAML加载、结构断言、`write_contract_atomic`先校验后`tmp+os.replace`）；新增`backend/scripts/check_contracts.py`（默认校验两契约；`--pre-write`校验通过才原子替换）；新增`backend/tests/test_contracts.py`10例。复验：CLI对两契约exit0；`--pre-write`对重复键内容exit1且原文件未变、临时文件已清理 |
 | V061-04[低] | **已修复** | `calculation.py`恢复v0.6.0基线`e10b97aa…`。根因：t9为V060-07加的docstring块在回退时吞掉了结束`"""`前的换行，末行变成`…仍允许。"""`（差异只在docstring，行为不变）。修复后sha256=`e10b97aa94fd46ccd48b539244c464951fc37d57c01e4530da98e751d535f719`，git blob=`330b679`与`tf-v060.patch`的postimage一致；pytest全绿 |
 | V061-05[低] | **已修复（文档）** | `skills/ms-update|ms-implement|ms-summary/SKILL.md`各加“运行环境（脚本解释器）”：用系统`python3`，venv缺`cryptography`。实测`ms_sync.py --report`：`/usr/bin/python3`exit0（用例总数260），`backend/.venv/bin/python`exit1（`ModuleNotFoundError: cryptography`） |
-| V061-06[低] | 随V061-01转`t20` | 看板`014-AR`场景数/任务总数随014 spec落地一并回填 |
-| V061-07[低] | **已修复（文档）** | `skills/ms-summary/SKILL.md`关闭约定新增：关闭前先把原`剩余事项`原文并入`证据`固定段`【原剩余事项】<原文>`，再清空`rest`。BUG-01当前证据已含原待办实质（`【关闭】…若需按产品隔离，另立需求建独立MS项目（MS-01）`），数据无需改 |
+| V061-06[低] | 已由`t20`关闭（只读核对） | 看板`014-AR`两列已回填：场景数22、任务总数28（只读GET，与spec/tasks一致） |
+| V061-07[低] | **已修复（脚本自动）** | `skills/ms-summary/SKILL.md`关闭段改为**脚本自动**：`ms_summary.py --close` 先取 `rest` 原文写进证据 `【原剩余事项】<原文>`，再追加 `【关闭】<理由>` 并清空 `rest`；`readback()` 新增必含子串校验（原 rest 非空时证据须含该段）。演练见 `.tmp-shots/ms-014/close-merge.log`：临时行 BUG-02 写→关→读回→删除，空 rest 分支与负向校验各验一次；BUG-01 未变（36 条变更记录，最新仍 12:39:14） |
 
 ### 10.2 重跑结果（2026-11-19 13:0x）
 
@@ -214,9 +214,9 @@ spec：`specs/011-bug-table/spec.md`（4个US共15个验收场景/17FR/5SC）。
 
 ### 10.3 未闭环与需队长决策
 
-1. V061-01/06：`t20`补014 spec并回填`014-AR`两列后方可关闭；本任务不代改。
+1. V061-01/06：已由`t20`关闭（014 spec落盘、`014-AR`=22/28）；本任务只读核对，未代改。
 2. V061-02：保持“未实现”，待011后续需求；若提前热修，会改变`closed`写入行为，需另开任务。
-3. V061-05/07为文档约定，脚本行为未改：若要求脚本强制把原`剩余事项`并入证据，需再改`ms_summary.py`（本轮不动ms脚本，避免与t20并行）。
+3. V061-05 为文档约定；V061-07 已由 t22 落地为脚本自动（含读回校验），不再是人工步骤。
 
 ### 10.4 本轮改动文件与sha256
 
@@ -228,6 +228,13 @@ spec：`specs/011-bug-table/spec.md`（4个US共15个验收场景/17FR/5SC）。
 | `backend/tests/test_contracts.py` | `f5bdcd87aba9a82f80d123c922affe12a99c17ab6bf40eeade04a2df8fafeb53` |
 | `skills/ms-update/SKILL.md` | `736db687a876de2851d2f4e680b182a9d8267121f0c6cbfd699220c513b59e8d` |
 | `skills/ms-implement/SKILL.md` | `ff5b0dc6cd94480b41671196f1171e28604c4a9a805d5b662abf8d024a585510` |
-| `skills/ms-summary/SKILL.md` | `815fc9e43ea630af08dd081dc6188d2c31c0261bdc24970c151d6b11597a9812` |
+| `skills/ms-summary/SKILL.md` | `5164e68686427f2feb723802a48a877d4c86ee70a680c2f577c2ac140b34b7b9` |
+| `skills/ms-summary/assets/ms_summary.py` | `23b721e9c89c19a4aa4fa0b929c000ac3283719d1a9d25c0667f1833888ba8ecd` |
 | `specs/008-board-contract/board@1.yaml`（未改，复核） | `142ccf067ab372858a2cb898e78506f7a6dcc8adeb86a1e16210d6d507930537` |
 | `specs/011-bug-table/board@2.yaml`（未改，复核） | `d45d159f149497e3269ee4d5445e11fef808ba3683c66b99b4688fa9b4b088a1` |
+
+### 10.5 复核补充（2026-11-19，按ms对t20的交叉核对）
+
+- **V061-07 最终形态**：t22 已把 `ms_summary.py --close` 改为自动并入 `【原剩余事项】` 并加读回必含校验，`SKILL.md` 措辞同步为“脚本自动”。sha256：SKILL.md `5164e686…`、脚本 `23b721e9…`（§10.4 表已同步）。
+- **V061-01/06状态更新**：`t20`已完成——`specs/014-ms-skills/{spec.md,tasks.md}`落盘，看板`014-AR`场景数22/任务总数28、`implement=done`（只读GET核对）；缺陷关闭，不代改、不验收。
+- 其它skill（`ms-update`/`ms-implement`）本轮未再改动；契约文件未动。
