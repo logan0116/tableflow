@@ -3,7 +3,7 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
-    image: tableflow:0.7.1
+    image: tableflow:0.7.2
     container_name: tableflow
     restart: unless-stopped
     ports:

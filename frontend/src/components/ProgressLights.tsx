@@ -34,8 +34,9 @@ export function ProgressLights({ stages, values }: ProgressLightsProps) {
           <span
             key={stage.id}
             className={`stage-light stage-light-${tone}`}
-            title={`${stage.name}：${label}`}
+            data-tip={`${stage.name}：${label}`}
             aria-label={`${stage.name}：${label}`}
+            tabIndex={0}
           />
         );
       })}

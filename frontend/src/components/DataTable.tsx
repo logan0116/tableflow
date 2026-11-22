@@ -3,14 +3,12 @@ import {
   getCoreRowModel,
   useReactTable,
   type ColumnDef,
-  type ColumnSizingState,
 } from "@tanstack/react-table";
 import { useMemo, type CSSProperties } from "react";
 
 import { defaultColumnWidth, isNumericField } from "../field-utils";
 import { groupOfField, versionGroups } from "../version-grouping";
 import type { Field, Row } from "../types";
-import type { Density } from "../ui-prefs";
 import { Cell } from "./Cell";
 import { GroupRatioCell } from "./GroupRatioCell";
 import { ProgressLights } from "./ProgressLights";
@@ -24,10 +22,6 @@ interface DataTableProps {
   tableId: string;
   fields: Field[];
   rows: Row[];
-  density: Density;
-  maxColumnWidth: number;
-  columnWidths: ColumnSizingState;
-  onColumnWidthsChange: (next: ColumnSizingState) => void;
   onOpenRelation?: (tableId: string, rowId: string) => void;
   onOpenRelationList?: (tableId: string, rowIds: string[], field: Field) => void;
 }
@@ -36,10 +30,6 @@ export function DataTable({
   tableId,
   fields,
   rows,
-  density,
-  maxColumnWidth,
-  columnWidths,
-  onColumnWidthsChange,
   onOpenRelation,
   onOpenRelationList,
 }: DataTableProps) {
@@ -65,7 +55,7 @@ export function DataTable({
       id: field.id,
       header: field.name,
       accessorFn: (row: Row) => row.values[field.id],
-      size: defaultColumnWidth(field, index === 0, rows, maxColumnWidth),
+      size: defaultColumnWidth(field, index === 0, rows),
       minSize: MIN_COLUMN_WIDTH,
       maxSize: MAX_COLUMN_WIDTH,
       cell: (context) => (
@@ -126,7 +116,7 @@ export function DataTable({
         id: group.key,
         header: group.header,
         accessorFn: (row: Row) => row.values[ratioField?.id ?? relationField.id],
-        size: Math.max(96, defaultColumnWidth(relationField, index === 0, rows, maxColumnWidth) - 40),
+        size: 104,
         minSize: MIN_COLUMN_WIDTH,
         maxSize: MAX_COLUMN_WIDTH,
         cell: (context) => (
@@ -141,27 +131,12 @@ export function DataTable({
       });
     });
     return out;
-  }, [visibleFields, groups, fieldById, rows, maxColumnWidth, onOpenRelation, onOpenRelationList]);
+  }, [visibleFields, groups, fieldById, rows, onOpenRelation, onOpenRelationList]);
 
   const table = useReactTable({
     data: rows,
     columns,
-    state: { columnSizing: columnWidths },
-    onColumnSizingChange: (updater) => {
-      const next =
-        typeof updater === "function" ? updater(columnWidths) : updater;
-      // 只保留当前表仍存在的字段，避免已删除字段的列宽被反复写回存储。
-      const sanitized: ColumnSizingState = {};
-      for (const field of visibleFields) {
-        const value = next[field.id];
-        if (typeof value === "number" && Number.isFinite(value)) {
-          sanitized[field.id] = value;
-        }
-      }
-      onColumnWidthsChange(sanitized);
-    },
-    columnResizeMode: "onChange",
-    enableColumnResizing: true,
+    enableColumnResizing: false,
     getRowId: (row) => row.id,
     getCoreRowModel: getCoreRowModel(),
     defaultColumn: {
@@ -184,7 +159,7 @@ export function DataTable({
     <div
       className="table-frame"
       style={frameStyle}
-      data-density={density}
+      data-density="comfortable"
       data-table-id={tableId}
     >
       <div className="table-wrap">

@@ -1108,3 +1108,65 @@ td.empty-cell {
   font-size: 12px;
   color: var(--color-text);
 }
+
+/* ---------- 031：四组等宽、比率数字与灯提示 ---------- */
+
+/* 整格可点：含合并列的单元格去掉内边距，按钮铺满整格。 */
+td:has(> .group-ratio) {
+  padding: 0;
+}
+
+.group-ratio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 8px;
+  border: 0;
+  font-size: 14px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+  background: transparent;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.group-ratio:hover,
+.group-ratio:focus-visible {
+  background: var(--color-hover);
+}
+
+.group-ratio.is-done {
+  color: #1a7f37;
+}
+
+.stage-light {
+  position: relative;
+}
+
+.stage-light::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: #1f2328;
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+  z-index: 20;
+}
+
+.stage-light:hover::after,
+.stage-light:focus-visible::after {
+  opacity: 1;
+}

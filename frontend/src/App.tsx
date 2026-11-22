@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, useMemo } from "react";
 
 import { fetchProjects, fetchTable, fetchTables } from "./api";
-import { displayText } from "./field-utils";
 import { DataTable } from "./components/DataTable";
 import { EmptyState } from "./components/EmptyState";
 import { ProjectNav } from "./components/ProjectNav";
@@ -9,17 +8,12 @@ import { RelationListModal } from "./components/RelationListModal";
 import { RelationModal } from "./components/RelationModal";
 import { RoleBar } from "./components/RoleBar";
 import { TableTabs } from "./components/TableTabs";
-import { TableToolbar } from "./components/TableToolbar";
 import {
   latestVersionId,
-  readMaxColumnWidth,
   readVersionFilter,
-  writeMaxColumnWidth,
   writeVersionFilter,
 } from "./ui-prefs";
 import { InlineSkeleton, TableSkeleton } from "./components/TableSkeleton";
-import { useColumnWidths } from "./hooks/useColumnWidths";
-import { useDensity } from "./hooks/useDensity";
 import { useRole } from "./hooks/useRole";
 import {
   firstVisibleTableId,
@@ -54,13 +48,9 @@ export default function App() {
     rowIds: string[];
     field: Field;
   } | null>(null);
-  const [filter, setFilter] = useState("");
-  const [maxColumnWidth, setMaxColumnWidth] = useState<number>(() => readMaxColumnWidth());
   const [versionFilter, setVersionFilter] = useState<string>(() => readVersionFilter());
 
-  const [density, setDensity] = useDensity();
   const [role, setRole] = useRole();
-  const { widths, setWidths, resetWidths } = useColumnWidths(tableId);
 
   const seq = useRef(0);
   const lastFieldCount = useRef(DEFAULT_SKELETON_COLUMNS);
@@ -134,7 +124,6 @@ export default function App() {
   }, [projectId]);
 
   useEffect(() => {
-    setFilter("");
     if (!tableId) {
       return;
     }
@@ -264,25 +253,6 @@ export default function App() {
     );
   };
 
-  const filteredRows = useMemo(() => {
-    if (tableState.status !== "ready") {
-      return [];
-    }
-    const rows = tableState.table.rows;
-    const keyword = filter.trim().toLowerCase();
-    if (!keyword) {
-      return rows;
-    }
-    const fields = tableState.table.fields;
-    return rows.filter((row) =>
-      fields.some((field) =>
-        displayText(field, row.values[field.id]).toLowerCase().includes(keyword),
-      ),
-    );
-  }, [tableState, filter]);
-
-  const hasColumnWidths = Object.keys(widths).length > 0;
-
   /**
    * 表导航只列 board 表。detail 表（用例执行情况）不出现在导航里，
    * 仍可通过版本行的 relation 弹层读取；kind 缺失时按 board 兼容旧接口。
@@ -297,14 +267,89 @@ export default function App() {
 
   const currentProject = projects?.find((project) => project.id === projectId) ?? null;
   const currentTable = roleTables?.find((table) => table.id === tableId) ?? null;
-  const totalRows = tableState.status === "ready" ? tableState.table.rows.length : null;
+
+  /** 030：版本筛选全局化——取所选版本的关联集合，供其余四张表过滤。 */
+  const versionTableId = useMemo(
+    () => tables?.find((table) => table.id.endsWith("-ver"))?.id ?? null,
+    [tables],
+  );
+  const runTableId = useMemo(
+    () => tables?.find((table) => table.id.endsWith("-run"))?.id ?? null,
+    [tables],
+  );
+  const [versionScope, setVersionScope] = useState<{
+    indep: Set<string>;
+    dep: Set<string>;
+    bug: Set<string>;
+    case: Set<string>;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!versionTableId || versionFilter === "all") {
+      setVersionScope(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const ver = await fetchTable(versionTableId);
+        const resolved =
+          versionFilter === "latest"
+            ? latestVersionId(ver.rows.map((row) => row.id))
+            : versionFilter;
+        const row = ver.rows.find((item) => item.id === resolved);
+        if (!row || cancelled) {
+          setVersionScope(null);
+          return;
+        }
+        const byName = (name: string): string[] => {
+          const field = ver.fields.find((item) => item.name === name);
+          const value = field ? row.values[field.id] : undefined;
+          return Array.isArray(value) ? value.map(String) : [];
+        };
+        const indep = new Set(byName("独立需求管理"));
+        const dep = new Set(byName("依赖需求管理"));
+        const bug = new Set(byName("Bug管理"));
+        const runIds = byName("测试用例");
+        const caseIds = new Set<string>();
+        if (runIds.length > 0 && runTableId) {
+          const runs = await fetchTable(runTableId);
+          const caseField = runs.fields.find((item) => item.name === "用例");
+          if (caseField) {
+            const wanted = new Set(runIds);
+            for (const run of runs.rows) {
+              if (!wanted.has(run.id)) {
+                continue;
+              }
+              const value = run.values[caseField.id];
+              if (Array.isArray(value)) {
+                value.forEach((item) => caseIds.add(String(item)));
+              } else if (typeof value === "string" && value) {
+                caseIds.add(value);
+              }
+            }
+          }
+        }
+        if (!cancelled) {
+          setVersionScope({ indep, dep, bug, case: caseIds });
+        }
+      } catch {
+        if (!cancelled) {
+          setVersionScope(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [versionTableId, runTableId, versionFilter]);
 
   /** 027：版本表默认只看最新版本，可按版本筛选；只作用于渲染，不改接口。 */
   const versionScopedRows = useMemo(() => {
     if (tableState.status !== "ready" || !tableState.table.table.id.endsWith("-ver")) {
-      return filteredRows;
+      return tableState.status === "ready" ? tableState.table.rows : [];
     }
-    const all = filteredRows;
+    const all = tableState.table.rows;
     if (versionFilter === "all") {
       return all;
     }
@@ -314,8 +359,35 @@ export default function App() {
     }
     const hit = all.filter((row) => row.id === versionFilter);
     return hit.length > 0 ? hit : all.filter((row) => row.id === latestVersionId(all.map((r) => r.id)));
-  }, [tableState, filteredRows, versionFilter]);
-  const isFiltering = filter.trim().length > 0;
+  }, [tableState, versionFilter]);
+
+  /** 030：非版本表按所选版本的关联集合过滤；「全部版本」不过滤。 */
+  const versionFilteredRows = useMemo(() => {
+    if (tableState.status !== "ready") {
+      return [];
+    }
+    const rows = tableState.table.rows;
+    const id = tableState.table.table.id;
+    if (id.endsWith("-ver")) {
+      return versionScopedRows;
+    }
+    if (!versionScope) {
+      return rows;
+    }
+    let scope: Set<string> | null = null;
+    if (id.endsWith("-indep")) {
+      scope = versionScope.indep;
+    } else if (id.endsWith("-dep")) {
+      scope = versionScope.dep;
+    } else if (id.endsWith("-bug")) {
+      scope = versionScope.bug;
+    } else if (id.endsWith("-case")) {
+      scope = versionScope.case;
+    }
+    return scope ? rows.filter((row) => scope!.has(row.id)) : rows;
+  }, [tableState, versionScopedRows, versionScope]);
+
+  const totalRows = tableState.status === "ready" ? versionFilteredRows.length : null;
 
   let content: ReactNode;
   if (projectsError) {
@@ -350,21 +422,6 @@ export default function App() {
               <EmptyState kind="no-fields" />
             ) : (
               <>
-                <TableToolbar
-                  filter={filter}
-                  onFilterChange={setFilter}
-                  totalRows={tableState.table.rows.length}
-                  shownRows={filteredRows.length}
-                  density={density}
-                  onDensityChange={setDensity}
-                  maxColumnWidth={maxColumnWidth}
-                  onMaxColumnWidthChange={(value) => {
-                    setMaxColumnWidth(value);
-                    writeMaxColumnWidth(value);
-                  }}
-                  onResetColumnWidths={resetWidths}
-                  canResetColumnWidths={hasColumnWidths}
-                />
                 {tableState.table.table.id.endsWith("-ver") ? (
                   <div className="version-filter" role="group" aria-label="版本筛选">
                     <span className="toolbar-label">版本</span>
@@ -390,11 +447,7 @@ export default function App() {
                   key={tableState.table.table.id}
                   tableId={tableState.table.table.id}
                   fields={tableState.table.fields}
-                  rows={versionScopedRows}
-                  density={density}
-                  maxColumnWidth={maxColumnWidth}
-                  columnWidths={widths}
-                  onColumnWidthsChange={setWidths}
+                  rows={versionFilteredRows}
                   onOpenRelation={(targetTableId, rowId) =>
                     setModal({ tableId: targetTableId, rowId })
                   }
@@ -448,7 +501,7 @@ export default function App() {
           <div className="header-actions">
             {totalRows !== null && totalRows > 0 ? (
               <span className="page-count">
-                {isFiltering ? `${filteredRows.length} / ${totalRows} 条` : `共 ${totalRows} 条`}
+                共 {totalRows} 条
               </span>
             ) : null}
             <button
