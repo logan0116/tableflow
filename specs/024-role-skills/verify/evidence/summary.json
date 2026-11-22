@@ -1,0 +1,168 @@
+{
+ "ok": true,
+ "skills": {
+  "00-protocol-check.json": {
+   "skill": "024-common-protocol",
+   "mode": null,
+   "result": "success",
+   "counts": {},
+   "writes": 0,
+   "skipped_writes": 0
+  },
+  "01-dev-plan-apply.json": {
+   "skill": "tf-dev-plan",
+   "mode": "apply",
+   "result": "success",
+   "counts": {
+    "specs": 2,
+    "changes": 0
+   },
+   "writes": 1,
+   "skipped_writes": 0
+  },
+  "01-dev-plan-dryrun.json": {
+   "skill": "tf-dev-plan",
+   "mode": "dry-run",
+   "result": "success",
+   "counts": {
+    "specs": 2,
+    "changes": 0
+   },
+   "writes": 1,
+   "skipped_writes": 1
+  },
+  "02-test-plan-apply-1.json": {
+   "skill": "tf-test-plan",
+   "mode": "apply",
+   "result": "success",
+   "counts": {
+    "derived_cases": 27,
+    "specs": 1,
+    "created_cases": 27,
+    "updated_cases": 0,
+    "unchanged_cases": 0,
+    "created_runs": 27,
+    "reused_runs": 0
+   },
+   "writes": 56,
+   "skipped_writes": 0
+  },
+  "02-test-plan-apply-2.json": {
+   "skill": "tf-test-plan",
+   "mode": "apply",
+   "result": "success",
+   "counts": {
+    "derived_cases": 27,
+    "specs": 1,
+    "created_cases": 0,
+    "updated_cases": 0,
+    "unchanged_cases": 27,
+    "created_runs": 0,
+    "reused_runs": 27
+   },
+   "writes": 1,
+   "skipped_writes": 0
+  },
+  "02-test-plan-dryrun.json": {
+   "skill": "tf-test-plan",
+   "mode": "dry-run",
+   "result": "success",
+   "counts": {
+    "derived_cases": 27,
+    "specs": 1,
+    "created_cases": 27,
+    "updated_cases": 0,
+    "unchanged_cases": 0,
+    "created_runs": 27,
+    "reused_runs": 0
+   },
+   "writes": 56,
+   "skipped_writes": 56
+  },
+  "03-dev-implement-apply.json": {
+   "skill": "tf-dev-implement",
+   "mode": "apply",
+   "result": "success",
+   "counts": {},
+   "writes": 2,
+   "skipped_writes": 0
+  },
+  "03-dev-implement-dryrun.json": {
+   "skill": "tf-dev-implement",
+   "mode": "dry-run",
+   "result": "success",
+   "counts": {},
+   "writes": 2,
+   "skipped_writes": 2
+  },
+  "04-dev-check-apply.json": {
+   "skill": "tf-dev-check",
+   "mode": "apply",
+   "result": "success",
+   "counts": {},
+   "writes": 1,
+   "skipped_writes": 0
+  },
+  "04-dev-check-dryrun.json": {
+   "skill": "tf-dev-check",
+   "mode": "dry-run",
+   "result": "success",
+   "counts": {},
+   "writes": 1,
+   "skipped_writes": 1
+  },
+  "05-test-implement-apply.json": {
+   "skill": "tf-test-implement",
+   "mode": "apply",
+   "result": "success",
+   "counts": {
+    "executed": 27,
+    "pending": 0,
+    "runs": 27
+   },
+   "writes": 28,
+   "skipped_writes": 0
+  },
+  "05-test-implement-dryrun.json": {
+   "skill": "tf-test-implement",
+   "mode": "dry-run",
+   "result": "success",
+   "counts": {
+    "executed": 27,
+    "pending": 27,
+    "runs": 27
+   },
+   "writes": 27,
+   "skipped_writes": 27
+  },
+  "06-test-check-apply.json": {
+   "skill": "tf-test-check",
+   "mode": "apply",
+   "result": "success",
+   "counts": {},
+   "writes": 1,
+   "skipped_writes": 0
+  },
+  "06-test-check-dryrun.json": {
+   "skill": "tf-test-check",
+   "mode": "dry-run",
+   "result": "success",
+   "counts": {},
+   "writes": 1,
+   "skipped_writes": 1
+  }
+ },
+ "common_sha256": {
+  "tf-dev-plan": "c2a27856a14ab768657ec038a0452a923b4bad6eb1ca9a075a1789fa7660d7d9",
+  "tf-test-plan": "c2a27856a14ab768657ec038a0452a923b4bad6eb1ca9a075a1789fa7660d7d9",
+  "tf-dev-implement": "c2a27856a14ab768657ec038a0452a923b4bad6eb1ca9a075a1789fa7660d7d9",
+  "tf-dev-check": "c2a27856a14ab768657ec038a0452a923b4bad6eb1ca9a075a1789fa7660d7d9",
+  "tf-test-implement": "c2a27856a14ab768657ec038a0452a923b4bad6eb1ca9a075a1789fa7660d7d9",
+  "tf-test-check": "c2a27856a14ab768657ec038a0452a923b4bad6eb1ca9a075a1789fa7660d7d9"
+ },
+ "checks": {
+  "six_skills_readonly_ok": true,
+  "second_derive_zero": true,
+  "six_nodes_done": true
+ }
+}

@@ -1,0 +1,89 @@
+{
+ "skill": "tf-dev-implement",
+ "project": "tf024verify",
+ "version": "v0.7.0",
+ "mode": "dry-run",
+ "result": "success",
+ "checks": [
+  {
+   "name": "版本存在",
+   "ok": true,
+   "detail": "v0.7.0"
+  },
+  {
+   "name": "发布状态为 planned",
+   "ok": true,
+   "detail": "当前 planned"
+  },
+  {
+   "name": "前序节点（2 个）",
+   "ok": true,
+   "detail": "全部 done"
+  },
+  {
+   "name": "版本已关联规格",
+   "ok": true,
+   "detail": "1 份：017-AR"
+  },
+  {
+   "name": "规格 017-AR 已挂到版本",
+   "ok": true,
+   "detail": "在 ver.独立需求管理 中"
+  },
+  {
+   "name": "规格 017-AR 有验收场景",
+   "ok": true,
+   "detail": "3 个 User Story / 6 条 Acceptance Scenario"
+  },
+  {
+   "name": "规格 017-AR 任务全部完成",
+   "ok": true,
+   "detail": "已勾选 6 条，未勾选 0 条"
+  },
+  {
+   "name": "读回 implement 状态",
+   "ok": true,
+   "detail": "dry-run：当前未 done 1 份，本次预计写入 1 份（未写）"
+  },
+  {
+   "name": "节点「开发」",
+   "ok": true,
+   "detail": "dry-run：未推进，只输出计划"
+  }
+ ],
+ "writes": [
+  {
+   "target": "indep/017-AR",
+   "field": "speckit-implement状态",
+   "value": "done",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "ver/v0.7.0",
+   "field": "开发",
+   "value": "done",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  }
+ ],
+ "readback": {
+  "indep#implement/v0.7.0": {
+   "017-AR": "todo"
+  },
+  "ver/v0.7.0#nodes": {
+   "版本需求设计": "done",
+   "测试设计": "done",
+   "开发": "todo",
+   "开发验收": "todo",
+   "测试": "todo",
+   "测试验收": "todo"
+  }
+ },
+ "counts": {},
+ "orphans": [],
+ "errors": [],
+ "role": "软件开发",
+ "node": "开发",
+ "stage_done": false
+}

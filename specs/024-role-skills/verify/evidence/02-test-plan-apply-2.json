@@ -1,0 +1,331 @@
+{
+ "skill": "tf-test-plan",
+ "project": "tf024verify",
+ "version": "v0.7.0",
+ "mode": "apply",
+ "result": "success",
+ "checks": [
+  {
+   "name": "版本存在",
+   "ok": true,
+   "detail": "v0.7.0"
+  },
+  {
+   "name": "发布状态为 planned",
+   "ok": true,
+   "detail": "当前 planned"
+  },
+  {
+   "name": "前序节点（1 个）",
+   "ok": true,
+   "detail": "全部 done"
+  },
+  {
+   "name": "版本已关联规格",
+   "ok": true,
+   "detail": "1 份：019-AR"
+  },
+  {
+   "name": "规格 019-AR 已挂到版本",
+   "ok": true,
+   "detail": "在 ver.独立需求管理 中"
+  },
+  {
+   "name": "规格 019-AR 可派生",
+   "ok": true,
+   "detail": "6 个 User Story / 27 条 Acceptance Scenario"
+  },
+  {
+   "name": "场景号唯一",
+   "ok": true,
+   "detail": "27 条"
+  },
+  {
+   "name": "源场景无孤儿",
+   "ok": true,
+   "detail": "0"
+  },
+  {
+   "name": "用例落库可读",
+   "ok": true,
+   "detail": "27 条可读"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US1-AS1 可复用",
+   "ok": true,
+   "detail": "用例号=019-US1-AS1 用例=['019-US1-AS1'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US1-AS2 可复用",
+   "ok": true,
+   "detail": "用例号=019-US1-AS2 用例=['019-US1-AS2'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US1-AS3 可复用",
+   "ok": true,
+   "detail": "用例号=019-US1-AS3 用例=['019-US1-AS3'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US1-AS4 可复用",
+   "ok": true,
+   "detail": "用例号=019-US1-AS4 用例=['019-US1-AS4'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US2-AS1 可复用",
+   "ok": true,
+   "detail": "用例号=019-US2-AS1 用例=['019-US2-AS1'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US2-AS2 可复用",
+   "ok": true,
+   "detail": "用例号=019-US2-AS2 用例=['019-US2-AS2'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US2-AS3 可复用",
+   "ok": true,
+   "detail": "用例号=019-US2-AS3 用例=['019-US2-AS3'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US2-AS4 可复用",
+   "ok": true,
+   "detail": "用例号=019-US2-AS4 用例=['019-US2-AS4'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US3-AS1 可复用",
+   "ok": true,
+   "detail": "用例号=019-US3-AS1 用例=['019-US3-AS1'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US3-AS2 可复用",
+   "ok": true,
+   "detail": "用例号=019-US3-AS2 用例=['019-US3-AS2'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US3-AS3 可复用",
+   "ok": true,
+   "detail": "用例号=019-US3-AS3 用例=['019-US3-AS3'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US3-AS4 可复用",
+   "ok": true,
+   "detail": "用例号=019-US3-AS4 用例=['019-US3-AS4'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US3-AS5 可复用",
+   "ok": true,
+   "detail": "用例号=019-US3-AS5 用例=['019-US3-AS5'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US3-AS6 可复用",
+   "ok": true,
+   "detail": "用例号=019-US3-AS6 用例=['019-US3-AS6'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US4-AS1 可复用",
+   "ok": true,
+   "detail": "用例号=019-US4-AS1 用例=['019-US4-AS1'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US4-AS2 可复用",
+   "ok": true,
+   "detail": "用例号=019-US4-AS2 用例=['019-US4-AS2'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US4-AS3 可复用",
+   "ok": true,
+   "detail": "用例号=019-US4-AS3 用例=['019-US4-AS3'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US4-AS4 可复用",
+   "ok": true,
+   "detail": "用例号=019-US4-AS4 用例=['019-US4-AS4'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US4-AS5 可复用",
+   "ok": true,
+   "detail": "用例号=019-US4-AS5 用例=['019-US4-AS5'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US4-AS6 可复用",
+   "ok": true,
+   "detail": "用例号=019-US4-AS6 用例=['019-US4-AS6'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US5-AS1 可复用",
+   "ok": true,
+   "detail": "用例号=019-US5-AS1 用例=['019-US5-AS1'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US5-AS2 可复用",
+   "ok": true,
+   "detail": "用例号=019-US5-AS2 用例=['019-US5-AS2'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US5-AS3 可复用",
+   "ok": true,
+   "detail": "用例号=019-US5-AS3 用例=['019-US5-AS3'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US6-AS1 可复用",
+   "ok": true,
+   "detail": "用例号=019-US6-AS1 用例=['019-US6-AS1'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US6-AS2 可复用",
+   "ok": true,
+   "detail": "用例号=019-US6-AS2 用例=['019-US6-AS2'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US6-AS3 可复用",
+   "ok": true,
+   "detail": "用例号=019-US6-AS3 用例=['019-US6-AS3'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US6-AS4 可复用",
+   "ok": true,
+   "detail": "用例号=019-US6-AS4 用例=['019-US6-AS4'] 执行状态=todo"
+  },
+  {
+   "name": "版本执行清单已包含全部用例",
+   "ok": true,
+   "detail": "27 条已在 ver.测试用例 中"
+  },
+  {
+   "name": "读回版本执行清单",
+   "ok": true,
+   "detail": "27 条全部在清单中"
+  },
+  {
+   "name": "节点「测试设计」读回",
+   "ok": true,
+   "detail": "= done"
+  }
+ ],
+ "writes": [
+  {
+   "target": "ver/v0.7.0",
+   "field": "测试设计",
+   "value": "done",
+   "state": "success",
+   "http": 200
+  }
+ ],
+ "readback": {
+  "ver/v0.7.0#runs": {
+   "v0.7.0--019-US1-AS1": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US1-AS2": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US1-AS3": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US1-AS4": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US2-AS1": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US2-AS2": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US2-AS3": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US2-AS4": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US3-AS1": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US3-AS2": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US3-AS3": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US3-AS4": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US3-AS5": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US3-AS6": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US4-AS1": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US4-AS2": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US4-AS3": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US4-AS4": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US4-AS5": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US4-AS6": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US5-AS1": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US5-AS2": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US5-AS3": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US6-AS1": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US6-AS2": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US6-AS3": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US6-AS4": {
+    "state": "todo"
+   }
+  },
+  "ver/v0.7.0": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "测试设计": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    }
+   }
+  },
+  "ver/v0.7.0#nodes": {
+   "版本需求设计": "done",
+   "测试设计": "done",
+   "开发": "todo",
+   "开发验收": "todo",
+   "测试": "todo",
+   "测试验收": "todo"
+  }
+ },
+ "counts": {
+  "derived_cases": 27,
+  "specs": 1,
+  "created_cases": 0,
+  "updated_cases": 0,
+  "unchanged_cases": 27,
+  "created_runs": 0,
+  "reused_runs": 27
+ },
+ "orphans": [],
+ "errors": [],
+ "role": "软件测试",
+ "node": "测试设计",
+ "stage_done": false
+}

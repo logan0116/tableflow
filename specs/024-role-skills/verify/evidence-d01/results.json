@@ -1,0 +1,302 @@
+{
+ "ok": true,
+ "checks": {
+  "nine_as_assert_ok": true,
+  "six_skills_accept_apply": true,
+  "no_exit_2": true,
+  "no_unrecognized_arguments": true,
+  "dry_run_priority_readonly": true
+ },
+ "apply_parsed_skills": [
+  "tf-dev-check",
+  "tf-dev-implement",
+  "tf-dev-plan",
+  "tf-test-check",
+  "tf-test-implement",
+  "tf-test-plan"
+ ],
+ "missing_as": [],
+ "stderr_unrecognized": [],
+ "steps": [
+  {
+   "as": "US3-AS5",
+   "command": "python3 skills/tf-test-plan/scripts/tf_test_plan.py --version v0.7.0 --spec 019-AR --apply",
+   "exit_code": 1,
+   "evidence": "us3-as5.json",
+   "result": "failed",
+   "counts": {},
+   "writes": 0,
+   "errors": [
+    "前序节点未完成，不能推进「测试设计」：版本需求设计=todo"
+   ],
+   "assert": {
+    "as": "US3-AS5",
+    "ok": true,
+    "key": {
+     "result": "failed",
+     "writes": 0,
+     "error": "前序节点未完成，不能推进「测试设计」：版本需求设计=todo"
+    }
+   }
+  },
+  {
+   "as": "PREREQ-dev-plan",
+   "command": "python3 skills/tf-dev-plan/scripts/tf_dev_plan.py --version v0.7.0 --apply",
+   "exit_code": 0,
+   "evidence": "prereq-dev-plan.json",
+   "result": "success",
+   "counts": {
+    "specs": 3,
+    "changes": 0
+   },
+   "writes": 1,
+   "errors": [],
+   "assert": {}
+  },
+  {
+   "as": "US3-AS1",
+   "command": "python3 skills/tf-test-plan/scripts/tf_test_plan.py --version v0.7.0 --spec 019-AR --apply",
+   "exit_code": 0,
+   "evidence": "us3-as1.json",
+   "result": "success",
+   "counts": {
+    "derived_cases": 27,
+    "specs": 1,
+    "created_cases": 27,
+    "updated_cases": 0,
+    "unchanged_cases": 0,
+    "created_runs": 27,
+    "reused_runs": 0
+   },
+   "writes": 56,
+   "errors": [],
+   "assert": {
+    "as": "US3-AS1",
+    "ok": true,
+    "key": {
+     "created_cases": 27,
+     "created_runs": 27,
+     "derived_cases": 27,
+     "sample_ids": [
+      "019-US1-AS1",
+      "019-US1-AS2",
+      "019-US1-AS3"
+     ],
+     "source_ok": true
+    }
+   }
+  },
+  {
+   "as": "US3-AS2",
+   "command": "python3 skills/tf-test-plan/scripts/tf_test_plan.py --version v0.7.0 --spec 019-AR --apply",
+   "exit_code": 0,
+   "evidence": "us3-as2.json",
+   "result": "success",
+   "counts": {
+    "derived_cases": 27,
+    "specs": 1,
+    "created_cases": 0,
+    "updated_cases": 1,
+    "unchanged_cases": 26,
+    "created_runs": 0,
+    "reused_runs": 27
+   },
+   "writes": 2,
+   "errors": [],
+   "assert": {
+    "as": "US3-AS2",
+    "ok": true,
+    "key": {
+     "created_cases": 0,
+     "created_runs": 0,
+     "updated_cases": 1,
+     "case_name_after": "存在 `ver`/`indep`/`dep`/`case`/`run`/`bug` 六张表，每张表的字段数、字段名、类型、顺序与契约一致。"
+    }
+   }
+  },
+  {
+   "as": "US3-AS3",
+   "command": "python3 skills/tf-test-plan/scripts/tf_test_plan.py --version v0.7.0 --spec 019-AR --apply",
+   "exit_code": 0,
+   "evidence": "us3-as3.json",
+   "result": "success",
+   "counts": {
+    "derived_cases": 27,
+    "specs": 1,
+    "created_cases": 0,
+    "updated_cases": 0,
+    "unchanged_cases": 27,
+    "created_runs": 0,
+    "reused_runs": 27
+   },
+   "writes": 1,
+   "errors": [],
+   "assert": {
+    "as": "US3-AS3",
+    "ok": true,
+    "key": {
+     "orphans": [
+      "019-US9-AS1"
+     ],
+     "orphan_still_exists": true
+    }
+   }
+  },
+  {
+   "as": "US3-AS4",
+   "command": "python3 specs/024-role-skills/verify/d01_ops.py assert US3-AS4 us3-as3.json",
+   "exit_code": 0,
+   "evidence": "us3-as3.json",
+   "result": "success",
+   "counts": {
+    "derived_cases": 27,
+    "specs": 1,
+    "created_cases": 0,
+    "updated_cases": 0,
+    "unchanged_cases": 27,
+    "created_runs": 0,
+    "reused_runs": 27
+   },
+   "writes": 1,
+   "errors": [],
+   "assert": {
+    "as": "US3-AS4",
+    "ok": true,
+    "key": {
+     "derived_cases": 27,
+     "runs_todo_ok": 27,
+     "ver_runs": 27,
+     "plan_tables": [],
+     "case_fields_ok": true
+    }
+   }
+  },
+  {
+   "as": "US4-AS1",
+   "command": "python3 skills/tf-dev-implement/scripts/tf_dev_implement.py --version v0.7.0 --spec 099-AR --apply",
+   "exit_code": 1,
+   "evidence": "us4-as1.json",
+   "result": "failed",
+   "counts": {},
+   "writes": 0,
+   "errors": [
+    "开发节点未满足：099-AR 有 1 条未完成任务"
+   ],
+   "assert": {
+    "as": "US4-AS1",
+    "ok": true,
+    "key": {
+     "result": "failed",
+     "writes": 0,
+     "dev_node": "todo",
+     "error": "开发节点未满足：099-AR 有 1 条未完成任务"
+    }
+   }
+  },
+  {
+   "as": "US4-AS2",
+   "command": "python3 skills/tf-dev-implement/scripts/tf_dev_implement.py --version v0.7.0 --spec 017-AR --apply",
+   "exit_code": 0,
+   "evidence": "us4-as2.json",
+   "result": "success",
+   "counts": {},
+   "writes": 2,
+   "errors": [],
+   "assert": {
+    "as": "US4-AS2",
+    "ok": true,
+    "key": {
+     "result": "success",
+     "dev_node": "done",
+     "indep_017_ok": true
+    }
+   }
+  },
+  {
+   "as": "US4-AS3",
+   "command": "python3 skills/tf-dev-check/scripts/tf_dev_check.py --version v0.7.0 --apply",
+   "exit_code": 1,
+   "evidence": "us4-as3.json",
+   "result": "failed",
+   "counts": {},
+   "writes": 0,
+   "errors": [
+    "开发验收未满足：099-AR 验收状态=pending；099-AR 实现状态=todo"
+   ],
+   "assert": {
+    "as": "US4-AS3",
+    "ok": true,
+    "key": {
+     "result": "failed",
+     "writes": 0,
+     "dev_accept": "todo",
+     "error": "开发验收未满足：099-AR 验收状态=pending；099-AR 实现状态=todo"
+    }
+   }
+  },
+  {
+   "as": "US4-AS4",
+   "command": "python3 skills/tf-dev-check/scripts/tf_dev_check.py --version v0.7.0 --apply",
+   "exit_code": 0,
+   "evidence": "us4-as4.json",
+   "result": "success",
+   "counts": {},
+   "writes": 1,
+   "errors": [],
+   "assert": {
+    "as": "US4-AS4",
+    "ok": true,
+    "key": {
+     "result": "success",
+     "dev_accept": "done"
+    }
+   }
+  },
+  {
+   "as": "SMOKE-test-implement",
+   "command": "python3 skills/tf-test-implement/scripts/tf_test_implement.py --version v0.7.0 --all-pending --result pass --evidence .tmp-shots/024/ --apply",
+   "exit_code": 0,
+   "evidence": "smoke-test-implement.json",
+   "result": "success",
+   "counts": {
+    "executed": 27,
+    "pending": 0,
+    "runs": 27
+   },
+   "writes": 28,
+   "errors": [],
+   "assert": {}
+  },
+  {
+   "as": "SMOKE-test-check",
+   "command": "python3 skills/tf-test-check/scripts/tf_test_check.py --version v0.7.0 --apply",
+   "exit_code": 0,
+   "evidence": "smoke-test-check.json",
+   "result": "success",
+   "counts": {},
+   "writes": 1,
+   "errors": [],
+   "assert": {}
+  },
+  {
+   "as": "FLAG-DRY-PRIORITY",
+   "command": "python3 skills/tf-test-check/scripts/tf_test_check.py --version v0.7.0 --apply --dry-run",
+   "exit_code": 0,
+   "evidence": "flag-dry.json",
+   "result": "success",
+   "counts": {},
+   "writes": 1,
+   "errors": [],
+   "assert": {
+    "as": "FLAG-DRY-PRIORITY",
+    "ok": true,
+    "key": {
+     "mode": "dry-run",
+     "apply": true,
+     "writes": 0,
+     "apply_ignored_by": "dry-run"
+    }
+   }
+  }
+ ]
+}

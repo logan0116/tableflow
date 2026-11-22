@@ -1,0 +1,83 @@
+{
+ "skill": "tf-dev-plan",
+ "project": "tf024verify",
+ "version": "v0.7.0",
+ "mode": "apply",
+ "result": "success",
+ "checks": [
+  {
+   "name": "版本存在",
+   "ok": true,
+   "detail": "v0.7.0"
+  },
+  {
+   "name": "发布状态为 planned",
+   "ok": true,
+   "detail": "当前 planned"
+  },
+  {
+   "name": "前序节点（0 个）",
+   "ok": true,
+   "detail": "全部 done"
+  },
+  {
+   "name": "版本范围已确定",
+   "ok": true,
+   "detail": "规格 2 条 / 变更单 0 条"
+  },
+  {
+   "name": "规格 017-AR 有验收场景",
+   "ok": true,
+   "detail": "3 个 User Story / 6 条 Acceptance Scenario"
+  },
+  {
+   "name": "规格 019-AR 有验收场景",
+   "ok": true,
+   "detail": "6 个 User Story / 27 条 Acceptance Scenario"
+  },
+  {
+   "name": "节点「版本需求设计」读回",
+   "ok": true,
+   "detail": "= done"
+  }
+ ],
+ "writes": [
+  {
+   "target": "ver/v0.7.0",
+   "field": "版本需求设计",
+   "value": "done",
+   "state": "success",
+   "http": 200
+  }
+ ],
+ "readback": {
+  "ver/v0.7.0": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "版本需求设计": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    }
+   }
+  },
+  "ver/v0.7.0#nodes": {
+   "版本需求设计": "done",
+   "测试设计": "todo",
+   "开发": "todo",
+   "开发验收": "todo",
+   "测试": "todo",
+   "测试验收": "todo"
+  }
+ },
+ "counts": {
+  "specs": 2,
+  "changes": 0
+ },
+ "orphans": [],
+ "errors": [],
+ "role": "系统工程",
+ "node": "版本需求设计",
+ "stage_done": false
+}

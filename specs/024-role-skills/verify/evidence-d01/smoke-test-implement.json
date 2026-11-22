@@ -1,0 +1,1135 @@
+{
+ "skill": "tf-test-implement",
+ "project": "tf024verify",
+ "version": "v0.7.0",
+ "mode": "apply",
+ "result": "success",
+ "checks": [
+  {
+   "name": "版本存在",
+   "ok": true,
+   "detail": "v0.7.0"
+  },
+  {
+   "name": "发布状态为 planned",
+   "ok": true,
+   "detail": "当前 planned"
+  },
+  {
+   "name": "前序节点（4 个）",
+   "ok": true,
+   "detail": "全部 done"
+  },
+  {
+   "name": "版本已纳入用例",
+   "ok": true,
+   "detail": "27 条执行记录"
+  },
+  {
+   "name": "全部用例已执行",
+   "ok": true,
+   "detail": "27 条全部 done"
+  },
+  {
+   "name": "节点「测试」读回",
+   "ok": true,
+   "detail": "= done"
+  }
+ ],
+ "writes": [
+  {
+   "target": "run/v0.7.0--019-US1-AS1",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US1-AS2",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US1-AS3",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US1-AS4",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS1",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS2",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS3",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS4",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS1",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS2",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS3",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS4",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS5",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS6",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS1",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS2",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS3",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS4",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS5",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS6",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US5-AS1",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US5-AS2",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US5-AS3",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS1",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS2",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS3",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS4",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "ver/v0.7.0",
+   "field": "测试",
+   "value": "done",
+   "state": "success",
+   "http": 200
+  }
+ ],
+ "readback": {
+  "run/v0.7.0--019-US1-AS1": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US1-AS2": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US1-AS3": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US1-AS4": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US2-AS1": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US2-AS2": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US2-AS3": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US2-AS4": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US3-AS1": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US3-AS2": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US3-AS3": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US3-AS4": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US3-AS5": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US3-AS6": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US4-AS1": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US4-AS2": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US4-AS3": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US4-AS4": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US4-AS5": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US4-AS6": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US5-AS1": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US5-AS2": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US5-AS3": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US6-AS1": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US6-AS2": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US6-AS3": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US6-AS4": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:28:39+08:00",
+     "actual": "2026-11-22T18:28:39+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run#state/v0.7.0": {
+   "v0.7.0--019-US1-AS1": "done",
+   "v0.7.0--019-US1-AS2": "done",
+   "v0.7.0--019-US1-AS3": "done",
+   "v0.7.0--019-US1-AS4": "done",
+   "v0.7.0--019-US2-AS1": "done",
+   "v0.7.0--019-US2-AS2": "done",
+   "v0.7.0--019-US2-AS3": "done",
+   "v0.7.0--019-US2-AS4": "done",
+   "v0.7.0--019-US3-AS1": "done",
+   "v0.7.0--019-US3-AS2": "done",
+   "v0.7.0--019-US3-AS3": "done",
+   "v0.7.0--019-US3-AS4": "done",
+   "v0.7.0--019-US3-AS5": "done",
+   "v0.7.0--019-US3-AS6": "done",
+   "v0.7.0--019-US4-AS1": "done",
+   "v0.7.0--019-US4-AS2": "done",
+   "v0.7.0--019-US4-AS3": "done",
+   "v0.7.0--019-US4-AS4": "done",
+   "v0.7.0--019-US4-AS5": "done",
+   "v0.7.0--019-US4-AS6": "done",
+   "v0.7.0--019-US5-AS1": "done",
+   "v0.7.0--019-US5-AS2": "done",
+   "v0.7.0--019-US5-AS3": "done",
+   "v0.7.0--019-US6-AS1": "done",
+   "v0.7.0--019-US6-AS2": "done",
+   "v0.7.0--019-US6-AS3": "done",
+   "v0.7.0--019-US6-AS4": "done"
+  },
+  "ver/v0.7.0": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "测试": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    }
+   }
+  },
+  "ver/v0.7.0#nodes": {
+   "版本需求设计": "done",
+   "测试设计": "done",
+   "开发": "done",
+   "开发验收": "done",
+   "测试": "done",
+   "测试验收": "todo"
+  }
+ },
+ "counts": {
+  "executed": 27,
+  "pending": 0,
+  "runs": 27
+ },
+ "orphans": [],
+ "errors": [],
+ "apply": true,
+ "role": "软件测试",
+ "node": "测试",
+ "stage_done": false
+}

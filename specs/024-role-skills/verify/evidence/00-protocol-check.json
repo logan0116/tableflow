@@ -1,0 +1,90 @@
+{
+ "skill": "024-common-protocol",
+ "result": "success",
+ "checks": [
+  {
+   "name": "200+success -> success",
+   "ok": true
+  },
+  {
+   "name": "400+failed -> failed",
+   "ok": true
+  },
+  {
+   "name": "401 -> failed",
+   "ok": true
+  },
+  {
+   "name": "422 detail -> failed",
+   "ok": true
+  },
+  {
+   "name": "503 detail -> unknown",
+   "ok": true
+  },
+  {
+   "name": "503 unknown 信封 -> unknown",
+   "ok": true
+  },
+  {
+   "name": "连接失败(http=0) -> unknown",
+   "ok": true
+  },
+  {
+   "name": "200 非 JSON -> unknown",
+   "ok": true
+  },
+  {
+   "name": "200 无 result -> failed",
+   "ok": true
+  },
+  {
+   "name": "None == '' == []",
+   "ok": true
+  },
+  {
+   "name": "'' == []",
+   "ok": true
+  },
+  {
+   "name": "relation 顺序无关",
+   "ok": true
+  },
+  {
+   "name": "非空文本不等",
+   "ok": true
+  },
+  {
+   "name": "解析 017-bug-relation 场景数=6",
+   "ok": true
+  },
+  {
+   "name": "解析 019-test-contract 场景数=27",
+   "ok": true
+  },
+  {
+   "name": "解析 012-protocol 场景数=12",
+   "ok": true
+  },
+  {
+   "name": "用例行 id = 场景号",
+   "ok": true
+  },
+  {
+   "name": "--apply 被共用解析器接受",
+   "ok": true
+  },
+  {
+   "name": "--dry-run 与 --apply 同给时两者都保留（由技能按 dry-run 优先）",
+   "ok": true
+  },
+  {
+   "name": "不传 --apply 默认仍为写模式",
+   "ok": true
+  },
+  {
+   "name": "执行结果枚举",
+   "ok": true
+  }
+ ]
+}

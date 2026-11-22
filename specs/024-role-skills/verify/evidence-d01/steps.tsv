@@ -1,0 +1,13 @@
+US3-AS5	python3 skills/tf-test-plan/scripts/tf_test_plan.py --version v0.7.0 --spec 019-AR --apply	1	us3-as5.json
+PREREQ-dev-plan	python3 skills/tf-dev-plan/scripts/tf_dev_plan.py --version v0.7.0 --apply	0	prereq-dev-plan.json
+US3-AS1	python3 skills/tf-test-plan/scripts/tf_test_plan.py --version v0.7.0 --spec 019-AR --apply	0	us3-as1.json
+US3-AS2	python3 skills/tf-test-plan/scripts/tf_test_plan.py --version v0.7.0 --spec 019-AR --apply	0	us3-as2.json
+US3-AS3	python3 skills/tf-test-plan/scripts/tf_test_plan.py --version v0.7.0 --spec 019-AR --apply	0	us3-as3.json
+US3-AS4	python3 specs/024-role-skills/verify/d01_ops.py assert US3-AS4 us3-as3.json	0	us3-as3.json
+US4-AS1	python3 skills/tf-dev-implement/scripts/tf_dev_implement.py --version v0.7.0 --spec 099-AR --apply	1	us4-as1.json
+US4-AS2	python3 skills/tf-dev-implement/scripts/tf_dev_implement.py --version v0.7.0 --spec 017-AR --apply	0	us4-as2.json
+US4-AS3	python3 skills/tf-dev-check/scripts/tf_dev_check.py --version v0.7.0 --apply	1	us4-as3.json
+US4-AS4	python3 skills/tf-dev-check/scripts/tf_dev_check.py --version v0.7.0 --apply	0	us4-as4.json
+SMOKE-test-implement	python3 skills/tf-test-implement/scripts/tf_test_implement.py --version v0.7.0 --all-pending --result pass --evidence .tmp-shots/024/ --apply	0	smoke-test-implement.json
+SMOKE-test-check	python3 skills/tf-test-check/scripts/tf_test_check.py --version v0.7.0 --apply	0	smoke-test-check.json
+FLAG-DRY-PRIORITY	python3 skills/tf-test-check/scripts/tf_test_check.py --version v0.7.0 --apply --dry-run	0	flag-dry.json

@@ -1,0 +1,22 @@
+{
+ "ok": true,
+ "base": "http://127.0.0.1:18090",
+ "project": "tf024verify",
+ "tables": {
+  "ver": "v024-ver",
+  "indep": "v024-indep",
+  "dep": "v024-dep",
+  "case": "v024-case",
+  "run": "v024-run",
+  "bug": "v024-bug"
+ },
+ "version": "v0.7.0",
+ "specs": [
+  "017-AR",
+  "019-AR"
+ ],
+ "scenario_counts": {
+  "017-AR": 6,
+  "019-AR": 27
+ }
+}

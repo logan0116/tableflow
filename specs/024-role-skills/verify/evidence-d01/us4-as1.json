@@ -1,0 +1,54 @@
+{
+ "skill": "tf-dev-implement",
+ "project": "tf024verify",
+ "version": "v0.7.0",
+ "mode": "apply",
+ "result": "failed",
+ "checks": [
+  {
+   "name": "版本存在",
+   "ok": true,
+   "detail": "v0.7.0"
+  },
+  {
+   "name": "发布状态为 planned",
+   "ok": true,
+   "detail": "当前 planned"
+  },
+  {
+   "name": "前序节点（2 个）",
+   "ok": true,
+   "detail": "全部 done"
+  },
+  {
+   "name": "版本已关联规格",
+   "ok": true,
+   "detail": "1 份：099-AR"
+  },
+  {
+   "name": "规格 099-AR 已挂到版本",
+   "ok": true,
+   "detail": "在 ver.独立需求管理 中"
+  },
+  {
+   "name": "规格 099-AR 有验收场景",
+   "ok": true,
+   "detail": "1 个 User Story / 1 条 Acceptance Scenario"
+  },
+  {
+   "name": "规格 099-AR 任务全部完成",
+   "ok": false,
+   "detail": "已勾选 1 条，未勾选 1 条"
+  }
+ ],
+ "writes": [],
+ "readback": {},
+ "counts": {},
+ "orphans": [],
+ "errors": [
+  "开发节点未满足：099-AR 有 1 条未完成任务"
+ ],
+ "apply": true,
+ "role": "软件开发",
+ "node": "开发"
+}

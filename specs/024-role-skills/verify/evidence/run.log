@@ -1,0 +1,6168 @@
+[024] repo=/path/to/tableflow
+[024] temp db=/tmp/tf024.D0afBs/tf024.db port=18090
+[024] protocol unit checks（不访问网络）
+{
+ "skill": "024-common-protocol",
+ "result": "success",
+ "checks": [
+  {
+   "name": "200+success -> success",
+   "ok": true
+  },
+  {
+   "name": "400+failed -> failed",
+   "ok": true
+  },
+  {
+   "name": "401 -> failed",
+   "ok": true
+  },
+  {
+   "name": "422 detail -> failed",
+   "ok": true
+  },
+  {
+   "name": "503 detail -> unknown",
+   "ok": true
+  },
+  {
+   "name": "503 unknown 信封 -> unknown",
+   "ok": true
+  },
+  {
+   "name": "连接失败(http=0) -> unknown",
+   "ok": true
+  },
+  {
+   "name": "200 非 JSON -> unknown",
+   "ok": true
+  },
+  {
+   "name": "200 无 result -> failed",
+   "ok": true
+  },
+  {
+   "name": "None == '' == []",
+   "ok": true
+  },
+  {
+   "name": "'' == []",
+   "ok": true
+  },
+  {
+   "name": "relation 顺序无关",
+   "ok": true
+  },
+  {
+   "name": "非空文本不等",
+   "ok": true
+  },
+  {
+   "name": "解析 017-bug-relation 场景数=6",
+   "ok": true
+  },
+  {
+   "name": "解析 019-test-contract 场景数=27",
+   "ok": true
+  },
+  {
+   "name": "解析 012-protocol 场景数=12",
+   "ok": true
+  },
+  {
+   "name": "用例行 id = 场景号",
+   "ok": true
+  },
+  {
+   "name": "--apply 被共用解析器接受",
+   "ok": true
+  },
+  {
+   "name": "--dry-run 与 --apply 同给时两者都保留（由技能按 dry-run 优先）",
+   "ok": true
+  },
+  {
+   "name": "不传 --apply 默认仍为写模式",
+   "ok": true
+  },
+  {
+   "name": "执行结果枚举",
+   "ok": true
+  }
+ ]
+}
+[024] server up
+[024] seed fixture
+{
+ "ok": true,
+ "base": "http://127.0.0.1:18090",
+ "project": "tf024verify",
+ "tables": {
+  "ver": "v024-ver",
+  "indep": "v024-indep",
+  "dep": "v024-dep",
+  "case": "v024-case",
+  "run": "v024-run",
+  "bug": "v024-bug"
+ },
+ "version": "v0.7.0",
+ "specs": [
+  "017-AR",
+  "019-AR"
+ ],
+ "scenario_counts": {
+  "017-AR": 6,
+  "019-AR": 27
+ }
+}
+
++ /path/to/tableflow/skills/tf-dev-plan/scripts/tf_dev_plan.py --version v0.7.0 --dry-run
+{
+ "skill": "tf-dev-plan",
+ "project": "tf024verify",
+ "version": "v0.7.0",
+ "mode": "dry-run",
+ "result": "success",
+ "checks": [
+  {
+   "name": "版本存在",
+   "ok": true,
+   "detail": "v0.7.0"
+  },
+  {
+   "name": "发布状态为 planned",
+   "ok": true,
+   "detail": "当前 planned"
+  },
+  {
+   "name": "前序节点（0 个）",
+   "ok": true,
+   "detail": "全部 done"
+  },
+  {
+   "name": "版本范围已确定",
+   "ok": true,
+   "detail": "规格 2 条 / 变更单 0 条"
+  },
+  {
+   "name": "规格 017-AR 有验收场景",
+   "ok": true,
+   "detail": "3 个 User Story / 6 条 Acceptance Scenario"
+  },
+  {
+   "name": "规格 019-AR 有验收场景",
+   "ok": true,
+   "detail": "6 个 User Story / 27 条 Acceptance Scenario"
+  },
+  {
+   "name": "节点「版本需求设计」",
+   "ok": true,
+   "detail": "dry-run：未推进，只输出计划"
+  }
+ ],
+ "writes": [
+  {
+   "target": "ver/v0.7.0",
+   "field": "版本需求设计",
+   "value": "done",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  }
+ ],
+ "readback": {
+  "ver/v0.7.0#nodes": {
+   "版本需求设计": "todo",
+   "测试设计": "todo",
+   "开发": "todo",
+   "开发验收": "todo",
+   "测试": "todo",
+   "测试验收": "todo"
+  }
+ },
+ "counts": {
+  "specs": 2,
+  "changes": 0
+ },
+ "orphans": [],
+ "errors": [],
+ "role": "系统工程",
+ "node": "版本需求设计",
+ "stage_done": false
+}
+[assert] /path/to/tableflow/specs/024-role-skills/verify/evidence/01-dev-plan-dryrun.json: data["result"]=="success" and all(w["state"]=="skipped" for w in data["writes"])
+[024] 只读运行前后 write_audit=77（未变）
+
++ /path/to/tableflow/skills/tf-dev-plan/scripts/tf_dev_plan.py --version v0.7.0
+{
+ "skill": "tf-dev-plan",
+ "project": "tf024verify",
+ "version": "v0.7.0",
+ "mode": "apply",
+ "result": "success",
+ "checks": [
+  {
+   "name": "版本存在",
+   "ok": true,
+   "detail": "v0.7.0"
+  },
+  {
+   "name": "发布状态为 planned",
+   "ok": true,
+   "detail": "当前 planned"
+  },
+  {
+   "name": "前序节点（0 个）",
+   "ok": true,
+   "detail": "全部 done"
+  },
+  {
+   "name": "版本范围已确定",
+   "ok": true,
+   "detail": "规格 2 条 / 变更单 0 条"
+  },
+  {
+   "name": "规格 017-AR 有验收场景",
+   "ok": true,
+   "detail": "3 个 User Story / 6 条 Acceptance Scenario"
+  },
+  {
+   "name": "规格 019-AR 有验收场景",
+   "ok": true,
+   "detail": "6 个 User Story / 27 条 Acceptance Scenario"
+  },
+  {
+   "name": "节点「版本需求设计」读回",
+   "ok": true,
+   "detail": "= done"
+  }
+ ],
+ "writes": [
+  {
+   "target": "ver/v0.7.0",
+   "field": "版本需求设计",
+   "value": "done",
+   "state": "success",
+   "http": 200
+  }
+ ],
+ "readback": {
+  "ver/v0.7.0": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "版本需求设计": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    }
+   }
+  },
+  "ver/v0.7.0#nodes": {
+   "版本需求设计": "done",
+   "测试设计": "todo",
+   "开发": "todo",
+   "开发验收": "todo",
+   "测试": "todo",
+   "测试验收": "todo"
+  }
+ },
+ "counts": {
+  "specs": 2,
+  "changes": 0
+ },
+ "orphans": [],
+ "errors": [],
+ "role": "系统工程",
+ "node": "版本需求设计",
+ "stage_done": false
+}
+[assert] /path/to/tableflow/specs/024-role-skills/verify/evidence/01-dev-plan-apply.json: data["result"]=="success" and data["readback"]["ver/v0.7.0#nodes"]["版本需求设计"]=="done"
+
++ /path/to/tableflow/skills/tf-test-plan/scripts/tf_test_plan.py --version v0.7.0 --spec 019-AR --dry-run
+{
+ "skill": "tf-test-plan",
+ "project": "tf024verify",
+ "version": "v0.7.0",
+ "mode": "dry-run",
+ "result": "success",
+ "checks": [
+  {
+   "name": "版本存在",
+   "ok": true,
+   "detail": "v0.7.0"
+  },
+  {
+   "name": "发布状态为 planned",
+   "ok": true,
+   "detail": "当前 planned"
+  },
+  {
+   "name": "前序节点（1 个）",
+   "ok": true,
+   "detail": "全部 done"
+  },
+  {
+   "name": "版本已关联规格",
+   "ok": true,
+   "detail": "1 份：019-AR"
+  },
+  {
+   "name": "规格 019-AR 已挂到版本",
+   "ok": true,
+   "detail": "在 ver.独立需求管理 中"
+  },
+  {
+   "name": "规格 019-AR 可派生",
+   "ok": true,
+   "detail": "6 个 User Story / 27 条 Acceptance Scenario"
+  },
+  {
+   "name": "场景号唯一",
+   "ok": true,
+   "detail": "27 条"
+  },
+  {
+   "name": "源场景无孤儿",
+   "ok": true,
+   "detail": "0"
+  },
+  {
+   "name": "用例落库可读",
+   "ok": true,
+   "detail": "dry-run：已存在 0 条，预计新建 27 条（未写）"
+  },
+  {
+   "name": "读回版本执行清单",
+   "ok": true,
+   "detail": "dry-run：清单当前 0 条，预计追加 27 条（未写）"
+  },
+  {
+   "name": "节点「测试设计」",
+   "ok": true,
+   "detail": "dry-run：未推进，只输出计划"
+  }
+ ],
+ "writes": [
+  {
+   "target": "case/019-US1-AS1",
+   "field": "<create>",
+   "value": "存在 `ver`/`indep`/`dep`/`case`/`run`/`bug` 六张表，每张表的字段数、字段名、类型、顺序与契约一致。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US1-AS2",
+   "field": "<create>",
+   "value": "得到 8 条边（ver→indep/dep/bug/run、run→case、case→indep、dep→indep、bug→indep），且任何一对表之间只",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US1-AS3",
+   "field": "<create>",
+   "value": "其 kind 为 `detail`，不进表导航，但仍可经接口按 id 读取单行。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US1-AS4",
+   "field": "<create>",
+   "value": "每条都匹配 `<规格号>-US<n>-AS<m>`，且能解析出对应的规格编号并在 `indep` 表中找到该行。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US2-AS1",
+   "field": "<create>",
+   "value": "生成 N 条用例，行 id 即场景号（如 `008-US1-AS1`），且每条 `case.indep` 指向来源规格。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US2-AS2",
+   "field": "<create>",
+   "value": "新建 0 条；名称或步骤有变化的用例就地更新，其余不变。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US2-AS3",
+   "field": "<create>",
+   "value": "报告该用例「源场景已不存在」，不静默保留、也不无提示删除。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US2-AS4",
+   "field": "<create>",
+   "value": "各版本的执行记录不受影响（记录只引用用例 id，不复制用例内容）。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US3-AS1",
+   "field": "<create>",
+   "value": "生成一条 `run` 行（`state=todo`、`result` 为空）并把其 id 追加到 `ver.runs`；回读版本行能查到该执行记录。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US3-AS2",
+   "field": "<create>",
+   "value": "用例总数为 10、已完成用例数为 4、用例是否完成为假。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US3-AS3",
+   "field": "<create>",
+   "value": "已完成用例数为 10、用例是否完成为真；任一条 `result=fail` 不改变这三个字段。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US3-AS4",
+   "field": "<create>",
+   "value": "返回 400，且该行两个字段读回均不变。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US3-AS5",
+   "field": "<create>",
+   "value": "用例总数为 0、已完成用例数为 0、用例是否完成为真（空集语义）。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US3-AS6",
+   "field": "<create>",
+   "value": "返回 400 或就地复用该行，不产生第二条记录。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US4-AS1",
+   "field": "<create>",
+   "value": "返回 400，错误信息指出前序节点未完成。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US4-AS2",
+   "field": "<create>",
+   "value": "返回 400，指出用例未执行完。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US4-AS3",
+   "field": "<create>",
+   "value": "返回 400，指出缺陷未清零。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US4-AS4",
+   "field": "<create>",
+   "value": "返回 400。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US4-AS5",
+   "field": "<create>",
+   "value": "返回 400；把失败节点改回 `doing` 后重新置 `done`，才允许继续。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US4-AS6",
+   "field": "<create>",
+   "value": "两者均为真；任一节点退回非 `done`，两者转假。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US5-AS1",
+   "field": "<create>",
+   "value": "新增 `case`/`run` 两表与版本表十一个字段（六个节点、六节点汇总、测试用例关联、用例总数、已完成用例数、用例是否完成），四张老表的行数与字段值完全不",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US5-AS2",
+   "field": "<create>",
+   "value": "其六节点均为 `done`，`gate` 仍为真；`planned` 版本的六节点为 `todo`。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US5-AS3",
+   "field": "<create>",
+   "value": "不重复建表、不覆盖已有行，最终状态与一次成功相同。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US6-AS1",
+   "field": "<create>",
+   "value": "六表字段名/类型/顺序、relation 的显示列与状态列、闸门标记差异均为 0。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US6-AS2",
+   "field": "<create>",
+   "value": "失败并指出缺失的表。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US6-AS3",
+   "field": "<create>",
+   "value": "失败并逐字段列出差异。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US6-AS4",
+   "field": "<create>",
+   "value": "差异为 0。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US1-AS1",
+   "field": "<create>",
+   "value": "019-US1-AS1",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US1-AS2",
+   "field": "<create>",
+   "value": "019-US1-AS2",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US1-AS3",
+   "field": "<create>",
+   "value": "019-US1-AS3",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US1-AS4",
+   "field": "<create>",
+   "value": "019-US1-AS4",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS1",
+   "field": "<create>",
+   "value": "019-US2-AS1",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS2",
+   "field": "<create>",
+   "value": "019-US2-AS2",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS3",
+   "field": "<create>",
+   "value": "019-US2-AS3",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS4",
+   "field": "<create>",
+   "value": "019-US2-AS4",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS1",
+   "field": "<create>",
+   "value": "019-US3-AS1",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS2",
+   "field": "<create>",
+   "value": "019-US3-AS2",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS3",
+   "field": "<create>",
+   "value": "019-US3-AS3",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS4",
+   "field": "<create>",
+   "value": "019-US3-AS4",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS5",
+   "field": "<create>",
+   "value": "019-US3-AS5",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS6",
+   "field": "<create>",
+   "value": "019-US3-AS6",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS1",
+   "field": "<create>",
+   "value": "019-US4-AS1",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS2",
+   "field": "<create>",
+   "value": "019-US4-AS2",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS3",
+   "field": "<create>",
+   "value": "019-US4-AS3",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS4",
+   "field": "<create>",
+   "value": "019-US4-AS4",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS5",
+   "field": "<create>",
+   "value": "019-US4-AS5",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS6",
+   "field": "<create>",
+   "value": "019-US4-AS6",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US5-AS1",
+   "field": "<create>",
+   "value": "019-US5-AS1",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US5-AS2",
+   "field": "<create>",
+   "value": "019-US5-AS2",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US5-AS3",
+   "field": "<create>",
+   "value": "019-US5-AS3",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS1",
+   "field": "<create>",
+   "value": "019-US6-AS1",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS2",
+   "field": "<create>",
+   "value": "019-US6-AS2",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS3",
+   "field": "<create>",
+   "value": "019-US6-AS3",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS4",
+   "field": "<create>",
+   "value": "019-US6-AS4",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "ver/v0.7.0",
+   "field": "测试用例",
+   "value": [
+    "v0.7.0--019-US1-AS1",
+    "v0.7.0--019-US1-AS2",
+    "v0.7.0--019-US1-AS3",
+    "v0.7.0--019-US1-AS4",
+    "v0.7.0--019-US2-AS1",
+    "v0.7.0--019-US2-AS2",
+    "v0.7.0--019-US2-AS3",
+    "v0.7.0--019-US2-AS4",
+    "v0.7.0--019-US3-AS1",
+    "v0.7.0--019-US3-AS2",
+    "v0.7.0--019-US3-AS3",
+    "v0.7.0--019-US3-AS4",
+    "v0.7.0--019-US3-AS5",
+    "v0.7.0--019-US3-AS6",
+    "v0.7.0--019-US4-AS1",
+    "v0.7.0--019-US4-AS2",
+    "v0.7.0--019-US4-AS3",
+    "v0.7.0--019-US4-AS4",
+    "v0.7.0--019-US4-AS5",
+    "v0.7.0--019-US4-AS6",
+    "v0.7.0--019-US5-AS1",
+    "v0.7.0--019-US5-AS2",
+    "v0.7.0--019-US5-AS3",
+    "v0.7.0--019-US6-AS1",
+    "v0.7.0--019-US6-AS2",
+    "v0.7.0--019-US6-AS3",
+    "v0.7.0--019-US6-AS4"
+   ],
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "ver/v0.7.0",
+   "field": "测试设计",
+   "value": "done",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  }
+ ],
+ "readback": {
+  "ver/v0.7.0#runs": {
+   "v0.7.0--019-US1-AS1": {
+    "state": null
+   },
+   "v0.7.0--019-US1-AS2": {
+    "state": null
+   },
+   "v0.7.0--019-US1-AS3": {
+    "state": null
+   },
+   "v0.7.0--019-US1-AS4": {
+    "state": null
+   },
+   "v0.7.0--019-US2-AS1": {
+    "state": null
+   },
+   "v0.7.0--019-US2-AS2": {
+    "state": null
+   },
+   "v0.7.0--019-US2-AS3": {
+    "state": null
+   },
+   "v0.7.0--019-US2-AS4": {
+    "state": null
+   },
+   "v0.7.0--019-US3-AS1": {
+    "state": null
+   },
+   "v0.7.0--019-US3-AS2": {
+    "state": null
+   },
+   "v0.7.0--019-US3-AS3": {
+    "state": null
+   },
+   "v0.7.0--019-US3-AS4": {
+    "state": null
+   },
+   "v0.7.0--019-US3-AS5": {
+    "state": null
+   },
+   "v0.7.0--019-US3-AS6": {
+    "state": null
+   },
+   "v0.7.0--019-US4-AS1": {
+    "state": null
+   },
+   "v0.7.0--019-US4-AS2": {
+    "state": null
+   },
+   "v0.7.0--019-US4-AS3": {
+    "state": null
+   },
+   "v0.7.0--019-US4-AS4": {
+    "state": null
+   },
+   "v0.7.0--019-US4-AS5": {
+    "state": null
+   },
+   "v0.7.0--019-US4-AS6": {
+    "state": null
+   },
+   "v0.7.0--019-US5-AS1": {
+    "state": null
+   },
+   "v0.7.0--019-US5-AS2": {
+    "state": null
+   },
+   "v0.7.0--019-US5-AS3": {
+    "state": null
+   },
+   "v0.7.0--019-US6-AS1": {
+    "state": null
+   },
+   "v0.7.0--019-US6-AS2": {
+    "state": null
+   },
+   "v0.7.0--019-US6-AS3": {
+    "state": null
+   },
+   "v0.7.0--019-US6-AS4": {
+    "state": null
+   }
+  },
+  "ver/v0.7.0#nodes": {
+   "版本需求设计": "done",
+   "测试设计": "todo",
+   "开发": "todo",
+   "开发验收": "todo",
+   "测试": "todo",
+   "测试验收": "todo"
+  }
+ },
+ "counts": {
+  "derived_cases": 27,
+  "specs": 1,
+  "created_cases": 27,
+  "updated_cases": 0,
+  "unchanged_cases": 0,
+  "created_runs": 27,
+  "reused_runs": 0
+ },
+ "orphans": [],
+ "errors": [],
+ "role": "软件测试",
+ "node": "测试设计",
+ "stage_done": false
+}
+[assert] /path/to/tableflow/specs/024-role-skills/verify/evidence/02-test-plan-dryrun.json: data["result"]=="success" and all(w["state"]=="skipped" for w in data["writes"]) and data["counts"]["created_cases"]>0
+[024] 只读运行前后 write_audit=78（未变）
+
++ /path/to/tableflow/skills/tf-test-plan/scripts/tf_test_plan.py --version v0.7.0 --spec 019-AR
+{
+ "skill": "tf-test-plan",
+ "project": "tf024verify",
+ "version": "v0.7.0",
+ "mode": "apply",
+ "result": "success",
+ "checks": [
+  {
+   "name": "版本存在",
+   "ok": true,
+   "detail": "v0.7.0"
+  },
+  {
+   "name": "发布状态为 planned",
+   "ok": true,
+   "detail": "当前 planned"
+  },
+  {
+   "name": "前序节点（1 个）",
+   "ok": true,
+   "detail": "全部 done"
+  },
+  {
+   "name": "版本已关联规格",
+   "ok": true,
+   "detail": "1 份：019-AR"
+  },
+  {
+   "name": "规格 019-AR 已挂到版本",
+   "ok": true,
+   "detail": "在 ver.独立需求管理 中"
+  },
+  {
+   "name": "规格 019-AR 可派生",
+   "ok": true,
+   "detail": "6 个 User Story / 27 条 Acceptance Scenario"
+  },
+  {
+   "name": "场景号唯一",
+   "ok": true,
+   "detail": "27 条"
+  },
+  {
+   "name": "源场景无孤儿",
+   "ok": true,
+   "detail": "0"
+  },
+  {
+   "name": "用例落库可读",
+   "ok": true,
+   "detail": "27 条可读"
+  },
+  {
+   "name": "读回版本执行清单",
+   "ok": true,
+   "detail": "27 条全部在清单中"
+  },
+  {
+   "name": "节点「测试设计」读回",
+   "ok": true,
+   "detail": "= done"
+  }
+ ],
+ "writes": [
+  {
+   "target": "case/019-US1-AS1",
+   "field": "<create>",
+   "value": "存在 `ver`/`indep`/`dep`/`case`/`run`/`bug` 六张表，每张表的字段数、字段名、类型、顺序与契约一致。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US1-AS2",
+   "field": "<create>",
+   "value": "得到 8 条边（ver→indep/dep/bug/run、run→case、case→indep、dep→indep、bug→indep），且任何一对表之间只",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US1-AS3",
+   "field": "<create>",
+   "value": "其 kind 为 `detail`，不进表导航，但仍可经接口按 id 读取单行。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US1-AS4",
+   "field": "<create>",
+   "value": "每条都匹配 `<规格号>-US<n>-AS<m>`，且能解析出对应的规格编号并在 `indep` 表中找到该行。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US2-AS1",
+   "field": "<create>",
+   "value": "生成 N 条用例，行 id 即场景号（如 `008-US1-AS1`），且每条 `case.indep` 指向来源规格。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US2-AS2",
+   "field": "<create>",
+   "value": "新建 0 条；名称或步骤有变化的用例就地更新，其余不变。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US2-AS3",
+   "field": "<create>",
+   "value": "报告该用例「源场景已不存在」，不静默保留、也不无提示删除。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US2-AS4",
+   "field": "<create>",
+   "value": "各版本的执行记录不受影响（记录只引用用例 id，不复制用例内容）。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US3-AS1",
+   "field": "<create>",
+   "value": "生成一条 `run` 行（`state=todo`、`result` 为空）并把其 id 追加到 `ver.runs`；回读版本行能查到该执行记录。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US3-AS2",
+   "field": "<create>",
+   "value": "用例总数为 10、已完成用例数为 4、用例是否完成为假。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US3-AS3",
+   "field": "<create>",
+   "value": "已完成用例数为 10、用例是否完成为真；任一条 `result=fail` 不改变这三个字段。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US3-AS4",
+   "field": "<create>",
+   "value": "返回 400，且该行两个字段读回均不变。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US3-AS5",
+   "field": "<create>",
+   "value": "用例总数为 0、已完成用例数为 0、用例是否完成为真（空集语义）。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US3-AS6",
+   "field": "<create>",
+   "value": "返回 400 或就地复用该行，不产生第二条记录。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US4-AS1",
+   "field": "<create>",
+   "value": "返回 400，错误信息指出前序节点未完成。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US4-AS2",
+   "field": "<create>",
+   "value": "返回 400，指出用例未执行完。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US4-AS3",
+   "field": "<create>",
+   "value": "返回 400，指出缺陷未清零。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US4-AS4",
+   "field": "<create>",
+   "value": "返回 400。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US4-AS5",
+   "field": "<create>",
+   "value": "返回 400；把失败节点改回 `doing` 后重新置 `done`，才允许继续。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US4-AS6",
+   "field": "<create>",
+   "value": "两者均为真；任一节点退回非 `done`，两者转假。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US5-AS1",
+   "field": "<create>",
+   "value": "新增 `case`/`run` 两表与版本表十一个字段（六个节点、六节点汇总、测试用例关联、用例总数、已完成用例数、用例是否完成），四张老表的行数与字段值完全不",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US5-AS2",
+   "field": "<create>",
+   "value": "其六节点均为 `done`，`gate` 仍为真；`planned` 版本的六节点为 `todo`。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US5-AS3",
+   "field": "<create>",
+   "value": "不重复建表、不覆盖已有行，最终状态与一次成功相同。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US6-AS1",
+   "field": "<create>",
+   "value": "六表字段名/类型/顺序、relation 的显示列与状态列、闸门标记差异均为 0。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US6-AS2",
+   "field": "<create>",
+   "value": "失败并指出缺失的表。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US6-AS3",
+   "field": "<create>",
+   "value": "失败并逐字段列出差异。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "case/019-US6-AS4",
+   "field": "<create>",
+   "value": "差异为 0。",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US1-AS1",
+   "field": "<create>",
+   "value": "019-US1-AS1",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US1-AS2",
+   "field": "<create>",
+   "value": "019-US1-AS2",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US1-AS3",
+   "field": "<create>",
+   "value": "019-US1-AS3",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US1-AS4",
+   "field": "<create>",
+   "value": "019-US1-AS4",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS1",
+   "field": "<create>",
+   "value": "019-US2-AS1",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS2",
+   "field": "<create>",
+   "value": "019-US2-AS2",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS3",
+   "field": "<create>",
+   "value": "019-US2-AS3",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS4",
+   "field": "<create>",
+   "value": "019-US2-AS4",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS1",
+   "field": "<create>",
+   "value": "019-US3-AS1",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS2",
+   "field": "<create>",
+   "value": "019-US3-AS2",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS3",
+   "field": "<create>",
+   "value": "019-US3-AS3",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS4",
+   "field": "<create>",
+   "value": "019-US3-AS4",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS5",
+   "field": "<create>",
+   "value": "019-US3-AS5",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS6",
+   "field": "<create>",
+   "value": "019-US3-AS6",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS1",
+   "field": "<create>",
+   "value": "019-US4-AS1",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS2",
+   "field": "<create>",
+   "value": "019-US4-AS2",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS3",
+   "field": "<create>",
+   "value": "019-US4-AS3",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS4",
+   "field": "<create>",
+   "value": "019-US4-AS4",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS5",
+   "field": "<create>",
+   "value": "019-US4-AS5",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS6",
+   "field": "<create>",
+   "value": "019-US4-AS6",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US5-AS1",
+   "field": "<create>",
+   "value": "019-US5-AS1",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US5-AS2",
+   "field": "<create>",
+   "value": "019-US5-AS2",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US5-AS3",
+   "field": "<create>",
+   "value": "019-US5-AS3",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS1",
+   "field": "<create>",
+   "value": "019-US6-AS1",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS2",
+   "field": "<create>",
+   "value": "019-US6-AS2",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS3",
+   "field": "<create>",
+   "value": "019-US6-AS3",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS4",
+   "field": "<create>",
+   "value": "019-US6-AS4",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "ver/v0.7.0",
+   "field": "测试用例",
+   "value": [
+    "v0.7.0--019-US1-AS1",
+    "v0.7.0--019-US1-AS2",
+    "v0.7.0--019-US1-AS3",
+    "v0.7.0--019-US1-AS4",
+    "v0.7.0--019-US2-AS1",
+    "v0.7.0--019-US2-AS2",
+    "v0.7.0--019-US2-AS3",
+    "v0.7.0--019-US2-AS4",
+    "v0.7.0--019-US3-AS1",
+    "v0.7.0--019-US3-AS2",
+    "v0.7.0--019-US3-AS3",
+    "v0.7.0--019-US3-AS4",
+    "v0.7.0--019-US3-AS5",
+    "v0.7.0--019-US3-AS6",
+    "v0.7.0--019-US4-AS1",
+    "v0.7.0--019-US4-AS2",
+    "v0.7.0--019-US4-AS3",
+    "v0.7.0--019-US4-AS4",
+    "v0.7.0--019-US4-AS5",
+    "v0.7.0--019-US4-AS6",
+    "v0.7.0--019-US5-AS1",
+    "v0.7.0--019-US5-AS2",
+    "v0.7.0--019-US5-AS3",
+    "v0.7.0--019-US6-AS1",
+    "v0.7.0--019-US6-AS2",
+    "v0.7.0--019-US6-AS3",
+    "v0.7.0--019-US6-AS4"
+   ],
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "ver/v0.7.0",
+   "field": "测试设计",
+   "value": "done",
+   "state": "success",
+   "http": 200
+  }
+ ],
+ "readback": {
+  "case/019-US1-AS1": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US1-AS1",
+     "actual": "019-US1-AS1",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "存在 `ver`/`indep`/`dep`/`case`/`run`/`bug` 六张表，每张表的字段数、字段名、类型、顺序与契约一致。",
+     "actual": "存在 `ver`/`indep`/`dep`/`case`/`run`/`bug` 六张表，每张表的字段数、字段名、类型、顺序与契约一致。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "`specs/019-test-contract/board@4.yaml`，",
+     "actual": "`specs/019-test-contract/board@4.yaml`，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "按契约对一个项目建表，",
+     "actual": "按契约对一个项目建表，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "存在 `ver`/`indep`/`dep`/`case`/`run`/`bug` 六张表，每张表的字段数、字段名、类型、顺序与契约一致。",
+     "actual": "存在 `ver`/`indep`/`dep`/`case`/`run`/`bug` 六张表，每张表的字段数、字段名、类型、顺序与契约一致。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P1",
+     "actual": "P1",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US1-AS2": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US1-AS2",
+     "actual": "019-US1-AS2",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "得到 8 条边（ver→indep/dep/bug/run、run→case、case→indep、dep→indep、bug→indep），且任何一对表之间只",
+     "actual": "得到 8 条边（ver→indep/dep/bug/run、run→case、case→indep、dep→indep、bug→indep），且任何一对表之间只",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "六张表已建，",
+     "actual": "六张表已建，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "校验全部 relation 字段的 `target`，",
+     "actual": "校验全部 relation 字段的 `target`，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "得到 8 条边（ver→indep/dep/bug/run、run→case、case→indep、dep→indep、bug→indep），且任何一对表之间只有一条边。",
+     "actual": "得到 8 条边（ver→indep/dep/bug/run、run→case、case→indep、dep→indep、bug→indep），且任何一对表之间只有一条边。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P1",
+     "actual": "P1",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US1-AS3": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US1-AS3",
+     "actual": "019-US1-AS3",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "其 kind 为 `detail`，不进表导航，但仍可经接口按 id 读取单行。",
+     "actual": "其 kind 为 `detail`，不进表导航，但仍可经接口按 id 读取单行。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "`run` 表，",
+     "actual": "`run` 表，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "读取表元数据，",
+     "actual": "读取表元数据，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "其 kind 为 `detail`，不进表导航，但仍可经接口按 id 读取单行。",
+     "actual": "其 kind 为 `detail`，不进表导航，但仍可经接口按 id 读取单行。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P1",
+     "actual": "P1",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US1-AS4": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US1-AS4",
+     "actual": "019-US1-AS4",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "每条都匹配 `<规格号>-US<n>-AS<m>`，且能解析出对应的规格编号并在 `indep` 表中找到该行。",
+     "actual": "每条都匹配 `<规格号>-US<n>-AS<m>`，且能解析出对应的规格编号并在 `indep` 表中找到该行。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "`case` 表的全部行，",
+     "actual": "`case` 表的全部行，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "校验行 id 格式，",
+     "actual": "校验行 id 格式，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "每条都匹配 `<规格号>-US<n>-AS<m>`，且能解析出对应的规格编号并在 `indep` 表中找到该行。",
+     "actual": "每条都匹配 `<规格号>-US<n>-AS<m>`，且能解析出对应的规格编号并在 `indep` 表中找到该行。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P1",
+     "actual": "P1",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US2-AS1": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US2-AS1",
+     "actual": "019-US2-AS1",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "生成 N 条用例，行 id 即场景号（如 `008-US1-AS1`），且每条 `case.indep` 指向来源规格。",
+     "actual": "生成 N 条用例，行 id 即场景号（如 `008-US1-AS1`），且每条 `case.indep` 指向来源规格。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "一份 spec 含 N 条 Acceptance Scenario，",
+     "actual": "一份 spec 含 N 条 Acceptance Scenario，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "执行派生，",
+     "actual": "执行派生，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "生成 N 条用例，行 id 即场景号（如 `008-US1-AS1`），且每条 `case.indep` 指向来源规格。",
+     "actual": "生成 N 条用例，行 id 即场景号（如 `008-US1-AS1`），且每条 `case.indep` 指向来源规格。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P1",
+     "actual": "P1",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US2-AS2": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US2-AS2",
+     "actual": "019-US2-AS2",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "新建 0 条；名称或步骤有变化的用例就地更新，其余不变。",
+     "actual": "新建 0 条；名称或步骤有变化的用例就地更新，其余不变。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "已派生过一次，",
+     "actual": "已派生过一次，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "再次执行派生，",
+     "actual": "再次执行派生，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "新建 0 条；名称或步骤有变化的用例就地更新，其余不变。",
+     "actual": "新建 0 条；名称或步骤有变化的用例就地更新，其余不变。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P1",
+     "actual": "P1",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US2-AS3": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US2-AS3",
+     "actual": "019-US2-AS3",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "报告该用例「源场景已不存在」，不静默保留、也不无提示删除。",
+     "actual": "报告该用例「源场景已不存在」，不静默保留、也不无提示删除。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "某规格已派生过，",
+     "actual": "某规格已派生过，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "该 spec 删掉一条场景后重跑派生，",
+     "actual": "该 spec 删掉一条场景后重跑派生，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "报告该用例「源场景已不存在」，不静默保留、也不无提示删除。",
+     "actual": "报告该用例「源场景已不存在」，不静默保留、也不无提示删除。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P1",
+     "actual": "P1",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US2-AS4": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US2-AS4",
+     "actual": "019-US2-AS4",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "各版本的执行记录不受影响（记录只引用用例 id，不复制用例内容）。",
+     "actual": "各版本的执行记录不受影响（记录只引用用例 id，不复制用例内容）。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "一条用例被多个版本纳入，",
+     "actual": "一条用例被多个版本纳入，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "执行派生更新其步骤，",
+     "actual": "执行派生更新其步骤，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "各版本的执行记录不受影响（记录只引用用例 id，不复制用例内容）。",
+     "actual": "各版本的执行记录不受影响（记录只引用用例 id，不复制用例内容）。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P1",
+     "actual": "P1",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US3-AS1": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US3-AS1",
+     "actual": "019-US3-AS1",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "生成一条 `run` 行（`state=todo`、`result` 为空）并把其 id 追加到 `ver.runs`；回读版本行能查到该执行记录。",
+     "actual": "生成一条 `run` 行（`state=todo`、`result` 为空）并把其 id 追加到 `ver.runs`；回读版本行能查到该执行记录。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "一个 planned 版本与一条已存在的用例，",
+     "actual": "一个 planned 版本与一条已存在的用例，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "把该用例纳入本版，",
+     "actual": "把该用例纳入本版，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "生成一条 `run` 行（`state=todo`、`result` 为空）并把其 id 追加到 `ver.runs`；回读版本行能查到该执行记录。",
+     "actual": "生成一条 `run` 行（`state=todo`、`result` 为空）并把其 id 追加到 `ver.runs`；回读版本行能查到该执行记录。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P1",
+     "actual": "P1",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US3-AS2": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US3-AS2",
+     "actual": "019-US3-AS2",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "用例总数为 10、已完成用例数为 4、用例是否完成为假。",
+     "actual": "用例总数为 10、已完成用例数为 4、用例是否完成为假。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "版本纳入 10 条用例、其中 4 条已执行，",
+     "actual": "版本纳入 10 条用例、其中 4 条已执行，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "重算计算字段，",
+     "actual": "重算计算字段，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "用例总数为 10、已完成用例数为 4、用例是否完成为假。",
+     "actual": "用例总数为 10、已完成用例数为 4、用例是否完成为假。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P1",
+     "actual": "P1",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US3-AS3": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US3-AS3",
+     "actual": "019-US3-AS3",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "已完成用例数为 10、用例是否完成为真；任一条 `result=fail` 不改变这三个字段。",
+     "actual": "已完成用例数为 10、用例是否完成为真；任一条 `result=fail` 不改变这三个字段。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "10 条全部执行完毕，",
+     "actual": "10 条全部执行完毕，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "重算，",
+     "actual": "重算，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "已完成用例数为 10、用例是否完成为真；任一条 `result=fail` 不改变这三个字段。",
+     "actual": "已完成用例数为 10、用例是否完成为真；任一条 `result=fail` 不改变这三个字段。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P1",
+     "actual": "P1",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US3-AS4": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US3-AS4",
+     "actual": "019-US3-AS4",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "返回 400，且该行两个字段读回均不变。",
+     "actual": "返回 400，且该行两个字段读回均不变。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "一条执行记录 `state=todo`，",
+     "actual": "一条执行记录 `state=todo`，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "直接写 `result=pass` 而不改 state，",
+     "actual": "直接写 `result=pass` 而不改 state，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "返回 400，且该行两个字段读回均不变。",
+     "actual": "返回 400，且该行两个字段读回均不变。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P1",
+     "actual": "P1",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US3-AS5": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US3-AS5",
+     "actual": "019-US3-AS5",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "用例总数为 0、已完成用例数为 0、用例是否完成为真（空集语义）。",
+     "actual": "用例总数为 0、已完成用例数为 0、用例是否完成为真（空集语义）。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "一个版本未纳入任何用例，",
+     "actual": "一个版本未纳入任何用例，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "重算，",
+     "actual": "重算，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "用例总数为 0、已完成用例数为 0、用例是否完成为真（空集语义）。",
+     "actual": "用例总数为 0、已完成用例数为 0、用例是否完成为真（空集语义）。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P1",
+     "actual": "P1",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US3-AS6": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US3-AS6",
+     "actual": "019-US3-AS6",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "返回 400 或就地复用该行，不产生第二条记录。",
+     "actual": "返回 400 或就地复用该行，不产生第二条记录。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "同一版本同一用例已有一条执行记录，",
+     "actual": "同一版本同一用例已有一条执行记录，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "再次纳入同一用例，",
+     "actual": "再次纳入同一用例，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "返回 400 或就地复用该行，不产生第二条记录。",
+     "actual": "返回 400 或就地复用该行，不产生第二条记录。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P1",
+     "actual": "P1",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US4-AS1": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US4-AS1",
+     "actual": "019-US4-AS1",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "返回 400，错误信息指出前序节点未完成。",
+     "actual": "返回 400，错误信息指出前序节点未完成。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "版本六节点全为 `todo`，",
+     "actual": "版本六节点全为 `todo`，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "把「开发」置 `done`，",
+     "actual": "把「开发」置 `done`，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "返回 400，错误信息指出前序节点未完成。",
+     "actual": "返回 400，错误信息指出前序节点未完成。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P1",
+     "actual": "P1",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US4-AS2": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US4-AS2",
+     "actual": "019-US4-AS2",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "返回 400，指出用例未执行完。",
+     "actual": "返回 400，指出用例未执行完。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "「版本需求设计」到「开发验收」五个节点均为 `done`，",
+     "actual": "「版本需求设计」到「开发验收」五个节点均为 `done`，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "把「测试」置 `done` 而本版用例尚未全部执行，",
+     "actual": "把「测试」置 `done` 而本版用例尚未全部执行，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "返回 400，指出用例未执行完。",
+     "actual": "返回 400，指出用例未执行完。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P1",
+     "actual": "P1",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US4-AS3": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US4-AS3",
+     "actual": "019-US4-AS3",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "返回 400，指出缺陷未清零。",
+     "actual": "返回 400，指出缺陷未清零。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "用例已全部执行、但本版 Bug 管理集合内仍有未关闭缺陷，",
+     "actual": "用例已全部执行、但本版 Bug 管理集合内仍有未关闭缺陷，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "把「测试验收」置 `done`，",
+     "actual": "把「测试验收」置 `done`，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "返回 400，指出缺陷未清零。",
+     "actual": "返回 400，指出缺陷未清零。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P1",
+     "actual": "P1",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US4-AS4": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US4-AS4",
+     "actual": "019-US4-AS4",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "返回 400。",
+     "actual": "返回 400。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "「开发验收」节点，",
+     "actual": "「开发验收」节点，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "本版规格尚有未验收的就把它置 `done`，",
+     "actual": "本版规格尚有未验收的就把它置 `done`，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "返回 400。",
+     "actual": "返回 400。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P1",
+     "actual": "P1",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US4-AS5": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US4-AS5",
+     "actual": "019-US4-AS5",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "返回 400；把失败节点改回 `doing` 后重新置 `done`，才允许继续。",
+     "actual": "返回 400；把失败节点改回 `doing` 后重新置 `done`，才允许继续。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "某节点为 `failed`，",
+     "actual": "某节点为 `failed`，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "推进其后一个节点，",
+     "actual": "推进其后一个节点，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "返回 400；把失败节点改回 `doing` 后重新置 `done`，才允许继续。",
+     "actual": "返回 400；把失败节点改回 `doing` 后重新置 `done`，才允许继续。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P1",
+     "actual": "P1",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US4-AS6": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US4-AS6",
+     "actual": "019-US4-AS6",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "两者均为真；任一节点退回非 `done`，两者转假。",
+     "actual": "两者均为真；任一节点退回非 `done`，两者转假。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "六节点全部 `done`，",
+     "actual": "六节点全部 `done`，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "重算 `stage_done` 与 `gate`，",
+     "actual": "重算 `stage_done` 与 `gate`，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "两者均为真；任一节点退回非 `done`，两者转假。",
+     "actual": "两者均为真；任一节点退回非 `done`，两者转假。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P1",
+     "actual": "P1",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US5-AS1": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US5-AS1",
+     "actual": "019-US5-AS1",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "新增 `case`/`run` 两表与版本表十一个字段（六个节点、六节点汇总、测试用例关联、用例总数、已完成用例数、用例是否完成），四张老表的行数与字段值完全不",
+     "actual": "新增 `case`/`run` 两表与版本表十一个字段（六个节点、六节点汇总、测试用例关联、用例总数、已完成用例数、用例是否完成），四张老表的行数与字段值完全不",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "一个 board@3 项目，",
+     "actual": "一个 board@3 项目，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "执行迁移，",
+     "actual": "执行迁移，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "新增 `case`/`run` 两表与版本表十一个字段（六个节点、六节点汇总、测试用例关联、用例总数、已完成用例数、用例是否完成），四张老表的行数与字段值完全不变。",
+     "actual": "新增 `case`/`run` 两表与版本表十一个字段（六个节点、六节点汇总、测试用例关联、用例总数、已完成用例数、用例是否完成），四张老表的行数与字段值完全不变。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P2",
+     "actual": "P2",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US5-AS2": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US5-AS2",
+     "actual": "019-US5-AS2",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "其六节点均为 `done`，`gate` 仍为真；`planned` 版本的六节点为 `todo`。",
+     "actual": "其六节点均为 `done`，`gate` 仍为真；`planned` 版本的六节点为 `todo`。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "一个 `released` 版本，",
+     "actual": "一个 `released` 版本，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "迁移完成，",
+     "actual": "迁移完成，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "其六节点均为 `done`，`gate` 仍为真；`planned` 版本的六节点为 `todo`。",
+     "actual": "其六节点均为 `done`，`gate` 仍为真；`planned` 版本的六节点为 `todo`。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P2",
+     "actual": "P2",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US5-AS3": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US5-AS3",
+     "actual": "019-US5-AS3",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "不重复建表、不覆盖已有行，最终状态与一次成功相同。",
+     "actual": "不重复建表、不覆盖已有行，最终状态与一次成功相同。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "迁移中途失败，",
+     "actual": "迁移中途失败，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "重跑迁移，",
+     "actual": "重跑迁移，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "不重复建表、不覆盖已有行，最终状态与一次成功相同。",
+     "actual": "不重复建表、不覆盖已有行，最终状态与一次成功相同。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P2",
+     "actual": "P2",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US6-AS1": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US6-AS1",
+     "actual": "019-US6-AS1",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "六表字段名/类型/顺序、relation 的显示列与状态列、闸门标记差异均为 0。",
+     "actual": "六表字段名/类型/顺序、relation 的显示列与状态列、闸门标记差异均为 0。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "全部已迁移项目，",
+     "actual": "全部已迁移项目，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "跑门禁，",
+     "actual": "跑门禁，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "六表字段名/类型/顺序、relation 的显示列与状态列、闸门标记差异均为 0。",
+     "actual": "六表字段名/类型/顺序、relation 的显示列与状态列、闸门标记差异均为 0。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P1",
+     "actual": "P1",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US6-AS2": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US6-AS2",
+     "actual": "019-US6-AS2",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "失败并指出缺失的表。",
+     "actual": "失败并指出缺失的表。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "一个项目缺 `run` 表，",
+     "actual": "一个项目缺 `run` 表，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "跑门禁，",
+     "actual": "跑门禁，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "失败并指出缺失的表。",
+     "actual": "失败并指出缺失的表。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P1",
+     "actual": "P1",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US6-AS3": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US6-AS3",
+     "actual": "019-US6-AS3",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "失败并逐字段列出差异。",
+     "actual": "失败并逐字段列出差异。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "一个项目的版本表仍是 board@3 的 15 字段，",
+     "actual": "一个项目的版本表仍是 board@3 的 15 字段，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "跑门禁，",
+     "actual": "跑门禁，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "失败并逐字段列出差异。",
+     "actual": "失败并逐字段列出差异。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P1",
+     "actual": "P1",
+     "ok": true
+    }
+   }
+  },
+  "case/019-US6-AS4": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "用例号": {
+     "expect": "019-US6-AS4",
+     "actual": "019-US6-AS4",
+     "ok": true
+    },
+    "用例名": {
+     "expect": "差异为 0。",
+     "actual": "差异为 0。",
+     "ok": true
+    },
+    "来源规格": {
+     "expect": [
+      "019-AR"
+     ],
+     "actual": [
+      "019-AR"
+     ],
+     "ok": true
+    },
+    "前置条件": {
+     "expect": "模板脚本的产物，",
+     "actual": "模板脚本的产物，",
+     "ok": true
+    },
+    "操作步骤": {
+     "expect": "用同一门禁校验，",
+     "actual": "用同一门禁校验，",
+     "ok": true
+    },
+    "预期结果": {
+     "expect": "差异为 0。",
+     "actual": "差异为 0。",
+     "ok": true
+    },
+    "优先级": {
+     "expect": "P1",
+     "actual": "P1",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US1-AS1": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US1-AS1",
+     "actual": "v0.7.0--019-US1-AS1",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US1-AS1",
+     "actual": "019-US1-AS1",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US1-AS1"
+     ],
+     "actual": [
+      "019-US1-AS1"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US1-AS2": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US1-AS2",
+     "actual": "v0.7.0--019-US1-AS2",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US1-AS2",
+     "actual": "019-US1-AS2",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US1-AS2"
+     ],
+     "actual": [
+      "019-US1-AS2"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US1-AS3": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US1-AS3",
+     "actual": "v0.7.0--019-US1-AS3",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US1-AS3",
+     "actual": "019-US1-AS3",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US1-AS3"
+     ],
+     "actual": [
+      "019-US1-AS3"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US1-AS4": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US1-AS4",
+     "actual": "v0.7.0--019-US1-AS4",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US1-AS4",
+     "actual": "019-US1-AS4",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US1-AS4"
+     ],
+     "actual": [
+      "019-US1-AS4"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US2-AS1": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US2-AS1",
+     "actual": "v0.7.0--019-US2-AS1",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US2-AS1",
+     "actual": "019-US2-AS1",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US2-AS1"
+     ],
+     "actual": [
+      "019-US2-AS1"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US2-AS2": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US2-AS2",
+     "actual": "v0.7.0--019-US2-AS2",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US2-AS2",
+     "actual": "019-US2-AS2",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US2-AS2"
+     ],
+     "actual": [
+      "019-US2-AS2"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US2-AS3": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US2-AS3",
+     "actual": "v0.7.0--019-US2-AS3",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US2-AS3",
+     "actual": "019-US2-AS3",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US2-AS3"
+     ],
+     "actual": [
+      "019-US2-AS3"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US2-AS4": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US2-AS4",
+     "actual": "v0.7.0--019-US2-AS4",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US2-AS4",
+     "actual": "019-US2-AS4",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US2-AS4"
+     ],
+     "actual": [
+      "019-US2-AS4"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US3-AS1": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US3-AS1",
+     "actual": "v0.7.0--019-US3-AS1",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US3-AS1",
+     "actual": "019-US3-AS1",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US3-AS1"
+     ],
+     "actual": [
+      "019-US3-AS1"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US3-AS2": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US3-AS2",
+     "actual": "v0.7.0--019-US3-AS2",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US3-AS2",
+     "actual": "019-US3-AS2",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US3-AS2"
+     ],
+     "actual": [
+      "019-US3-AS2"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US3-AS3": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US3-AS3",
+     "actual": "v0.7.0--019-US3-AS3",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US3-AS3",
+     "actual": "019-US3-AS3",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US3-AS3"
+     ],
+     "actual": [
+      "019-US3-AS3"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US3-AS4": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US3-AS4",
+     "actual": "v0.7.0--019-US3-AS4",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US3-AS4",
+     "actual": "019-US3-AS4",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US3-AS4"
+     ],
+     "actual": [
+      "019-US3-AS4"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US3-AS5": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US3-AS5",
+     "actual": "v0.7.0--019-US3-AS5",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US3-AS5",
+     "actual": "019-US3-AS5",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US3-AS5"
+     ],
+     "actual": [
+      "019-US3-AS5"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US3-AS6": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US3-AS6",
+     "actual": "v0.7.0--019-US3-AS6",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US3-AS6",
+     "actual": "019-US3-AS6",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US3-AS6"
+     ],
+     "actual": [
+      "019-US3-AS6"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US4-AS1": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US4-AS1",
+     "actual": "v0.7.0--019-US4-AS1",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US4-AS1",
+     "actual": "019-US4-AS1",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US4-AS1"
+     ],
+     "actual": [
+      "019-US4-AS1"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US4-AS2": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US4-AS2",
+     "actual": "v0.7.0--019-US4-AS2",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US4-AS2",
+     "actual": "019-US4-AS2",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US4-AS2"
+     ],
+     "actual": [
+      "019-US4-AS2"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US4-AS3": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US4-AS3",
+     "actual": "v0.7.0--019-US4-AS3",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US4-AS3",
+     "actual": "019-US4-AS3",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US4-AS3"
+     ],
+     "actual": [
+      "019-US4-AS3"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US4-AS4": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US4-AS4",
+     "actual": "v0.7.0--019-US4-AS4",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US4-AS4",
+     "actual": "019-US4-AS4",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US4-AS4"
+     ],
+     "actual": [
+      "019-US4-AS4"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US4-AS5": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US4-AS5",
+     "actual": "v0.7.0--019-US4-AS5",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US4-AS5",
+     "actual": "019-US4-AS5",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US4-AS5"
+     ],
+     "actual": [
+      "019-US4-AS5"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US4-AS6": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US4-AS6",
+     "actual": "v0.7.0--019-US4-AS6",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US4-AS6",
+     "actual": "019-US4-AS6",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US4-AS6"
+     ],
+     "actual": [
+      "019-US4-AS6"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US5-AS1": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US5-AS1",
+     "actual": "v0.7.0--019-US5-AS1",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US5-AS1",
+     "actual": "019-US5-AS1",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US5-AS1"
+     ],
+     "actual": [
+      "019-US5-AS1"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US5-AS2": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US5-AS2",
+     "actual": "v0.7.0--019-US5-AS2",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US5-AS2",
+     "actual": "019-US5-AS2",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US5-AS2"
+     ],
+     "actual": [
+      "019-US5-AS2"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US5-AS3": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US5-AS3",
+     "actual": "v0.7.0--019-US5-AS3",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US5-AS3",
+     "actual": "019-US5-AS3",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US5-AS3"
+     ],
+     "actual": [
+      "019-US5-AS3"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US6-AS1": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US6-AS1",
+     "actual": "v0.7.0--019-US6-AS1",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US6-AS1",
+     "actual": "019-US6-AS1",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US6-AS1"
+     ],
+     "actual": [
+      "019-US6-AS1"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US6-AS2": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US6-AS2",
+     "actual": "v0.7.0--019-US6-AS2",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US6-AS2",
+     "actual": "019-US6-AS2",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US6-AS2"
+     ],
+     "actual": [
+      "019-US6-AS2"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US6-AS3": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US6-AS3",
+     "actual": "v0.7.0--019-US6-AS3",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US6-AS3",
+     "actual": "019-US6-AS3",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US6-AS3"
+     ],
+     "actual": [
+      "019-US6-AS3"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US6-AS4": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行编号": {
+     "expect": "v0.7.0--019-US6-AS4",
+     "actual": "v0.7.0--019-US6-AS4",
+     "ok": true
+    },
+    "用例号": {
+     "expect": "019-US6-AS4",
+     "actual": "019-US6-AS4",
+     "ok": true
+    },
+    "用例": {
+     "expect": [
+      "019-US6-AS4"
+     ],
+     "actual": [
+      "019-US6-AS4"
+     ],
+     "ok": true
+    },
+    "执行状态": {
+     "expect": "todo",
+     "actual": "todo",
+     "ok": true
+    }
+   }
+  },
+  "ver/v0.7.0": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "测试设计": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    }
+   }
+  },
+  "ver/v0.7.0#runs": {
+   "v0.7.0--019-US1-AS1": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US1-AS2": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US1-AS3": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US1-AS4": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US2-AS1": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US2-AS2": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US2-AS3": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US2-AS4": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US3-AS1": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US3-AS2": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US3-AS3": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US3-AS4": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US3-AS5": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US3-AS6": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US4-AS1": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US4-AS2": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US4-AS3": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US4-AS4": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US4-AS5": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US4-AS6": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US5-AS1": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US5-AS2": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US5-AS3": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US6-AS1": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US6-AS2": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US6-AS3": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US6-AS4": {
+    "state": "todo"
+   }
+  },
+  "ver/v0.7.0#nodes": {
+   "版本需求设计": "done",
+   "测试设计": "done",
+   "开发": "todo",
+   "开发验收": "todo",
+   "测试": "todo",
+   "测试验收": "todo"
+  }
+ },
+ "counts": {
+  "derived_cases": 27,
+  "specs": 1,
+  "created_cases": 27,
+  "updated_cases": 0,
+  "unchanged_cases": 0,
+  "created_runs": 27,
+  "reused_runs": 0
+ },
+ "orphans": [],
+ "errors": [],
+ "role": "软件测试",
+ "node": "测试设计",
+ "stage_done": false
+}
+[assert] /path/to/tableflow/specs/024-role-skills/verify/evidence/02-test-plan-apply-1.json: data["result"]=="success" and data["counts"]["created_cases"]>0 and data["counts"]["created_runs"]>0
+
++ /path/to/tableflow/skills/tf-test-plan/scripts/tf_test_plan.py --version v0.7.0 --spec 019-AR
+{
+ "skill": "tf-test-plan",
+ "project": "tf024verify",
+ "version": "v0.7.0",
+ "mode": "apply",
+ "result": "success",
+ "checks": [
+  {
+   "name": "版本存在",
+   "ok": true,
+   "detail": "v0.7.0"
+  },
+  {
+   "name": "发布状态为 planned",
+   "ok": true,
+   "detail": "当前 planned"
+  },
+  {
+   "name": "前序节点（1 个）",
+   "ok": true,
+   "detail": "全部 done"
+  },
+  {
+   "name": "版本已关联规格",
+   "ok": true,
+   "detail": "1 份：019-AR"
+  },
+  {
+   "name": "规格 019-AR 已挂到版本",
+   "ok": true,
+   "detail": "在 ver.独立需求管理 中"
+  },
+  {
+   "name": "规格 019-AR 可派生",
+   "ok": true,
+   "detail": "6 个 User Story / 27 条 Acceptance Scenario"
+  },
+  {
+   "name": "场景号唯一",
+   "ok": true,
+   "detail": "27 条"
+  },
+  {
+   "name": "源场景无孤儿",
+   "ok": true,
+   "detail": "0"
+  },
+  {
+   "name": "用例落库可读",
+   "ok": true,
+   "detail": "27 条可读"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US1-AS1 可复用",
+   "ok": true,
+   "detail": "用例号=019-US1-AS1 用例=['019-US1-AS1'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US1-AS2 可复用",
+   "ok": true,
+   "detail": "用例号=019-US1-AS2 用例=['019-US1-AS2'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US1-AS3 可复用",
+   "ok": true,
+   "detail": "用例号=019-US1-AS3 用例=['019-US1-AS3'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US1-AS4 可复用",
+   "ok": true,
+   "detail": "用例号=019-US1-AS4 用例=['019-US1-AS4'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US2-AS1 可复用",
+   "ok": true,
+   "detail": "用例号=019-US2-AS1 用例=['019-US2-AS1'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US2-AS2 可复用",
+   "ok": true,
+   "detail": "用例号=019-US2-AS2 用例=['019-US2-AS2'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US2-AS3 可复用",
+   "ok": true,
+   "detail": "用例号=019-US2-AS3 用例=['019-US2-AS3'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US2-AS4 可复用",
+   "ok": true,
+   "detail": "用例号=019-US2-AS4 用例=['019-US2-AS4'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US3-AS1 可复用",
+   "ok": true,
+   "detail": "用例号=019-US3-AS1 用例=['019-US3-AS1'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US3-AS2 可复用",
+   "ok": true,
+   "detail": "用例号=019-US3-AS2 用例=['019-US3-AS2'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US3-AS3 可复用",
+   "ok": true,
+   "detail": "用例号=019-US3-AS3 用例=['019-US3-AS3'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US3-AS4 可复用",
+   "ok": true,
+   "detail": "用例号=019-US3-AS4 用例=['019-US3-AS4'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US3-AS5 可复用",
+   "ok": true,
+   "detail": "用例号=019-US3-AS5 用例=['019-US3-AS5'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US3-AS6 可复用",
+   "ok": true,
+   "detail": "用例号=019-US3-AS6 用例=['019-US3-AS6'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US4-AS1 可复用",
+   "ok": true,
+   "detail": "用例号=019-US4-AS1 用例=['019-US4-AS1'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US4-AS2 可复用",
+   "ok": true,
+   "detail": "用例号=019-US4-AS2 用例=['019-US4-AS2'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US4-AS3 可复用",
+   "ok": true,
+   "detail": "用例号=019-US4-AS3 用例=['019-US4-AS3'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US4-AS4 可复用",
+   "ok": true,
+   "detail": "用例号=019-US4-AS4 用例=['019-US4-AS4'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US4-AS5 可复用",
+   "ok": true,
+   "detail": "用例号=019-US4-AS5 用例=['019-US4-AS5'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US4-AS6 可复用",
+   "ok": true,
+   "detail": "用例号=019-US4-AS6 用例=['019-US4-AS6'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US5-AS1 可复用",
+   "ok": true,
+   "detail": "用例号=019-US5-AS1 用例=['019-US5-AS1'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US5-AS2 可复用",
+   "ok": true,
+   "detail": "用例号=019-US5-AS2 用例=['019-US5-AS2'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US5-AS3 可复用",
+   "ok": true,
+   "detail": "用例号=019-US5-AS3 用例=['019-US5-AS3'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US6-AS1 可复用",
+   "ok": true,
+   "detail": "用例号=019-US6-AS1 用例=['019-US6-AS1'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US6-AS2 可复用",
+   "ok": true,
+   "detail": "用例号=019-US6-AS2 用例=['019-US6-AS2'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US6-AS3 可复用",
+   "ok": true,
+   "detail": "用例号=019-US6-AS3 用例=['019-US6-AS3'] 执行状态=todo"
+  },
+  {
+   "name": "执行记录 v0.7.0--019-US6-AS4 可复用",
+   "ok": true,
+   "detail": "用例号=019-US6-AS4 用例=['019-US6-AS4'] 执行状态=todo"
+  },
+  {
+   "name": "版本执行清单已包含全部用例",
+   "ok": true,
+   "detail": "27 条已在 ver.测试用例 中"
+  },
+  {
+   "name": "读回版本执行清单",
+   "ok": true,
+   "detail": "27 条全部在清单中"
+  },
+  {
+   "name": "节点「测试设计」读回",
+   "ok": true,
+   "detail": "= done"
+  }
+ ],
+ "writes": [
+  {
+   "target": "ver/v0.7.0",
+   "field": "测试设计",
+   "value": "done",
+   "state": "success",
+   "http": 200
+  }
+ ],
+ "readback": {
+  "ver/v0.7.0#runs": {
+   "v0.7.0--019-US1-AS1": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US1-AS2": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US1-AS3": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US1-AS4": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US2-AS1": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US2-AS2": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US2-AS3": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US2-AS4": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US3-AS1": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US3-AS2": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US3-AS3": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US3-AS4": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US3-AS5": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US3-AS6": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US4-AS1": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US4-AS2": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US4-AS3": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US4-AS4": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US4-AS5": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US4-AS6": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US5-AS1": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US5-AS2": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US5-AS3": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US6-AS1": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US6-AS2": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US6-AS3": {
+    "state": "todo"
+   },
+   "v0.7.0--019-US6-AS4": {
+    "state": "todo"
+   }
+  },
+  "ver/v0.7.0": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "测试设计": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    }
+   }
+  },
+  "ver/v0.7.0#nodes": {
+   "版本需求设计": "done",
+   "测试设计": "done",
+   "开发": "todo",
+   "开发验收": "todo",
+   "测试": "todo",
+   "测试验收": "todo"
+  }
+ },
+ "counts": {
+  "derived_cases": 27,
+  "specs": 1,
+  "created_cases": 0,
+  "updated_cases": 0,
+  "unchanged_cases": 27,
+  "created_runs": 0,
+  "reused_runs": 27
+ },
+ "orphans": [],
+ "errors": [],
+ "role": "软件测试",
+ "node": "测试设计",
+ "stage_done": false
+}
+[assert] /path/to/tableflow/specs/024-role-skills/verify/evidence/02-test-plan-apply-2.json: data["result"]=="success" and data["counts"]["created_cases"]==0 and data["counts"]["created_runs"]==0 and data["readback"]["ver/v0.7.0#nodes"]["测试设计"]=="done"
+
++ /path/to/tableflow/skills/tf-dev-implement/scripts/tf_dev_implement.py --version v0.7.0 --spec 017-AR --dry-run
+{
+ "skill": "tf-dev-implement",
+ "project": "tf024verify",
+ "version": "v0.7.0",
+ "mode": "dry-run",
+ "result": "success",
+ "checks": [
+  {
+   "name": "版本存在",
+   "ok": true,
+   "detail": "v0.7.0"
+  },
+  {
+   "name": "发布状态为 planned",
+   "ok": true,
+   "detail": "当前 planned"
+  },
+  {
+   "name": "前序节点（2 个）",
+   "ok": true,
+   "detail": "全部 done"
+  },
+  {
+   "name": "版本已关联规格",
+   "ok": true,
+   "detail": "1 份：017-AR"
+  },
+  {
+   "name": "规格 017-AR 已挂到版本",
+   "ok": true,
+   "detail": "在 ver.独立需求管理 中"
+  },
+  {
+   "name": "规格 017-AR 有验收场景",
+   "ok": true,
+   "detail": "3 个 User Story / 6 条 Acceptance Scenario"
+  },
+  {
+   "name": "规格 017-AR 任务全部完成",
+   "ok": true,
+   "detail": "已勾选 6 条，未勾选 0 条"
+  },
+  {
+   "name": "读回 implement 状态",
+   "ok": true,
+   "detail": "dry-run：当前未 done 1 份，本次预计写入 1 份（未写）"
+  },
+  {
+   "name": "节点「开发」",
+   "ok": true,
+   "detail": "dry-run：未推进，只输出计划"
+  }
+ ],
+ "writes": [
+  {
+   "target": "indep/017-AR",
+   "field": "speckit-implement状态",
+   "value": "done",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "ver/v0.7.0",
+   "field": "开发",
+   "value": "done",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  }
+ ],
+ "readback": {
+  "indep#implement/v0.7.0": {
+   "017-AR": "todo"
+  },
+  "ver/v0.7.0#nodes": {
+   "版本需求设计": "done",
+   "测试设计": "done",
+   "开发": "todo",
+   "开发验收": "todo",
+   "测试": "todo",
+   "测试验收": "todo"
+  }
+ },
+ "counts": {},
+ "orphans": [],
+ "errors": [],
+ "role": "软件开发",
+ "node": "开发",
+ "stage_done": false
+}
+[assert] /path/to/tableflow/specs/024-role-skills/verify/evidence/03-dev-implement-dryrun.json: data["result"]=="success" and all(w["state"]=="skipped" for w in data["writes"])
+[024] 只读运行前后 write_audit=135（未变）
+
++ /path/to/tableflow/skills/tf-dev-implement/scripts/tf_dev_implement.py --version v0.7.0 --spec 017-AR
+{
+ "skill": "tf-dev-implement",
+ "project": "tf024verify",
+ "version": "v0.7.0",
+ "mode": "apply",
+ "result": "success",
+ "checks": [
+  {
+   "name": "版本存在",
+   "ok": true,
+   "detail": "v0.7.0"
+  },
+  {
+   "name": "发布状态为 planned",
+   "ok": true,
+   "detail": "当前 planned"
+  },
+  {
+   "name": "前序节点（2 个）",
+   "ok": true,
+   "detail": "全部 done"
+  },
+  {
+   "name": "版本已关联规格",
+   "ok": true,
+   "detail": "1 份：017-AR"
+  },
+  {
+   "name": "规格 017-AR 已挂到版本",
+   "ok": true,
+   "detail": "在 ver.独立需求管理 中"
+  },
+  {
+   "name": "规格 017-AR 有验收场景",
+   "ok": true,
+   "detail": "3 个 User Story / 6 条 Acceptance Scenario"
+  },
+  {
+   "name": "规格 017-AR 任务全部完成",
+   "ok": true,
+   "detail": "已勾选 6 条，未勾选 0 条"
+  },
+  {
+   "name": "读回 implement 状态",
+   "ok": true,
+   "detail": "1 份全部 done"
+  },
+  {
+   "name": "节点「开发」读回",
+   "ok": true,
+   "detail": "= done"
+  }
+ ],
+ "writes": [
+  {
+   "target": "indep/017-AR",
+   "field": "speckit-implement状态",
+   "value": "done",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "ver/v0.7.0",
+   "field": "开发",
+   "value": "done",
+   "state": "success",
+   "http": 200
+  }
+ ],
+ "readback": {
+  "indep/017-AR": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "speckit-implement状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    }
+   }
+  },
+  "indep#implement/v0.7.0": {
+   "017-AR": "done"
+  },
+  "ver/v0.7.0": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "开发": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    }
+   }
+  },
+  "ver/v0.7.0#nodes": {
+   "版本需求设计": "done",
+   "测试设计": "done",
+   "开发": "done",
+   "开发验收": "todo",
+   "测试": "todo",
+   "测试验收": "todo"
+  }
+ },
+ "counts": {},
+ "orphans": [],
+ "errors": [],
+ "role": "软件开发",
+ "node": "开发",
+ "stage_done": false
+}
+[assert] /path/to/tableflow/specs/024-role-skills/verify/evidence/03-dev-implement-apply.json: data["result"]=="success" and data["readback"]["indep/017-AR"]["ok"] and data["readback"]["ver/v0.7.0#nodes"]["开发"]=="done"
+
++ /path/to/tableflow/skills/tf-dev-check/scripts/tf_dev_check.py --version v0.7.0 --dry-run
+{
+ "skill": "tf-dev-check",
+ "project": "tf024verify",
+ "version": "v0.7.0",
+ "mode": "dry-run",
+ "result": "success",
+ "checks": [
+  {
+   "name": "版本存在",
+   "ok": true,
+   "detail": "v0.7.0"
+  },
+  {
+   "name": "发布状态为 planned",
+   "ok": true,
+   "detail": "当前 planned"
+  },
+  {
+   "name": "前序节点（3 个）",
+   "ok": true,
+   "detail": "全部 done"
+  },
+  {
+   "name": "版本已关联规格",
+   "ok": true,
+   "detail": "2 份：017-AR、019-AR"
+  },
+  {
+   "name": "规格 017-AR 已验收",
+   "ok": true,
+   "detail": "验收状态=accepted"
+  },
+  {
+   "name": "规格 017-AR 实现完成",
+   "ok": true,
+   "detail": "speckit-implement状态=done"
+  },
+  {
+   "name": "规格 019-AR 已验收",
+   "ok": true,
+   "detail": "验收状态=accepted"
+  },
+  {
+   "name": "规格 019-AR 实现完成",
+   "ok": true,
+   "detail": "speckit-implement状态=done"
+  },
+  {
+   "name": "节点「开发验收」",
+   "ok": true,
+   "detail": "dry-run：未推进，只输出计划"
+  }
+ ],
+ "writes": [
+  {
+   "target": "ver/v0.7.0",
+   "field": "开发验收",
+   "value": "done",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  }
+ ],
+ "readback": {
+  "indep#acceptance/v0.7.0": {
+   "017-AR": {
+    "验收状态": "accepted",
+    "speckit-implement状态": "done"
+   },
+   "019-AR": {
+    "验收状态": "accepted",
+    "speckit-implement状态": "done"
+   }
+  },
+  "ver/v0.7.0#nodes": {
+   "版本需求设计": "done",
+   "测试设计": "done",
+   "开发": "done",
+   "开发验收": "todo",
+   "测试": "todo",
+   "测试验收": "todo"
+  }
+ },
+ "counts": {},
+ "orphans": [],
+ "errors": [],
+ "role": "软件开发",
+ "node": "开发验收",
+ "stage_done": false
+}
+[assert] /path/to/tableflow/specs/024-role-skills/verify/evidence/04-dev-check-dryrun.json: data["result"]=="success" and all(w["state"]=="skipped" for w in data["writes"])
+[024] 只读运行前后 write_audit=137（未变）
+
++ /path/to/tableflow/skills/tf-dev-check/scripts/tf_dev_check.py --version v0.7.0
+{
+ "skill": "tf-dev-check",
+ "project": "tf024verify",
+ "version": "v0.7.0",
+ "mode": "apply",
+ "result": "success",
+ "checks": [
+  {
+   "name": "版本存在",
+   "ok": true,
+   "detail": "v0.7.0"
+  },
+  {
+   "name": "发布状态为 planned",
+   "ok": true,
+   "detail": "当前 planned"
+  },
+  {
+   "name": "前序节点（3 个）",
+   "ok": true,
+   "detail": "全部 done"
+  },
+  {
+   "name": "版本已关联规格",
+   "ok": true,
+   "detail": "2 份：017-AR、019-AR"
+  },
+  {
+   "name": "规格 017-AR 已验收",
+   "ok": true,
+   "detail": "验收状态=accepted"
+  },
+  {
+   "name": "规格 017-AR 实现完成",
+   "ok": true,
+   "detail": "speckit-implement状态=done"
+  },
+  {
+   "name": "规格 019-AR 已验收",
+   "ok": true,
+   "detail": "验收状态=accepted"
+  },
+  {
+   "name": "规格 019-AR 实现完成",
+   "ok": true,
+   "detail": "speckit-implement状态=done"
+  },
+  {
+   "name": "节点「开发验收」读回",
+   "ok": true,
+   "detail": "= done"
+  }
+ ],
+ "writes": [
+  {
+   "target": "ver/v0.7.0",
+   "field": "开发验收",
+   "value": "done",
+   "state": "success",
+   "http": 200
+  }
+ ],
+ "readback": {
+  "indep#acceptance/v0.7.0": {
+   "017-AR": {
+    "验收状态": "accepted",
+    "speckit-implement状态": "done"
+   },
+   "019-AR": {
+    "验收状态": "accepted",
+    "speckit-implement状态": "done"
+   }
+  },
+  "ver/v0.7.0": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "开发验收": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    }
+   }
+  },
+  "ver/v0.7.0#nodes": {
+   "版本需求设计": "done",
+   "测试设计": "done",
+   "开发": "done",
+   "开发验收": "done",
+   "测试": "todo",
+   "测试验收": "todo"
+  }
+ },
+ "counts": {},
+ "orphans": [],
+ "errors": [],
+ "role": "软件开发",
+ "node": "开发验收",
+ "stage_done": false
+}
+[assert] /path/to/tableflow/specs/024-role-skills/verify/evidence/04-dev-check-apply.json: data["result"]=="success" and data["readback"]["ver/v0.7.0#nodes"]["开发验收"]=="done"
+
++ /path/to/tableflow/skills/tf-test-implement/scripts/tf_test_implement.py --version v0.7.0 --all-pending --result pass --evidence .tmp-shots/024/ --dry-run
+{
+ "skill": "tf-test-implement",
+ "project": "tf024verify",
+ "version": "v0.7.0",
+ "mode": "dry-run",
+ "result": "success",
+ "checks": [
+  {
+   "name": "版本存在",
+   "ok": true,
+   "detail": "v0.7.0"
+  },
+  {
+   "name": "发布状态为 planned",
+   "ok": true,
+   "detail": "当前 planned"
+  },
+  {
+   "name": "前序节点（4 个）",
+   "ok": true,
+   "detail": "全部 done"
+  },
+  {
+   "name": "版本已纳入用例",
+   "ok": true,
+   "detail": "27 条执行记录"
+  },
+  {
+   "name": "全部用例已执行",
+   "ok": true,
+   "detail": "dry-run：当前待执行 27 条，本次预计执行 27 条（未写）"
+  }
+ ],
+ "writes": [
+  {
+   "target": "run/v0.7.0--019-US1-AS1",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US1-AS2",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US1-AS3",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US1-AS4",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS1",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS2",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS3",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS4",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS1",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS2",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS3",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS4",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS5",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS6",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS1",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS2",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS3",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS4",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS5",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS6",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US5-AS1",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US5-AS2",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US5-AS3",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS1",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS2",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS3",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS4",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  }
+ ],
+ "readback": {
+  "run#state/v0.7.0": {
+   "v0.7.0--019-US1-AS1": "todo",
+   "v0.7.0--019-US1-AS2": "todo",
+   "v0.7.0--019-US1-AS3": "todo",
+   "v0.7.0--019-US1-AS4": "todo",
+   "v0.7.0--019-US2-AS1": "todo",
+   "v0.7.0--019-US2-AS2": "todo",
+   "v0.7.0--019-US2-AS3": "todo",
+   "v0.7.0--019-US2-AS4": "todo",
+   "v0.7.0--019-US3-AS1": "todo",
+   "v0.7.0--019-US3-AS2": "todo",
+   "v0.7.0--019-US3-AS3": "todo",
+   "v0.7.0--019-US3-AS4": "todo",
+   "v0.7.0--019-US3-AS5": "todo",
+   "v0.7.0--019-US3-AS6": "todo",
+   "v0.7.0--019-US4-AS1": "todo",
+   "v0.7.0--019-US4-AS2": "todo",
+   "v0.7.0--019-US4-AS3": "todo",
+   "v0.7.0--019-US4-AS4": "todo",
+   "v0.7.0--019-US4-AS5": "todo",
+   "v0.7.0--019-US4-AS6": "todo",
+   "v0.7.0--019-US5-AS1": "todo",
+   "v0.7.0--019-US5-AS2": "todo",
+   "v0.7.0--019-US5-AS3": "todo",
+   "v0.7.0--019-US6-AS1": "todo",
+   "v0.7.0--019-US6-AS2": "todo",
+   "v0.7.0--019-US6-AS3": "todo",
+   "v0.7.0--019-US6-AS4": "todo"
+  },
+  "ver/v0.7.0#nodes": {
+   "版本需求设计": "done",
+   "测试设计": "done",
+   "开发": "done",
+   "开发验收": "done",
+   "测试": "todo",
+   "测试验收": "todo"
+  }
+ },
+ "counts": {
+  "executed": 27,
+  "pending": 27,
+  "runs": 27
+ },
+ "orphans": [],
+ "errors": [],
+ "role": "软件测试",
+ "node": "测试",
+ "stage_advanced": false,
+ "blocker": "仍有 27 条执行记录未执行，测试节点未推进",
+ "stage_done": false
+}
+[assert] /path/to/tableflow/specs/024-role-skills/verify/evidence/05-test-implement-dryrun.json: data["result"]=="success" and all(w["state"]=="skipped" for w in data["writes"]) and data["counts"]["pending"]>0
+[024] 只读运行前后 write_audit=138（未变）
+
++ /path/to/tableflow/skills/tf-test-implement/scripts/tf_test_implement.py --version v0.7.0 --all-pending --result pass --evidence .tmp-shots/024/ --executor agent-tf-role
+{
+ "skill": "tf-test-implement",
+ "project": "tf024verify",
+ "version": "v0.7.0",
+ "mode": "apply",
+ "result": "success",
+ "checks": [
+  {
+   "name": "版本存在",
+   "ok": true,
+   "detail": "v0.7.0"
+  },
+  {
+   "name": "发布状态为 planned",
+   "ok": true,
+   "detail": "当前 planned"
+  },
+  {
+   "name": "前序节点（4 个）",
+   "ok": true,
+   "detail": "全部 done"
+  },
+  {
+   "name": "版本已纳入用例",
+   "ok": true,
+   "detail": "27 条执行记录"
+  },
+  {
+   "name": "全部用例已执行",
+   "ok": true,
+   "detail": "27 条全部 done"
+  },
+  {
+   "name": "节点「测试」读回",
+   "ok": true,
+   "detail": "= done"
+  }
+ ],
+ "writes": [
+  {
+   "target": "run/v0.7.0--019-US1-AS1",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US1-AS2",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US1-AS3",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US1-AS4",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS1",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS2",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS3",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS4",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS1",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS2",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS3",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS4",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS5",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS6",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS1",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS2",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS3",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS4",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS5",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS6",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US5-AS1",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US5-AS2",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US5-AS3",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS1",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS2",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS3",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS4",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "success",
+   "http": 200
+  },
+  {
+   "target": "ver/v0.7.0",
+   "field": "测试",
+   "value": "done",
+   "state": "success",
+   "http": 200
+  }
+ ],
+ "readback": {
+  "run/v0.7.0--019-US1-AS1": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US1-AS2": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US1-AS3": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US1-AS4": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US2-AS1": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US2-AS2": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US2-AS3": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US2-AS4": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US3-AS1": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US3-AS2": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US3-AS3": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US3-AS4": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US3-AS5": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US3-AS6": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US4-AS1": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US4-AS2": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US4-AS3": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US4-AS4": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US4-AS5": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US4-AS6": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US5-AS1": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US5-AS2": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US5-AS3": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US6-AS1": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US6-AS2": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US6-AS3": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run/v0.7.0--019-US6-AS4": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "执行状态": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    },
+    "执行结果": {
+     "expect": "pass",
+     "actual": "pass",
+     "ok": true
+    },
+    "执行时间": {
+     "expect": "2026-11-22T18:27:10+08:00",
+     "actual": "2026-11-22T18:27:10+08:00",
+     "ok": true
+    },
+    "执行人": {
+     "expect": "agent-tf-role",
+     "actual": "agent-tf-role",
+     "ok": true
+    },
+    "证据": {
+     "expect": ".tmp-shots/024/",
+     "actual": ".tmp-shots/024/",
+     "ok": true
+    }
+   }
+  },
+  "run#state/v0.7.0": {
+   "v0.7.0--019-US1-AS1": "done",
+   "v0.7.0--019-US1-AS2": "done",
+   "v0.7.0--019-US1-AS3": "done",
+   "v0.7.0--019-US1-AS4": "done",
+   "v0.7.0--019-US2-AS1": "done",
+   "v0.7.0--019-US2-AS2": "done",
+   "v0.7.0--019-US2-AS3": "done",
+   "v0.7.0--019-US2-AS4": "done",
+   "v0.7.0--019-US3-AS1": "done",
+   "v0.7.0--019-US3-AS2": "done",
+   "v0.7.0--019-US3-AS3": "done",
+   "v0.7.0--019-US3-AS4": "done",
+   "v0.7.0--019-US3-AS5": "done",
+   "v0.7.0--019-US3-AS6": "done",
+   "v0.7.0--019-US4-AS1": "done",
+   "v0.7.0--019-US4-AS2": "done",
+   "v0.7.0--019-US4-AS3": "done",
+   "v0.7.0--019-US4-AS4": "done",
+   "v0.7.0--019-US4-AS5": "done",
+   "v0.7.0--019-US4-AS6": "done",
+   "v0.7.0--019-US5-AS1": "done",
+   "v0.7.0--019-US5-AS2": "done",
+   "v0.7.0--019-US5-AS3": "done",
+   "v0.7.0--019-US6-AS1": "done",
+   "v0.7.0--019-US6-AS2": "done",
+   "v0.7.0--019-US6-AS3": "done",
+   "v0.7.0--019-US6-AS4": "done"
+  },
+  "ver/v0.7.0": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "测试": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    }
+   }
+  },
+  "ver/v0.7.0#nodes": {
+   "版本需求设计": "done",
+   "测试设计": "done",
+   "开发": "done",
+   "开发验收": "done",
+   "测试": "done",
+   "测试验收": "todo"
+  }
+ },
+ "counts": {
+  "executed": 27,
+  "pending": 0,
+  "runs": 27
+ },
+ "orphans": [],
+ "errors": [],
+ "role": "软件测试",
+ "node": "测试",
+ "stage_done": false
+}
+[assert] /path/to/tableflow/specs/024-role-skills/verify/evidence/05-test-implement-apply.json: data["result"]=="success" and data["counts"]["pending"]==0 and data["readback"]["ver/v0.7.0#nodes"]["测试"]=="done"
+
++ /path/to/tableflow/skills/tf-test-check/scripts/tf_test_check.py --version v0.7.0 --dry-run
+{
+ "skill": "tf-test-check",
+ "project": "tf024verify",
+ "version": "v0.7.0",
+ "mode": "dry-run",
+ "result": "success",
+ "checks": [
+  {
+   "name": "版本存在",
+   "ok": true,
+   "detail": "v0.7.0"
+  },
+  {
+   "name": "发布状态为 planned",
+   "ok": true,
+   "detail": "当前 planned"
+  },
+  {
+   "name": "前序节点（5 个）",
+   "ok": true,
+   "detail": "全部 done"
+  },
+  {
+   "name": "用例全部执行",
+   "ok": true,
+   "detail": "27 条全部 done"
+  },
+  {
+   "name": "变更回归全部通过",
+   "ok": true,
+   "detail": "0 条全部 passed（空集为真）"
+  },
+  {
+   "name": "本版 Bug 全部关闭",
+   "ok": true,
+   "detail": "0 条全部 closed（空集为真）"
+  },
+  {
+   "name": "节点「测试验收」",
+   "ok": true,
+   "detail": "dry-run：未推进，只输出计划"
+  }
+ ],
+ "writes": [
+  {
+   "target": "ver/v0.7.0",
+   "field": "测试验收",
+   "value": "done",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  }
+ ],
+ "readback": {
+  "run#state/v0.7.0": {
+   "v0.7.0--019-US1-AS1": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US1-AS2": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US1-AS3": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US1-AS4": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US2-AS1": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US2-AS2": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US2-AS3": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US2-AS4": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US3-AS1": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US3-AS2": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US3-AS3": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US3-AS4": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US3-AS5": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US3-AS6": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US4-AS1": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US4-AS2": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US4-AS3": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US4-AS4": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US4-AS5": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US4-AS6": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US5-AS1": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US5-AS2": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US5-AS3": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US6-AS1": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US6-AS2": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US6-AS3": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US6-AS4": {
+    "执行状态": "done"
+   }
+  },
+  "dep#regress/v0.7.0": {},
+  "bug#status/v0.7.0": {},
+  "ver/v0.7.0#nodes": {
+   "版本需求设计": "done",
+   "测试设计": "done",
+   "开发": "done",
+   "开发验收": "done",
+   "测试": "done",
+   "测试验收": "todo"
+  }
+ },
+ "counts": {},
+ "orphans": [],
+ "errors": [],
+ "role": "软件测试",
+ "node": "测试验收",
+ "stage_done": false,
+ "gate": {
+  "stage_done": false,
+  "board_stage_done": null,
+  "board_gate": null
+ }
+}
+[assert] /path/to/tableflow/specs/024-role-skills/verify/evidence/06-test-check-dryrun.json: data["result"]=="success" and all(w["state"]=="skipped" for w in data["writes"])
+[024] 只读运行前后 write_audit=166（未变）
+
++ /path/to/tableflow/skills/tf-test-check/scripts/tf_test_check.py --version v0.7.0
+{
+ "skill": "tf-test-check",
+ "project": "tf024verify",
+ "version": "v0.7.0",
+ "mode": "apply",
+ "result": "success",
+ "checks": [
+  {
+   "name": "版本存在",
+   "ok": true,
+   "detail": "v0.7.0"
+  },
+  {
+   "name": "发布状态为 planned",
+   "ok": true,
+   "detail": "当前 planned"
+  },
+  {
+   "name": "前序节点（5 个）",
+   "ok": true,
+   "detail": "全部 done"
+  },
+  {
+   "name": "用例全部执行",
+   "ok": true,
+   "detail": "27 条全部 done"
+  },
+  {
+   "name": "变更回归全部通过",
+   "ok": true,
+   "detail": "0 条全部 passed（空集为真）"
+  },
+  {
+   "name": "本版 Bug 全部关闭",
+   "ok": true,
+   "detail": "0 条全部 closed（空集为真）"
+  },
+  {
+   "name": "节点「测试验收」读回",
+   "ok": true,
+   "detail": "= done"
+  }
+ ],
+ "writes": [
+  {
+   "target": "ver/v0.7.0",
+   "field": "测试验收",
+   "value": "done",
+   "state": "success",
+   "http": 200
+  }
+ ],
+ "readback": {
+  "run#state/v0.7.0": {
+   "v0.7.0--019-US1-AS1": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US1-AS2": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US1-AS3": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US1-AS4": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US2-AS1": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US2-AS2": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US2-AS3": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US2-AS4": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US3-AS1": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US3-AS2": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US3-AS3": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US3-AS4": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US3-AS5": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US3-AS6": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US4-AS1": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US4-AS2": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US4-AS3": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US4-AS4": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US4-AS5": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US4-AS6": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US5-AS1": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US5-AS2": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US5-AS3": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US6-AS1": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US6-AS2": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US6-AS3": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US6-AS4": {
+    "执行状态": "done"
+   }
+  },
+  "dep#regress/v0.7.0": {},
+  "bug#status/v0.7.0": {},
+  "ver/v0.7.0": {
+   "ok": true,
+   "unknown": false,
+   "fields": {
+    "测试验收": {
+     "expect": "done",
+     "actual": "done",
+     "ok": true
+    }
+   }
+  },
+  "ver/v0.7.0#nodes": {
+   "版本需求设计": "done",
+   "测试设计": "done",
+   "开发": "done",
+   "开发验收": "done",
+   "测试": "done",
+   "测试验收": "done"
+  }
+ },
+ "counts": {},
+ "orphans": [],
+ "errors": [],
+ "role": "软件测试",
+ "node": "测试验收",
+ "stage_done": true,
+ "gate": {
+  "stage_done": true,
+  "board_stage_done": null,
+  "board_gate": null
+ }
+}
+[assert] /path/to/tableflow/specs/024-role-skills/verify/evidence/06-test-check-apply.json: data["result"]=="success" and data["gate"]["stage_done"] is True and all(v=="done" for v in data["readback"]["ver/v0.7.0#nodes"].values())
+{
+ "ok": true,
+ "skills": {
+  "00-protocol-check.json": {
+   "skill": "024-common-protocol",
+   "mode": null,
+   "result": "success",
+   "counts": {},
+   "writes": 0,
+   "skipped_writes": 0
+  },
+  "01-dev-plan-apply.json": {
+   "skill": "tf-dev-plan",
+   "mode": "apply",
+   "result": "success",
+   "counts": {
+    "specs": 2,
+    "changes": 0
+   },
+   "writes": 1,
+   "skipped_writes": 0
+  },
+  "01-dev-plan-dryrun.json": {
+   "skill": "tf-dev-plan",
+   "mode": "dry-run",
+   "result": "success",
+   "counts": {
+    "specs": 2,
+    "changes": 0
+   },
+   "writes": 1,
+   "skipped_writes": 1
+  },
+  "02-test-plan-apply-1.json": {
+   "skill": "tf-test-plan",
+   "mode": "apply",
+   "result": "success",
+   "counts": {
+    "derived_cases": 27,
+    "specs": 1,
+    "created_cases": 27,
+    "updated_cases": 0,
+    "unchanged_cases": 0,
+    "created_runs": 27,
+    "reused_runs": 0
+   },
+   "writes": 56,
+   "skipped_writes": 0
+  },
+  "02-test-plan-apply-2.json": {
+   "skill": "tf-test-plan",
+   "mode": "apply",
+   "result": "success",
+   "counts": {
+    "derived_cases": 27,
+    "specs": 1,
+    "created_cases": 0,
+    "updated_cases": 0,
+    "unchanged_cases": 27,
+    "created_runs": 0,
+    "reused_runs": 27
+   },
+   "writes": 1,
+   "skipped_writes": 0
+  },
+  "02-test-plan-dryrun.json": {
+   "skill": "tf-test-plan",
+   "mode": "dry-run",
+   "result": "success",
+   "counts": {
+    "derived_cases": 27,
+    "specs": 1,
+    "created_cases": 27,
+    "updated_cases": 0,
+    "unchanged_cases": 0,
+    "created_runs": 27,
+    "reused_runs": 0
+   },
+   "writes": 56,
+   "skipped_writes": 56
+  },
+  "03-dev-implement-apply.json": {
+   "skill": "tf-dev-implement",
+   "mode": "apply",
+   "result": "success",
+   "counts": {},
+   "writes": 2,
+   "skipped_writes": 0
+  },
+  "03-dev-implement-dryrun.json": {
+   "skill": "tf-dev-implement",
+   "mode": "dry-run",
+   "result": "success",
+   "counts": {},
+   "writes": 2,
+   "skipped_writes": 2
+  },
+  "04-dev-check-apply.json": {
+   "skill": "tf-dev-check",
+   "mode": "apply",
+   "result": "success",
+   "counts": {},
+   "writes": 1,
+   "skipped_writes": 0
+  },
+  "04-dev-check-dryrun.json": {
+   "skill": "tf-dev-check",
+   "mode": "dry-run",
+   "result": "success",
+   "counts": {},
+   "writes": 1,
+   "skipped_writes": 1
+  },
+  "05-test-implement-apply.json": {
+   "skill": "tf-test-implement",
+   "mode": "apply",
+   "result": "success",
+   "counts": {
+    "executed": 27,
+    "pending": 0,
+    "runs": 27
+   },
+   "writes": 28,
+   "skipped_writes": 0
+  },
+  "05-test-implement-dryrun.json": {
+   "skill": "tf-test-implement",
+   "mode": "dry-run",
+   "result": "success",
+   "counts": {
+    "executed": 27,
+    "pending": 27,
+    "runs": 27
+   },
+   "writes": 27,
+   "skipped_writes": 27
+  },
+  "06-test-check-apply.json": {
+   "skill": "tf-test-check",
+   "mode": "apply",
+   "result": "success",
+   "counts": {},
+   "writes": 1,
+   "skipped_writes": 0
+  },
+  "06-test-check-dryrun.json": {
+   "skill": "tf-test-check",
+   "mode": "dry-run",
+   "result": "success",
+   "counts": {},
+   "writes": 1,
+   "skipped_writes": 1
+  }
+ },
+ "common_sha256": {
+  "tf-dev-plan": "c2a27856a14ab768657ec038a0452a923b4bad6eb1ca9a075a1789fa7660d7d9",
+  "tf-test-plan": "c2a27856a14ab768657ec038a0452a923b4bad6eb1ca9a075a1789fa7660d7d9",
+  "tf-dev-implement": "c2a27856a14ab768657ec038a0452a923b4bad6eb1ca9a075a1789fa7660d7d9",
+  "tf-dev-check": "c2a27856a14ab768657ec038a0452a923b4bad6eb1ca9a075a1789fa7660d7d9",
+  "tf-test-implement": "c2a27856a14ab768657ec038a0452a923b4bad6eb1ca9a075a1789fa7660d7d9",
+  "tf-test-check": "c2a27856a14ab768657ec038a0452a923b4bad6eb1ca9a075a1789fa7660d7d9"
+ },
+ "checks": {
+  "six_skills_readonly_ok": true,
+  "second_derive_zero": true,
+  "six_nodes_done": true
+ }
+}
+
+[024] OK：六个技能只读运行通过；tf-test-plan 第二次派生新建 0 条；六节点全部 done。

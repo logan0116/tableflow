@@ -1,0 +1,276 @@
+{
+ "skill": "tf-test-implement",
+ "project": "tf024verify",
+ "version": "v0.7.0",
+ "mode": "dry-run",
+ "result": "success",
+ "checks": [
+  {
+   "name": "版本存在",
+   "ok": true,
+   "detail": "v0.7.0"
+  },
+  {
+   "name": "发布状态为 planned",
+   "ok": true,
+   "detail": "当前 planned"
+  },
+  {
+   "name": "前序节点（4 个）",
+   "ok": true,
+   "detail": "全部 done"
+  },
+  {
+   "name": "版本已纳入用例",
+   "ok": true,
+   "detail": "27 条执行记录"
+  },
+  {
+   "name": "全部用例已执行",
+   "ok": true,
+   "detail": "dry-run：当前待执行 27 条，本次预计执行 27 条（未写）"
+  }
+ ],
+ "writes": [
+  {
+   "target": "run/v0.7.0--019-US1-AS1",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US1-AS2",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US1-AS3",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US1-AS4",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS1",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS2",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS3",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS4",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS1",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS2",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS3",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS4",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS5",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS6",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS1",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS2",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS3",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS4",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS5",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS6",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US5-AS1",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US5-AS2",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US5-AS3",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS1",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS2",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS3",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS4",
+   "field": "执行状态/执行结果",
+   "value": "done/pass",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  }
+ ],
+ "readback": {
+  "run#state/v0.7.0": {
+   "v0.7.0--019-US1-AS1": "todo",
+   "v0.7.0--019-US1-AS2": "todo",
+   "v0.7.0--019-US1-AS3": "todo",
+   "v0.7.0--019-US1-AS4": "todo",
+   "v0.7.0--019-US2-AS1": "todo",
+   "v0.7.0--019-US2-AS2": "todo",
+   "v0.7.0--019-US2-AS3": "todo",
+   "v0.7.0--019-US2-AS4": "todo",
+   "v0.7.0--019-US3-AS1": "todo",
+   "v0.7.0--019-US3-AS2": "todo",
+   "v0.7.0--019-US3-AS3": "todo",
+   "v0.7.0--019-US3-AS4": "todo",
+   "v0.7.0--019-US3-AS5": "todo",
+   "v0.7.0--019-US3-AS6": "todo",
+   "v0.7.0--019-US4-AS1": "todo",
+   "v0.7.0--019-US4-AS2": "todo",
+   "v0.7.0--019-US4-AS3": "todo",
+   "v0.7.0--019-US4-AS4": "todo",
+   "v0.7.0--019-US4-AS5": "todo",
+   "v0.7.0--019-US4-AS6": "todo",
+   "v0.7.0--019-US5-AS1": "todo",
+   "v0.7.0--019-US5-AS2": "todo",
+   "v0.7.0--019-US5-AS3": "todo",
+   "v0.7.0--019-US6-AS1": "todo",
+   "v0.7.0--019-US6-AS2": "todo",
+   "v0.7.0--019-US6-AS3": "todo",
+   "v0.7.0--019-US6-AS4": "todo"
+  },
+  "ver/v0.7.0#nodes": {
+   "版本需求设计": "done",
+   "测试设计": "done",
+   "开发": "done",
+   "开发验收": "done",
+   "测试": "todo",
+   "测试验收": "todo"
+  }
+ },
+ "counts": {
+  "executed": 27,
+  "pending": 27,
+  "runs": 27
+ },
+ "orphans": [],
+ "errors": [],
+ "role": "软件测试",
+ "node": "测试",
+ "stage_advanced": false,
+ "blocker": "仍有 27 条执行记录未执行，测试节点未推进",
+ "stage_done": false
+}

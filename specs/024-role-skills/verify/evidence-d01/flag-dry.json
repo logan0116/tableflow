@@ -1,0 +1,161 @@
+{
+ "skill": "tf-test-check",
+ "project": "tf024verify",
+ "version": "v0.7.0",
+ "mode": "dry-run",
+ "result": "success",
+ "checks": [
+  {
+   "name": "版本存在",
+   "ok": true,
+   "detail": "v0.7.0"
+  },
+  {
+   "name": "发布状态为 planned",
+   "ok": true,
+   "detail": "当前 planned"
+  },
+  {
+   "name": "前序节点（5 个）",
+   "ok": true,
+   "detail": "全部 done"
+  },
+  {
+   "name": "用例全部执行",
+   "ok": true,
+   "detail": "27 条全部 done"
+  },
+  {
+   "name": "变更回归全部通过",
+   "ok": true,
+   "detail": "0 条全部 passed（空集为真）"
+  },
+  {
+   "name": "本版 Bug 全部关闭",
+   "ok": true,
+   "detail": "0 条全部 closed（空集为真）"
+  },
+  {
+   "name": "节点「测试验收」",
+   "ok": true,
+   "detail": "dry-run：未推进，只输出计划"
+  }
+ ],
+ "writes": [
+  {
+   "target": "ver/v0.7.0",
+   "field": "测试验收",
+   "value": "done",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  }
+ ],
+ "readback": {
+  "run#state/v0.7.0": {
+   "v0.7.0--019-US1-AS1": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US1-AS2": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US1-AS3": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US1-AS4": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US2-AS1": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US2-AS2": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US2-AS3": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US2-AS4": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US3-AS1": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US3-AS2": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US3-AS3": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US3-AS4": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US3-AS5": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US3-AS6": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US4-AS1": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US4-AS2": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US4-AS3": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US4-AS4": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US4-AS5": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US4-AS6": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US5-AS1": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US5-AS2": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US5-AS3": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US6-AS1": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US6-AS2": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US6-AS3": {
+    "执行状态": "done"
+   },
+   "v0.7.0--019-US6-AS4": {
+    "执行状态": "done"
+   }
+  },
+  "dep#regress/v0.7.0": {},
+  "bug#status/v0.7.0": {},
+  "ver/v0.7.0#nodes": {
+   "版本需求设计": "done",
+   "测试设计": "done",
+   "开发": "done",
+   "开发验收": "done",
+   "测试": "done",
+   "测试验收": "done"
+  }
+ },
+ "counts": {},
+ "orphans": [],
+ "errors": [],
+ "apply": true,
+ "apply_ignored_by": "dry-run",
+ "role": "软件测试",
+ "node": "测试验收",
+ "stage_done": true,
+ "gate": {
+  "stage_done": true,
+  "board_stage_done": null,
+  "board_gate": null
+ }
+}

@@ -1,0 +1,593 @@
+{
+ "skill": "tf-test-plan",
+ "project": "tf024verify",
+ "version": "v0.7.0",
+ "mode": "dry-run",
+ "result": "success",
+ "checks": [
+  {
+   "name": "版本存在",
+   "ok": true,
+   "detail": "v0.7.0"
+  },
+  {
+   "name": "发布状态为 planned",
+   "ok": true,
+   "detail": "当前 planned"
+  },
+  {
+   "name": "前序节点（1 个）",
+   "ok": true,
+   "detail": "全部 done"
+  },
+  {
+   "name": "版本已关联规格",
+   "ok": true,
+   "detail": "1 份：019-AR"
+  },
+  {
+   "name": "规格 019-AR 已挂到版本",
+   "ok": true,
+   "detail": "在 ver.独立需求管理 中"
+  },
+  {
+   "name": "规格 019-AR 可派生",
+   "ok": true,
+   "detail": "6 个 User Story / 27 条 Acceptance Scenario"
+  },
+  {
+   "name": "场景号唯一",
+   "ok": true,
+   "detail": "27 条"
+  },
+  {
+   "name": "源场景无孤儿",
+   "ok": true,
+   "detail": "0"
+  },
+  {
+   "name": "用例落库可读",
+   "ok": true,
+   "detail": "dry-run：已存在 0 条，预计新建 27 条（未写）"
+  },
+  {
+   "name": "读回版本执行清单",
+   "ok": true,
+   "detail": "dry-run：清单当前 0 条，预计追加 27 条（未写）"
+  },
+  {
+   "name": "节点「测试设计」",
+   "ok": true,
+   "detail": "dry-run：未推进，只输出计划"
+  }
+ ],
+ "writes": [
+  {
+   "target": "case/019-US1-AS1",
+   "field": "<create>",
+   "value": "存在 `ver`/`indep`/`dep`/`case`/`run`/`bug` 六张表，每张表的字段数、字段名、类型、顺序与契约一致。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US1-AS2",
+   "field": "<create>",
+   "value": "得到 8 条边（ver→indep/dep/bug/run、run→case、case→indep、dep→indep、bug→indep），且任何一对表之间只",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US1-AS3",
+   "field": "<create>",
+   "value": "其 kind 为 `detail`，不进表导航，但仍可经接口按 id 读取单行。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US1-AS4",
+   "field": "<create>",
+   "value": "每条都匹配 `<规格号>-US<n>-AS<m>`，且能解析出对应的规格编号并在 `indep` 表中找到该行。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US2-AS1",
+   "field": "<create>",
+   "value": "生成 N 条用例，行 id 即场景号（如 `008-US1-AS1`），且每条 `case.indep` 指向来源规格。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US2-AS2",
+   "field": "<create>",
+   "value": "新建 0 条；名称或步骤有变化的用例就地更新，其余不变。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US2-AS3",
+   "field": "<create>",
+   "value": "报告该用例「源场景已不存在」，不静默保留、也不无提示删除。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US2-AS4",
+   "field": "<create>",
+   "value": "各版本的执行记录不受影响（记录只引用用例 id，不复制用例内容）。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US3-AS1",
+   "field": "<create>",
+   "value": "生成一条 `run` 行（`state=todo`、`result` 为空）并把其 id 追加到 `ver.runs`；回读版本行能查到该执行记录。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US3-AS2",
+   "field": "<create>",
+   "value": "用例总数为 10、已完成用例数为 4、用例是否完成为假。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US3-AS3",
+   "field": "<create>",
+   "value": "已完成用例数为 10、用例是否完成为真；任一条 `result=fail` 不改变这三个字段。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US3-AS4",
+   "field": "<create>",
+   "value": "返回 400，且该行两个字段读回均不变。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US3-AS5",
+   "field": "<create>",
+   "value": "用例总数为 0、已完成用例数为 0、用例是否完成为真（空集语义）。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US3-AS6",
+   "field": "<create>",
+   "value": "返回 400 或就地复用该行，不产生第二条记录。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US4-AS1",
+   "field": "<create>",
+   "value": "返回 400，错误信息指出前序节点未完成。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US4-AS2",
+   "field": "<create>",
+   "value": "返回 400，指出用例未执行完。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US4-AS3",
+   "field": "<create>",
+   "value": "返回 400，指出缺陷未清零。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US4-AS4",
+   "field": "<create>",
+   "value": "返回 400。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US4-AS5",
+   "field": "<create>",
+   "value": "返回 400；把失败节点改回 `doing` 后重新置 `done`，才允许继续。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US4-AS6",
+   "field": "<create>",
+   "value": "两者均为真；任一节点退回非 `done`，两者转假。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US5-AS1",
+   "field": "<create>",
+   "value": "新增 `case`/`run` 两表与版本表十一个字段（六个节点、六节点汇总、测试用例关联、用例总数、已完成用例数、用例是否完成），四张老表的行数与字段值完全不",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US5-AS2",
+   "field": "<create>",
+   "value": "其六节点均为 `done`，`gate` 仍为真；`planned` 版本的六节点为 `todo`。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US5-AS3",
+   "field": "<create>",
+   "value": "不重复建表、不覆盖已有行，最终状态与一次成功相同。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US6-AS1",
+   "field": "<create>",
+   "value": "六表字段名/类型/顺序、relation 的显示列与状态列、闸门标记差异均为 0。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US6-AS2",
+   "field": "<create>",
+   "value": "失败并指出缺失的表。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US6-AS3",
+   "field": "<create>",
+   "value": "失败并逐字段列出差异。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "case/019-US6-AS4",
+   "field": "<create>",
+   "value": "差异为 0。",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US1-AS1",
+   "field": "<create>",
+   "value": "019-US1-AS1",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US1-AS2",
+   "field": "<create>",
+   "value": "019-US1-AS2",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US1-AS3",
+   "field": "<create>",
+   "value": "019-US1-AS3",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US1-AS4",
+   "field": "<create>",
+   "value": "019-US1-AS4",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS1",
+   "field": "<create>",
+   "value": "019-US2-AS1",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS2",
+   "field": "<create>",
+   "value": "019-US2-AS2",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS3",
+   "field": "<create>",
+   "value": "019-US2-AS3",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US2-AS4",
+   "field": "<create>",
+   "value": "019-US2-AS4",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS1",
+   "field": "<create>",
+   "value": "019-US3-AS1",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS2",
+   "field": "<create>",
+   "value": "019-US3-AS2",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS3",
+   "field": "<create>",
+   "value": "019-US3-AS3",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS4",
+   "field": "<create>",
+   "value": "019-US3-AS4",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS5",
+   "field": "<create>",
+   "value": "019-US3-AS5",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US3-AS6",
+   "field": "<create>",
+   "value": "019-US3-AS6",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS1",
+   "field": "<create>",
+   "value": "019-US4-AS1",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS2",
+   "field": "<create>",
+   "value": "019-US4-AS2",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS3",
+   "field": "<create>",
+   "value": "019-US4-AS3",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS4",
+   "field": "<create>",
+   "value": "019-US4-AS4",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS5",
+   "field": "<create>",
+   "value": "019-US4-AS5",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US4-AS6",
+   "field": "<create>",
+   "value": "019-US4-AS6",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US5-AS1",
+   "field": "<create>",
+   "value": "019-US5-AS1",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US5-AS2",
+   "field": "<create>",
+   "value": "019-US5-AS2",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US5-AS3",
+   "field": "<create>",
+   "value": "019-US5-AS3",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS1",
+   "field": "<create>",
+   "value": "019-US6-AS1",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS2",
+   "field": "<create>",
+   "value": "019-US6-AS2",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS3",
+   "field": "<create>",
+   "value": "019-US6-AS3",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "run/v0.7.0--019-US6-AS4",
+   "field": "<create>",
+   "value": "019-US6-AS4",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "ver/v0.7.0",
+   "field": "测试用例",
+   "value": [
+    "v0.7.0--019-US1-AS1",
+    "v0.7.0--019-US1-AS2",
+    "v0.7.0--019-US1-AS3",
+    "v0.7.0--019-US1-AS4",
+    "v0.7.0--019-US2-AS1",
+    "v0.7.0--019-US2-AS2",
+    "v0.7.0--019-US2-AS3",
+    "v0.7.0--019-US2-AS4",
+    "v0.7.0--019-US3-AS1",
+    "v0.7.0--019-US3-AS2",
+    "v0.7.0--019-US3-AS3",
+    "v0.7.0--019-US3-AS4",
+    "v0.7.0--019-US3-AS5",
+    "v0.7.0--019-US3-AS6",
+    "v0.7.0--019-US4-AS1",
+    "v0.7.0--019-US4-AS2",
+    "v0.7.0--019-US4-AS3",
+    "v0.7.0--019-US4-AS4",
+    "v0.7.0--019-US4-AS5",
+    "v0.7.0--019-US4-AS6",
+    "v0.7.0--019-US5-AS1",
+    "v0.7.0--019-US5-AS2",
+    "v0.7.0--019-US5-AS3",
+    "v0.7.0--019-US6-AS1",
+    "v0.7.0--019-US6-AS2",
+    "v0.7.0--019-US6-AS3",
+    "v0.7.0--019-US6-AS4"
+   ],
+   "state": "skipped",
+   "error": "dry-run：未写"
+  },
+  {
+   "target": "ver/v0.7.0",
+   "field": "测试设计",
+   "value": "done",
+   "state": "skipped",
+   "error": "dry-run：未写"
+  }
+ ],
+ "readback": {
+  "ver/v0.7.0#runs": {
+   "v0.7.0--019-US1-AS1": {
+    "state": null
+   },
+   "v0.7.0--019-US1-AS2": {
+    "state": null
+   },
+   "v0.7.0--019-US1-AS3": {
+    "state": null
+   },
+   "v0.7.0--019-US1-AS4": {
+    "state": null
+   },
+   "v0.7.0--019-US2-AS1": {
+    "state": null
+   },
+   "v0.7.0--019-US2-AS2": {
+    "state": null
+   },
+   "v0.7.0--019-US2-AS3": {
+    "state": null
+   },
+   "v0.7.0--019-US2-AS4": {
+    "state": null
+   },
+   "v0.7.0--019-US3-AS1": {
+    "state": null
+   },
+   "v0.7.0--019-US3-AS2": {
+    "state": null
+   },
+   "v0.7.0--019-US3-AS3": {
+    "state": null
+   },
+   "v0.7.0--019-US3-AS4": {
+    "state": null
+   },
+   "v0.7.0--019-US3-AS5": {
+    "state": null
+   },
+   "v0.7.0--019-US3-AS6": {
+    "state": null
+   },
+   "v0.7.0--019-US4-AS1": {
+    "state": null
+   },
+   "v0.7.0--019-US4-AS2": {
+    "state": null
+   },
+   "v0.7.0--019-US4-AS3": {
+    "state": null
+   },
+   "v0.7.0--019-US4-AS4": {
+    "state": null
+   },
+   "v0.7.0--019-US4-AS5": {
+    "state": null
+   },
+   "v0.7.0--019-US4-AS6": {
+    "state": null
+   },
+   "v0.7.0--019-US5-AS1": {
+    "state": null
+   },
+   "v0.7.0--019-US5-AS2": {
+    "state": null
+   },
+   "v0.7.0--019-US5-AS3": {
+    "state": null
+   },
+   "v0.7.0--019-US6-AS1": {
+    "state": null
+   },
+   "v0.7.0--019-US6-AS2": {
+    "state": null
+   },
+   "v0.7.0--019-US6-AS3": {
+    "state": null
+   },
+   "v0.7.0--019-US6-AS4": {
+    "state": null
+   }
+  },
+  "ver/v0.7.0#nodes": {
+   "版本需求设计": "done",
+   "测试设计": "todo",
+   "开发": "todo",
+   "开发验收": "todo",
+   "测试": "todo",
+   "测试验收": "todo"
+  }
+ },
+ "counts": {
+  "derived_cases": 27,
+  "specs": 1,
+  "created_cases": 27,
+  "updated_cases": 0,
+  "unchanged_cases": 0,
+  "created_runs": 27,
+  "reused_runs": 0
+ },
+ "orphans": [],
+ "errors": [],
+ "role": "软件测试",
+ "node": "测试设计",
+ "stage_done": false
+}
