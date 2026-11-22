@@ -4,7 +4,7 @@
     system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB",
     "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
   color: #1f2328;
-  background: #f6f7f9;
+  background: var(--page-bg);
 
   --color-text: #1f2328;
   --color-muted: #656d76;
@@ -19,13 +19,129 @@
   --color-accent: #0969da;
   --color-danger: #cf222e;
 
+  /* 角色色（022）：只作用于通栏、角色徽章、当前表/项目高亮与页面底色，
+     不参与表格结构色；切换角色只换这组变量，不动 --color-border 等令牌。 */
+  --role-accent: #57606a;
+  --role-accent-deep: #24292f;
+  --role-accent-weak: #eef1f4;
+  --page-bg: #f6f7f9;
+  --rolebar-height: 42px;
+
   --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 8px rgba(15, 23, 42, 0.04);
   --shadow-modal: 0 16px 48px rgba(15, 23, 42, 0.22);
   --radius-card: 10px;
 }
 
+/* 四个角色的色板：白字对 accent 分别 6.70 / 5.08 / 4.87 / 6.39:1，
+   deep 字对 weak 底 ≥6.27:1；全部 ≥ AA 的 4.5:1。 */
+html[data-role="systems"] {
+  --role-accent: #0b5cab;
+  --role-accent-deep: #08407a;
+  --role-accent-weak: #ddf4ff;
+  --page-bg: #f7fbff;
+}
+
+html[data-role="dev"] {
+  --role-accent: #1a7f37;
+  --role-accent-deep: #0f5323;
+  --role-accent-weak: #dafbe1;
+  --page-bg: #f7fdf9;
+}
+
+html[data-role="test"] {
+  --role-accent: #9a6700;
+  --role-accent-deep: #7d5300;
+  --role-accent-weak: #fff6de;
+  --page-bg: #fdfbf4;
+}
+
+html[data-role="all"] {
+  --role-accent: #57606a;
+  --role-accent-deep: #24292f;
+  --role-accent-weak: #eef1f4;
+  --page-bg: #f6f7f9;
+}
+
 body {
   margin: 0;
+}
+
+/* ---------- 顶部角色通栏（022 方案 C） ---------- */
+
+.role-bar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 14px;
+  height: var(--rolebar-height);
+  padding: 0 18px;
+  background: var(--role-accent);
+  color: #ffffff;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
+}
+
+.role-bar-current {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-right: auto;
+  font-size: 13px;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
+.role-bar-current b {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  opacity: 1;
+}
+
+.role-bar-hint {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.role-switch {
+  display: flex;
+  padding: 2px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.role-switch button {
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.82);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.role-switch button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.role-switch button[aria-pressed="true"] {
+  background: #ffffff;
+  color: var(--role-accent-deep);
+  font-weight: 700;
+}
+
+.role-switch button[aria-pressed="true"]:hover {
+  background: #ffffff;
+}
+
+.role-switch button:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
 }
 
 /* ---------- 两栏骨架：左侧项目导航 + 右侧内容 ---------- */
@@ -33,15 +149,16 @@ body {
 .app-shell {
   display: grid;
   grid-template-columns: 216px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   align-items: start;
   min-height: 100vh;
 }
 
 .sidebar {
   position: sticky;
-  top: 0;
+  top: var(--rolebar-height);
   box-sizing: border-box;
-  height: 100vh;
+  height: calc(100vh - var(--rolebar-height));
   padding: 18px 10px 24px;
   overflow-y: auto;
   border-right: 1px solid var(--color-border-soft);
@@ -113,8 +230,8 @@ body {
 }
 
 .project-nav button[aria-current="page"] {
-  background: #eef6ff;
-  color: var(--color-accent);
+  background: var(--role-accent-weak);
+  color: var(--role-accent-deep);
   font-weight: 600;
 }
 
@@ -124,6 +241,22 @@ h1 {
   font-weight: 600;
   line-height: 28px;
   min-width: 0;
+}
+
+/* 页头角色徽章：弱底 + 深字，和顶部通栏同一个角色色，不抢标题。 */
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 8px;
+  padding: 1px 8px;
+  border: 1px solid var(--role-accent);
+  border-radius: 999px;
+  background: var(--role-accent-weak);
+  color: var(--role-accent-deep);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  vertical-align: 2px;
 }
 
 /* ---------- 页头：项目 › 表 + 行数 ---------- */
@@ -231,8 +364,8 @@ h1 {
 }
 
 .tabs button[aria-selected="true"] {
-  border-bottom-color: var(--color-accent);
-  color: var(--color-accent);
+  border-bottom-color: var(--role-accent);
+  color: var(--role-accent-deep);
 }
 
 button {

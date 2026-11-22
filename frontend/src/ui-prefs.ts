@@ -1,16 +1,20 @@
 /**
- * UI 偏好的本地存储：只存列宽与行密度，不存任何业务数据。
+ * UI 偏好的本地存储：只存列宽、行密度与当前角色，不存任何业务数据。
  *
  * - `tableflow.ui.columnWidths.v1`：`{ [tableId]: { [fieldId]: px } }`
  * - `tableflow.ui.density.v1`：`"comfortable" | "compact"`
+ * - `tableflow.ui.role.v1`：`"systems" | "dev" | "test" | "all"`
  *
  * localStorage 不可用、内容损坏、越界或超限时一律静默降级，绝不阻塞渲染。
  */
+
+import { DEFAULT_ROLE, isRoleId, type RoleId } from "./roles";
 
 export type Density = "comfortable" | "compact";
 
 export const COLUMN_WIDTHS_KEY = "tableflow.ui.columnWidths.v1";
 export const DENSITY_KEY = "tableflow.ui.density.v1";
+export const ROLE_KEY = "tableflow.ui.role.v1";
 export const MIN_COLUMN_WIDTH = 48;
 export const MAX_COLUMN_WIDTH = 600;
 export const MAX_WIDTH_ENTRIES = 200;
@@ -163,6 +167,33 @@ export function writeDensity(density: Density): void {
   }
   try {
     storage.setItem(DENSITY_KEY, density === "compact" ? "compact" : "comfortable");
+  } catch {
+    // 忽略写入失败。
+  }
+}
+
+/** 读取上次选择的角色；缺失或非法回退「全局」。 */
+export function readRole(): RoleId {
+  const storage = getStorage();
+  if (!storage) {
+    return DEFAULT_ROLE;
+  }
+  try {
+    const raw = storage.getItem(ROLE_KEY);
+    return isRoleId(raw) ? raw : DEFAULT_ROLE;
+  } catch {
+    return DEFAULT_ROLE;
+  }
+}
+
+/** 写入当前角色；写失败静默降级。 */
+export function writeRole(role: RoleId): void {
+  const storage = getStorage();
+  if (!storage) {
+    return;
+  }
+  try {
+    storage.setItem(ROLE_KEY, isRoleId(role) ? role : DEFAULT_ROLE);
   } catch {
     // 忽略写入失败。
   }

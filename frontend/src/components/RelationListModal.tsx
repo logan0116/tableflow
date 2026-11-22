@@ -32,8 +32,14 @@ function resolveColumns(field: Field, fields: Field[]) {
 /** 关联条目列表：编号 + 配置的名称列 + 配置的状态列，点一行看明细。 */
 export function RelationListModal({ field, tableId, rowIds, onPick, onClose }: RelationListModalProps) {
   const [state, setState] = useState<ListState>({ status: "loading" });
+  /** 0 项不拉目标表：空清单没有行要展示，直接给空态，避免无谓请求与 loading。 */
+  const empty = rowIds.length === 0;
 
   useEffect(() => {
+    if (empty) {
+      setState({ status: "ready", rows: new Map(), fields: [] });
+      return;
+    }
     let cancelled = false;
     setState({ status: "loading" });
     fetchTable(tableId)
@@ -52,7 +58,7 @@ export function RelationListModal({ field, tableId, rowIds, onPick, onClose }: R
     return () => {
       cancelled = true;
     };
-  }, [tableId]);
+  }, [tableId, empty]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -82,7 +88,9 @@ export function RelationListModal({ field, tableId, rowIds, onPick, onClose }: R
           </button>
         </header>
 
-        {state.status === "loading" ? (
+        {empty ? (
+          <div className="state">暂无关联条目</div>
+        ) : state.status === "loading" ? (
           <div className="state">加载中…</div>
         ) : state.status === "error" ? (
           <div className="state">读取关联表失败：{state.message}</div>

@@ -87,10 +87,17 @@ export interface Project {
   name: string;
 }
 
+/**
+ * 表级 kind（board@4）：board 进表导航，detail 不进导航但仍可被 relation 弹层读取。
+ * 旧接口/旧库没有该字段时按 board 兼容（board@3 行为不变）。
+ */
+export type TableKind = "board" | "detail";
+
 export interface TableSummary {
   id: string;
   name: string;
   order: number;
+  kind?: TableKind;
 }
 
 export interface TableResponse {

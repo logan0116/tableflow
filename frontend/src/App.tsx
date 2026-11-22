@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode, useMemo } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, useMemo } from "react";
 
 import { fetchProjects, fetchTable, fetchTables } from "./api";
 import { displayText } from "./field-utils";
@@ -7,11 +7,20 @@ import { EmptyState } from "./components/EmptyState";
 import { ProjectNav } from "./components/ProjectNav";
 import { RelationListModal } from "./components/RelationListModal";
 import { RelationModal } from "./components/RelationModal";
+import { RoleBar } from "./components/RoleBar";
 import { TableTabs } from "./components/TableTabs";
 import { TableToolbar } from "./components/TableToolbar";
 import { InlineSkeleton, TableSkeleton } from "./components/TableSkeleton";
 import { useColumnWidths } from "./hooks/useColumnWidths";
 import { useDensity } from "./hooks/useDensity";
+import { useRole } from "./hooks/useRole";
+import {
+  firstVisibleTableId,
+  roleDefinition,
+  visibleTablesForRole,
+  type RoleId,
+} from "./roles";
+import { boardTables } from "./table-kind";
 import type { Field, Project, TableResponse, TableSummary } from "./types";
 
 type TableState =
@@ -41,6 +50,7 @@ export default function App() {
   const [filter, setFilter] = useState("");
 
   const [density, setDensity] = useDensity();
+  const [role, setRole] = useRole();
   const { widths, setWidths, resetWidths } = useColumnWidths(tableId);
 
   const seq = useRef(0);
@@ -49,6 +59,13 @@ export default function App() {
   const refreshToken = useRef(0);
   const projectIdRef = useRef<string | null>(null);
   const tableIdRef = useRef<string | null>(null);
+  const roleRef = useRef<RoleId>(role);
+
+  /** 角色色由 html[data-role] 上的 CSS 变量驱动；layout 阶段写入避免首屏闪色。 */
+  useLayoutEffect(() => {
+    roleRef.current = role;
+    document.documentElement.dataset.role = role;
+  }, [role]);
 
   useEffect(() => {
     projectIdRef.current = projectId;
@@ -95,7 +112,7 @@ export default function App() {
           return;
         }
         setTables(list);
-        setTableId(list[0]?.id ?? null);
+        setTableId(firstVisibleTableId(boardTables(list), roleRef.current));
       })
       .catch((error: Error) => {
         if (!cancelled) {
@@ -168,10 +185,11 @@ export default function App() {
       setTablesError(null);
 
       const activeTable = tableIdRef.current;
+      const roleTables = visibleTablesForRole(boardTables(nextTables), roleRef.current);
       const nextTableId =
-        activeTable && nextTables.some((table) => table.id === activeTable)
+        activeTable && roleTables.some((table) => table.id === activeTable)
           ? activeTable
-          : nextTables[0]?.id ?? null;
+          : roleTables[0]?.id ?? null;
       if (nextTableId !== activeTable) {
         setTableId(nextTableId);
         return;
@@ -220,6 +238,23 @@ export default function App() {
     setTableId(nextId);
   };
 
+  /**
+   * 切角色只换「可见表清单」与配色，不重新拉接口。
+   * 当前表不在新角色清单里时，落到新清单的第一张表。
+   */
+  const selectRole = (nextRole: RoleId) => {
+    if (nextRole === role) {
+      return;
+    }
+    setRole(nextRole);
+    const nextTables = tables ? visibleTablesForRole(boardTables(tables), nextRole) : [];
+    setTableId((current) =>
+      current && nextTables.some((table) => table.id === current)
+        ? current
+        : nextTables[0]?.id ?? null,
+    );
+  };
+
   const filteredRows = useMemo(() => {
     if (tableState.status !== "ready") {
       return [];
@@ -239,8 +274,20 @@ export default function App() {
 
   const hasColumnWidths = Object.keys(widths).length > 0;
 
+  /**
+   * 表导航只列 board 表。detail 表（用例执行情况）不出现在导航里，
+   * 仍可通过版本行的 relation 弹层读取；kind 缺失时按 board 兼容旧接口。
+   */
+  const navTables = useMemo(() => (tables ? boardTables(tables) : null), [tables]);
+  /** 角色视图：在当前 board 表上再按角色过滤可见表，全局不过滤。 */
+  const roleTables = useMemo(
+    () => (navTables ? visibleTablesForRole(navTables, role) : null),
+    [navTables, role],
+  );
+  const roleLabel = roleDefinition(role).label;
+
   const currentProject = projects?.find((project) => project.id === projectId) ?? null;
-  const currentTable = tables?.find((table) => table.id === tableId) ?? null;
+  const currentTable = roleTables?.find((table) => table.id === tableId) ?? null;
   const totalRows = tableState.status === "ready" ? tableState.table.rows.length : null;
   const isFiltering = filter.trim().length > 0;
 
@@ -260,15 +307,15 @@ export default function App() {
       <>
         {tablesError ? (
           <EmptyState kind="error" message={tablesError} onRetry={refreshAll} />
-        ) : tables === null ? (
+        ) : roleTables === null ? (
           <div className="state">
             <InlineSkeleton />
           </div>
-        ) : tables.length === 0 ? (
+        ) : roleTables.length === 0 ? (
           <EmptyState kind="no-tables" />
         ) : (
           <>
-            <TableTabs tables={tables} currentId={tableId} onSelect={selectTable} />
+            <TableTabs tables={roleTables} currentId={tableId} onSelect={selectTable} />
             {tableState.status === "loading" ? (
               <TableSkeleton columns={lastFieldCount.current} />
             ) : tableState.status === "error" ? (
@@ -312,6 +359,8 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      <RoleBar role={role} onSelect={selectRole} />
+
       <aside className="sidebar">
         <div className="brand">
           <span className="brand-name">TableFlow</span>
@@ -328,6 +377,7 @@ export default function App() {
       <main className="app-main">
         <header className="page-header">
           <h1>
+            <span className="role-badge">{roleLabel}</span>
             {currentProject ? (
               <>
                 <span className="crumb-project">{currentProject.name}</span>

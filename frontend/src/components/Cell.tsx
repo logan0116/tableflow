@@ -87,6 +87,39 @@ export function Cell({ field, value, truncate, onOpenRelation, onOpenRelationLis
     return <span className="cell-number">{blank ? "" : formatNumber(value, field)}</span>;
   }
 
+  // relation 先于空值回退：空关联也要有可点入口，让「本版本没有纳入用例」可被确认。
+  if (field.type === "relation") {
+    const ids = Array.isArray(value)
+      ? value.map(String)
+      : value === null || value === undefined || value === ""
+        ? []
+        : [String(value)];
+    const target = optionObject<RelationOptions>(field.options)?.table_id;
+    const empty = ids.length === 0;
+    return (
+      <button
+        type="button"
+        className="relation-link cell-nowrap"
+        title={empty ? "关联条目 · 0 项" : ids.join("、")}
+        aria-label={empty ? "关联条目 · 0 项" : undefined}
+        onClick={() => {
+          if (!target) {
+            return;
+          }
+          if (onOpenRelationList) {
+            onOpenRelationList(target, ids, field);
+            return;
+          }
+          if (ids.length > 0) {
+            onOpenRelation?.(target, ids[0]);
+          }
+        }}
+      >
+        {empty ? "0 项" : ids.length === 1 ? ids[0] : `${ids[0]} +${ids.length - 1}`}
+      </button>
+    );
+  }
+
   if (blank) {
     return <span />;
   }
@@ -120,32 +153,6 @@ export function Cell({ field, value, truncate, onOpenRelation, onOpenRelationLis
         <span className="cell-nowrap">
           <EnumTag option={option} fallback={String(value)} />
         </span>
-      );
-    }
-    case "relation": {
-      const ids = Array.isArray(value) ? value.map(String) : [];
-      if (ids.length === 0) {
-        return <span />;
-      }
-      const target = optionObject<RelationOptions>(field.options)?.table_id;
-      return (
-        <button
-          type="button"
-          className="relation-link cell-nowrap"
-          title={ids.join("、")}
-          onClick={() => {
-            if (!target) {
-              return;
-            }
-            if (onOpenRelationList) {
-              onOpenRelationList(target, ids, field);
-            } else {
-              onOpenRelation?.(target, ids[0]);
-            }
-          }}
-        >
-          {ids.length === 1 ? ids[0] : `${ids[0]} +${ids.length - 1}`}
-        </button>
       );
     }
     case "text":
