@@ -1032,3 +1032,79 @@ td.empty-cell {
   font-variant-numeric: tabular-nums;
   color: var(--muted, #6b7280);
 }
+
+/* ---------- 026：版本表合并列（灯组 / 关联组） ---------- */
+
+.stage-lights {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.stage-light {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex: 0 0 auto;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.12);
+}
+
+.stage-light-done {
+  background: #1a7f37;
+}
+
+.stage-light-doing {
+  background: #bf8700;
+}
+
+.stage-light-failed {
+  background: #cf222e;
+}
+
+.stage-light-todo {
+  background: #d0d7de;
+}
+
+.group-ratio {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--color-border);
+  cursor: pointer;
+}
+
+.group-ratio.is-done {
+  color: #1a7f37;
+}
+
+.group-ratio:hover {
+  text-decoration-color: var(--color-accent);
+}
+
+/* ---------- 027：版本筛选 ---------- */
+
+.version-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0 10px 2px;
+}
+
+.version-filter select,
+.toolbar-select {
+  padding: 5px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  font: inherit;
+  font-size: 12px;
+  color: var(--color-text);
+}

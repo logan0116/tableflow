@@ -8,9 +8,12 @@ import {
 import { useMemo, type CSSProperties } from "react";
 
 import { defaultColumnWidth, isNumericField } from "../field-utils";
+import { groupOfField, versionGroups } from "../version-grouping";
 import type { Field, Row } from "../types";
 import type { Density } from "../ui-prefs";
 import { Cell } from "./Cell";
+import { GroupRatioCell } from "./GroupRatioCell";
+import { ProgressLights } from "./ProgressLights";
 import { EmptyState } from "./EmptyState";
 
 const MIN_COLUMN_WIDTH = 48;
@@ -22,6 +25,7 @@ interface DataTableProps {
   fields: Field[];
   rows: Row[];
   density: Density;
+  maxColumnWidth: number;
   columnWidths: ColumnSizingState;
   onColumnWidthsChange: (next: ColumnSizingState) => void;
   onOpenRelation?: (tableId: string, rowId: string) => void;
@@ -33,6 +37,7 @@ export function DataTable({
   fields,
   rows,
   density,
+  maxColumnWidth,
   columnWidths,
   onColumnWidthsChange,
   onOpenRelation,
@@ -53,27 +58,90 @@ export function DataTable({
 
   const firstFieldId = visibleFields[0]?.id ?? null;
 
-  const columns = useMemo<ColumnDef<Row>[]>(
-    () =>
-      visibleFields.map((field, index) => ({
-        id: field.id,
-        header: field.name,
-        accessorFn: (row: Row) => row.values[field.id],
-        size: defaultColumnWidth(field, index === 0),
+  const groups = useMemo(() => versionGroups(visibleFields), [visibleFields]);
+
+  const columns = useMemo<ColumnDef<Row>[]>(() => {
+    const plain = (field: Field, index: number): ColumnDef<Row> => ({
+      id: field.id,
+      header: field.name,
+      accessorFn: (row: Row) => row.values[field.id],
+      size: defaultColumnWidth(field, index === 0, rows, maxColumnWidth),
+      minSize: MIN_COLUMN_WIDTH,
+      maxSize: MAX_COLUMN_WIDTH,
+      cell: (context) => (
+        <Cell
+          field={field}
+          value={context.getValue()}
+          truncate
+          onOpenRelation={onOpenRelation}
+          onOpenRelationList={onOpenRelationList}
+        />
+      ),
+    });
+
+    if (!groups) {
+      return visibleFields.map((field, index) => plain(field, index));
+    }
+
+    const emitted = new Set<string>();
+    const out: ColumnDef<Row>[] = [];
+    visibleFields.forEach((field, index) => {
+      const group = groupOfField(groups, field.id);
+      if (!group) {
+        out.push(plain(field, index));
+        return;
+      }
+      if (emitted.has(group.key)) {
+        return;
+      }
+      emitted.add(group.key);
+      if (group.kind === "lights") {
+        const stages = (group.stageFieldIds ?? [])
+          .map((id) => fieldById.get(id))
+          .filter((item): item is Field => Boolean(item));
+        out.push({
+          id: group.key,
+          header: group.header,
+          accessorFn: (row: Row) => row.values[stages[0]?.id ?? ""],
+          size: 132,
+          minSize: MIN_COLUMN_WIDTH,
+          maxSize: MAX_COLUMN_WIDTH,
+          cell: (context) => (
+            <ProgressLights
+              stages={stages}
+              values={stages.map((stage) => context.row.original.values[stage.id])}
+            />
+          ),
+        });
+        return;
+      }
+      const relationField = fieldById.get(group.relationFieldId ?? "");
+      const ratioField = fieldById.get(group.ratioFieldId ?? "");
+      const statusField = fieldById.get(group.statusFieldId ?? "");
+      if (!relationField) {
+        out.push(plain(field, index));
+        return;
+      }
+      out.push({
+        id: group.key,
+        header: group.header,
+        accessorFn: (row: Row) => row.values[ratioField?.id ?? relationField.id],
+        size: Math.max(96, defaultColumnWidth(relationField, index === 0, rows, maxColumnWidth) - 40),
         minSize: MIN_COLUMN_WIDTH,
         maxSize: MAX_COLUMN_WIDTH,
         cell: (context) => (
-          <Cell
-            field={field}
-            value={context.getValue()}
-            truncate
-            onOpenRelation={onOpenRelation}
-            onOpenRelationList={onOpenRelationList}
+          <GroupRatioCell
+            relationField={relationField}
+            ratio={ratioField ? context.row.original.values[ratioField.id] : undefined}
+            done={statusField ? context.row.original.values[statusField.id] : undefined}
+            row={context.row.original}
+            onOpen={onOpenRelationList}
           />
         ),
-      })),
-    [visibleFields, onOpenRelation, onOpenRelationList],
-  );
+      });
+    });
+    return out;
+  }, [visibleFields, groups, fieldById, rows, maxColumnWidth, onOpenRelation, onOpenRelationList]);
 
   const table = useReactTable({
     data: rows,

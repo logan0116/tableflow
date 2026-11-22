@@ -10,6 +10,13 @@ import { RelationModal } from "./components/RelationModal";
 import { RoleBar } from "./components/RoleBar";
 import { TableTabs } from "./components/TableTabs";
 import { TableToolbar } from "./components/TableToolbar";
+import {
+  latestVersionId,
+  readMaxColumnWidth,
+  readVersionFilter,
+  writeMaxColumnWidth,
+  writeVersionFilter,
+} from "./ui-prefs";
 import { InlineSkeleton, TableSkeleton } from "./components/TableSkeleton";
 import { useColumnWidths } from "./hooks/useColumnWidths";
 import { useDensity } from "./hooks/useDensity";
@@ -48,6 +55,8 @@ export default function App() {
     field: Field;
   } | null>(null);
   const [filter, setFilter] = useState("");
+  const [maxColumnWidth, setMaxColumnWidth] = useState<number>(() => readMaxColumnWidth());
+  const [versionFilter, setVersionFilter] = useState<string>(() => readVersionFilter());
 
   const [density, setDensity] = useDensity();
   const [role, setRole] = useRole();
@@ -289,6 +298,23 @@ export default function App() {
   const currentProject = projects?.find((project) => project.id === projectId) ?? null;
   const currentTable = roleTables?.find((table) => table.id === tableId) ?? null;
   const totalRows = tableState.status === "ready" ? tableState.table.rows.length : null;
+
+  /** 027：版本表默认只看最新版本，可按版本筛选；只作用于渲染，不改接口。 */
+  const versionScopedRows = useMemo(() => {
+    if (tableState.status !== "ready" || !tableState.table.table.id.endsWith("-ver")) {
+      return filteredRows;
+    }
+    const all = filteredRows;
+    if (versionFilter === "all") {
+      return all;
+    }
+    if (versionFilter === "latest") {
+      const latest = latestVersionId(all.map((row) => row.id));
+      return latest ? all.filter((row) => row.id === latest) : all;
+    }
+    const hit = all.filter((row) => row.id === versionFilter);
+    return hit.length > 0 ? hit : all.filter((row) => row.id === latestVersionId(all.map((r) => r.id)));
+  }, [tableState, filteredRows, versionFilter]);
   const isFiltering = filter.trim().length > 0;
 
   let content: ReactNode;
@@ -331,15 +357,42 @@ export default function App() {
                   shownRows={filteredRows.length}
                   density={density}
                   onDensityChange={setDensity}
+                  maxColumnWidth={maxColumnWidth}
+                  onMaxColumnWidthChange={(value) => {
+                    setMaxColumnWidth(value);
+                    writeMaxColumnWidth(value);
+                  }}
                   onResetColumnWidths={resetWidths}
                   canResetColumnWidths={hasColumnWidths}
                 />
+                {tableState.table.table.id.endsWith("-ver") ? (
+                  <div className="version-filter" role="group" aria-label="版本筛选">
+                    <span className="toolbar-label">版本</span>
+                    <select
+                      aria-label="版本筛选"
+                      value={versionFilter}
+                      onChange={(event) => {
+                        setVersionFilter(event.target.value);
+                        writeVersionFilter(event.target.value);
+                      }}
+                    >
+                      <option value="latest">最新版本</option>
+                      <option value="all">全部版本</option>
+                      {tableState.table.rows.map((row) => (
+                        <option key={row.id} value={row.id}>
+                          {row.id}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
                 <DataTable
                   key={tableState.table.table.id}
                   tableId={tableState.table.table.id}
                   fields={tableState.table.fields}
-                  rows={filteredRows}
+                  rows={versionScopedRows}
                   density={density}
+                  maxColumnWidth={maxColumnWidth}
                   columnWidths={widths}
                   onColumnWidthsChange={setWidths}
                   onOpenRelation={(targetTableId, rowId) =>

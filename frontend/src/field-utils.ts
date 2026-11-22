@@ -4,6 +4,7 @@ import type {
   FieldOption,
   FieldOptions,
   NumberOptions,
+  Row,
 } from "./types";
 
 /** 取出 options 的对象形态；数组（历史 enum 取值表）与 null 返回 null。 */
@@ -54,16 +55,6 @@ export function numberOptions(field: Field): NumberOptions | null {
   return field.type === "number" ? optionObject<NumberOptions>(field.options) : null;
 }
 
-/** 默认列宽的类型基础值（005）。 */
-const TYPE_BASE_WIDTH: Record<string, number> = {
-  number: 100,
-  datetime: 132,
-  enum: 124,
-  relation: 156,
-  text: 168,
-  computed: 120,
-};
-
 /** 默认列宽下限 / 上限（用户拖拽范围仍为 004 的 48–600）。 */
 const DEFAULT_WIDTH_MIN = 88;
 const DEFAULT_WIDTH_MAX = 320;
@@ -85,15 +76,51 @@ export function estimateHeaderWidth(name: string): number {
   return px + HEADER_PADDING;
 }
 
-/** 首次打开某表时的默认列宽：类型基础宽与表头估算宽取大，再钳制。 */
-export function defaultColumnWidth(field: Field, isFirst: boolean): number {
-  const base =
-    field.type === "computed"
-      ? (isNumericField(field) ? TYPE_BASE_WIDTH.number : TYPE_BASE_WIDTH.computed)
-      : (TYPE_BASE_WIDTH[field.type] ?? TYPE_BASE_WIDTH.text);
-  const width = Math.max(base, estimateHeaderWidth(field.name));
-  const withFirst = width + (isFirst ? FIRST_COLUMN_EXTRA : 0);
-  return Math.min(DEFAULT_WIDTH_MAX, Math.max(DEFAULT_WIDTH_MIN, withFirst));
+/** 单元格左右内边距与省略号预留（与 styles.css 的 cell padding 对齐）。 */
+const CELL_PADDING = 32;
+
+/** 文本宽度估算：中文 14px、西文 8px，与表头同口径，不做 DOM 测量。 */
+export function estimateTextWidth(text: string): number {
+  let px = 0;
+  for (const ch of text) {
+    px += CJK.test(ch) ? 14 : 8;
+  }
+  return px;
+}
+
+/** 某列可见内容所需的最小宽度（含内边距）；全空返回 0。 */
+export function contentMinWidth(field: Field, rows: Row[]): number {
+  let max = 0;
+  for (const row of rows) {
+    const text = displayText(field, row.values[field.id]);
+    if (!text) {
+      continue;
+    }
+    const width = estimateTextWidth(text) + CELL_PADDING;
+    if (width > max) {
+      max = width;
+    }
+  }
+  return max;
+}
+
+/**
+ * 默认列宽：min(内容最小宽, 最大列宽上限)。
+ *
+ * 028 起不再按字段类型基础宽放大——内容短就窄，超过上限才省略。
+ * `maxWidth` 由工具栏的最大列宽设置传入（默认 320）。
+ */
+export function defaultColumnWidth(
+  field: Field,
+  isFirst: boolean,
+  rows: Row[] = [],
+  maxWidth: number = DEFAULT_WIDTH_MAX,
+): number {
+  const headerWidth = estimateHeaderWidth(field.name);
+  const content = contentMinWidth(field, rows);
+  const wanted = Math.max(headerWidth, content) + (isFirst ? FIRST_COLUMN_EXTRA : 0);
+  const upper = Math.max(DEFAULT_WIDTH_MIN, Math.min(maxWidth, DEFAULT_WIDTH_MAX));
+  return Math.min(upper, Math.max(DEFAULT_WIDTH_MIN, wanted));
 }
 
 /** 单元格的显示文本（供筛选匹配用，与渲染保持一致）。 */

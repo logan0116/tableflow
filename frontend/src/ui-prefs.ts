@@ -198,3 +198,105 @@ export function writeRole(role: RoleId): void {
     // 忽略写入失败。
   }
 }
+
+/** 最大列宽：自动列宽不会超过该值；默认 320，可选档位。 */
+export const MAX_COLUMN_WIDTH_KEY = "tableflow.ui.maxColumnWidth.v1";
+export const MAX_COLUMN_WIDTH_DEFAULT = 320;
+export const MAX_COLUMN_WIDTH_OPTIONS = [200, 240, 280, 320, 400] as const;
+
+/** 读取最大列宽；非法值回退默认。 */
+export function readMaxColumnWidth(): number {
+  const storage = getStorage();
+  if (!storage) {
+    return MAX_COLUMN_WIDTH_DEFAULT;
+  }
+  try {
+    const raw = Number(storage.getItem(MAX_COLUMN_WIDTH_KEY));
+    return (MAX_COLUMN_WIDTH_OPTIONS as readonly number[]).includes(raw)
+      ? raw
+      : MAX_COLUMN_WIDTH_DEFAULT;
+  } catch {
+    return MAX_COLUMN_WIDTH_DEFAULT;
+  }
+}
+
+/** 写入最大列宽；写失败静默降级。 */
+export function writeMaxColumnWidth(value: number): void {
+  const storage = getStorage();
+  if (!storage) {
+    return;
+  }
+  try {
+    const next = (MAX_COLUMN_WIDTH_OPTIONS as readonly number[]).includes(value)
+      ? value
+      : MAX_COLUMN_WIDTH_DEFAULT;
+    storage.setItem(MAX_COLUMN_WIDTH_KEY, String(next));
+  } catch {
+    // 忽略写入失败。
+  }
+}
+
+/** 版本号语义序：`v<主>.<次>.<修>` 按数字比较，无法解析的排最前。 */
+function versionKey(id: string): [number, number, number] | null {
+  const match = /^v(\d+)\.(\d+)\.(\d+)$/.exec(id);
+  if (!match) {
+    return null;
+  }
+  return [Number(match[1]), Number(match[2]), Number(match[3])];
+}
+
+export function compareVersion(a: string, b: string): number {
+  const left = versionKey(a);
+  const right = versionKey(b);
+  if (!left && !right) return a.localeCompare(b);
+  if (!left) return -1;
+  if (!right) return 1;
+  for (let i = 0; i < 3; i += 1) {
+    if (left[i] !== right[i]) {
+      return left[i] - right[i];
+    }
+  }
+  return 0;
+}
+
+/** 版本行里语义序最大的那个 id；没有合法版本号时返回 null。 */
+export function latestVersionId(ids: string[]): string | null {
+  let best: string | null = null;
+  for (const id of ids) {
+    if (!versionKey(id)) {
+      continue;
+    }
+    if (best === null || compareVersion(id, best) > 0) {
+      best = id;
+    }
+  }
+  return best;
+}
+
+/** 版本筛选：`latest`（默认）/`all`/具体版本行 id。 */
+export const VERSION_FILTER_KEY = "tableflow.ui.versionFilter.v1";
+export const VERSION_FILTER_DEFAULT = "latest";
+
+export function readVersionFilter(): string {
+  const storage = getStorage();
+  if (!storage) {
+    return VERSION_FILTER_DEFAULT;
+  }
+  try {
+    return storage.getItem(VERSION_FILTER_KEY) || VERSION_FILTER_DEFAULT;
+  } catch {
+    return VERSION_FILTER_DEFAULT;
+  }
+}
+
+export function writeVersionFilter(value: string): void {
+  const storage = getStorage();
+  if (!storage) {
+    return;
+  }
+  try {
+    storage.setItem(VERSION_FILTER_KEY, value || VERSION_FILTER_DEFAULT);
+  } catch {
+    // 忽略写入失败。
+  }
+}

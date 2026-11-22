@@ -1,4 +1,4 @@
-import type { Density } from "../ui-prefs";
+import { MAX_COLUMN_WIDTH_OPTIONS, type Density } from "../ui-prefs";
 
 interface TableToolbarProps {
   filter: string;
@@ -7,6 +7,8 @@ interface TableToolbarProps {
   shownRows: number;
   density: Density;
   onDensityChange: (density: Density) => void;
+  maxColumnWidth: number;
+  onMaxColumnWidthChange: (value: number) => void;
   onResetColumnWidths: () => void;
   canResetColumnWidths: boolean;
 }
@@ -19,6 +21,8 @@ export function TableToolbar({
   shownRows,
   density,
   onDensityChange,
+  maxColumnWidth,
+  onMaxColumnWidthChange,
   onResetColumnWidths,
   canResetColumnWidths,
 }: TableToolbarProps) {
@@ -58,6 +62,22 @@ export function TableToolbar({
           紧凑
         </button>
       </div>
+      <label className="toolbar-label" htmlFor="max-col-width">
+        最大列宽
+      </label>
+      <select
+        id="max-col-width"
+        className="toolbar-select"
+        value={maxColumnWidth}
+        onChange={(event) => onMaxColumnWidthChange(Number(event.target.value))}
+        aria-label="最大列宽"
+      >
+        {MAX_COLUMN_WIDTH_OPTIONS.map((option) => (
+          <option key={option} value={option}>
+            {option}px
+          </option>
+        ))}
+      </select>
       <button
         type="button"
         className="toolbar-reset"
