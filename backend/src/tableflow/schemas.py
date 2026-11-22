@@ -20,6 +20,8 @@ class TableSummaryOut(BaseModel):
     id: str
     name: str
     order: int
+    # board@4：board 进表导航，detail 不进导航（run 表）。缺失/旧库按 board 兼容。
+    kind: str = "board"
 
 
 class FieldOut(BaseModel):

@@ -646,7 +646,7 @@ def test_rebuild_computed_values_idempotent(tmp_path, monkeypatch):
 # ---------- tf 项目落地实例 ----------
 
 def test_tf_project_computed_fields(tmp_path, monkeypatch):
-    """tf 项目的计算字段按 board@3：三布尔 + 发布条件，没有开发进度/未清Bug数。"""
+    """tf 项目的计算字段按 board@4：六节点汇总 + 用例三字段 + 三布尔展示字段。"""
     db = tmp_path / "tf-formula.db"
     monkeypatch.setenv("TABLEFLOW_DB", str(db))
     with TestClient(app) as client:
@@ -654,23 +654,34 @@ def test_tf_project_computed_fields(tmp_path, monkeypatch):
         payload = client.get("/api/tables/tf-ver/table").json()
         fields = {field["id"]: field for field in payload["fields"]}
         for fid, kind in (
+            ("tf-v-stage-done", "and"),
+            ("tf-v-cond", "and"),
             ("tf-v-spec-done", "rollup"),
             ("tf-v-change-done", "rollup"),
             ("tf-v-bug-clear", "rollup"),
-            ("tf-v-cond", "and"),
+            ("tf-v-case-total", "count"),
+            ("tf-v-case-done-count", "count"),
+            ("tf-v-case-done", "rollup"),
         ):
             assert fields[fid]["type"] == "computed"
             assert fields[fid]["options"]["kind"] == kind
+        # board@4 只有两个闸门；三布尔降为展示字段。
+        gated = {
+            field["name"]
+            for field in payload["fields"]
+            if field["type"] == "computed" and (field["options"] or {}).get("gate")
+        }
+        assert gated == {"六节点是否全部完成", "发布条件"}
         for gone in ("tf-v-dev", "tf-v-test", "tf-v-bug-open", "tf-v-doc", "tf-v-regress"):
             assert gone not in fields
 
         row = {r["id"]: r["values"] for r in payload["rows"]}["v0.3.0"]
-        assert row["tf-v-cond"] == (
-            row["tf-v-spec-done"] and row["tf-v-change-done"] and row["tf-v-bug-clear"]
-        )
+        # 发布条件只看 stage_done；三布尔不参与 gate。
+        assert row["tf-v-stage-done"] is True
+        assert row["tf-v-cond"] == row["tf-v-stage-done"] is True
         assert row["tf-v-spec-ratio"].count("/") == 1
 
-        # 把本版一条需求从 accepted 改回 pending → 独立需求是否完成转否，发布条件转否
+        # 改展示布尔：独立需求是否完成转否，但发布条件（stage_done）不受影响。
         assert client.patch(
             "/api/agent/tables/tf-indep/rows/002-AR",
             json={"values": {"tf-i-acceptance": "pending"}},
@@ -678,9 +689,9 @@ def test_tf_project_computed_fields(tmp_path, monkeypatch):
         ).json()["result"] == "success"
         row = {r["id"]: r["values"] for r in client.get("/api/tables/tf-ver/table").json()["rows"]}["v0.3.0"]
         assert row["tf-v-spec-done"] is False
-        assert row["tf-v-cond"] is False
+        assert row["tf-v-cond"] is True
 
-        # 改回 accepted → rollup 恢复，发布条件跟着恢复
+        # 改回 accepted → rollup 恢复。
         client.patch(
             "/api/agent/tables/tf-indep/rows/002-AR",
             json={"values": {"tf-i-acceptance": "accepted"}},
@@ -688,9 +699,7 @@ def test_tf_project_computed_fields(tmp_path, monkeypatch):
         )
         row = {r["id"]: r["values"] for r in client.get("/api/tables/tf-ver/table").json()["rows"]}["v0.3.0"]
         assert row["tf-v-spec-done"] is True
-        assert row["tf-v-cond"] == (
-            row["tf-v-spec-done"] and row["tf-v-change-done"] and row["tf-v-bug-clear"]
-        )
+        assert row["tf-v-cond"] == row["tf-v-stage-done"] is True
 
         # 手工改底层数据但不重算：读接口仍返回存储值
         conn = sqlite3.connect(db)
@@ -714,6 +723,7 @@ def test_tf_project_computed_fields(tmp_path, monkeypatch):
         assert client.post("/api/agent/tables/tf-ver/recompute", headers=HEADERS).json()["result"] == "success"
         row = {r["id"]: r["values"] for r in client.get("/api/tables/tf-ver/table").json()["rows"]}["v0.3.0"]
         assert row["tf-v-spec-done"] is False
-        assert row["tf-v-cond"] is False
+        # gate 由 stage_done 决定，展示布尔翻转不改变它。
+        assert row["tf-v-cond"] is True
 
 

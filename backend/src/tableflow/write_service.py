@@ -21,6 +21,16 @@ v0.6.2（013）：
 v0.6.0 缺陷修复（t9）：
 - V060-04：更新行只校验本次提交的关系字段“目标行必须存在”；
   存量悬空引用不再锁死无关字段的编辑，显式提交悬空值仍 400。
+
+v0.7.0（020）：
+- 执行记录表（`run`）的写侧协议由 `run_protocol` 校验：`state`/`result` 必须一致
+  （`todo`→result 空、`done`→result 非空），行 id 必须是 `<版本号>--<用例号>`，
+  执行清单不得重复或跨版本收录；不一致一律 400 且零写入，信封不变（protocol@2）。
+
+v0.7.0（025）：
+- 版本表六节点（`ver.stage.*`）的串行推进与节点闸门一致性由 `version_stage` 校验：
+  前序未 done（或有 failed）时后序不得推进；「开发验收/测试/测试验收」置 done 还要求
+  本版规格 accepted、用例全部执行、缺陷清零与变更回归通过；违反即 400 且零写入。
 """
 
 from __future__ import annotations
@@ -32,7 +42,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
-from . import calculation
+from . import calculation, run_protocol, version_stage
 from .errors import WriteError
 
 TZ = timezone(timedelta(hours=8))
@@ -173,8 +183,8 @@ def _payload_text(body: dict[str, Any] | None) -> str | None:
 # 返回 success 却一字未写，读回才发现（BUG-03 同期发现）。
 BODY_KEYS: dict[str, frozenset[str]] = {
     "project.create": frozenset({"id", "name"}),
-    "table.create": frozenset({"id", "name", "order"}),
-    "table.update": frozenset({"name", "order"}),
+    "table.create": frozenset({"id", "name", "order", "kind"}),
+    "table.update": frozenset({"name", "order", "kind"}),
     "field.create": frozenset({"id", "name", "type", "options", "order", "visible"}),
     "field.update": frozenset({"name", "type", "options", "order", "visible"}),
     "row.create": frozenset({"id", "values"}),
@@ -204,6 +214,13 @@ def _require_int(value: Any, label: str, *, minimum: int = 0, maximum: int = ORD
         raise WriteError(f"{label} 必须是整数")
     if value < minimum or value > maximum:
         raise WriteError(f"{label} 必须在 {minimum}–{maximum} 之间")
+    return value
+
+
+def _require_table_kind(value: Any) -> str:
+    """board@4 表级分类：board 进导航，detail 不进导航。"""
+    if value not in ("board", "detail"):
+        raise WriteError("kind 只能是 board 或 detail")
     return value
 
 
@@ -470,11 +487,12 @@ def create_table(conn: sqlite3.Connection, project_id: str, body: dict[str, Any]
         )
     else:
         order = _require_int(order, "order")
+    kind = _require_table_kind(body.get("kind", "board"))
     if conn.execute("SELECT 1 FROM tables WHERE id = ?", (table_id,)).fetchone():
         raise WriteError(f"表格 id 已存在：{table_id}")
     conn.execute(
-        'INSERT INTO tables (id, project_id, name, "order") VALUES (?, ?, ?, ?)',
-        (table_id, project_id, name, int(order)),
+        'INSERT INTO tables (id, project_id, name, "order", kind) VALUES (?, ?, ?, ?, ?)',
+        (table_id, project_id, name, int(order), kind),
     )
     return table_id
 
@@ -489,6 +507,11 @@ def update_table(conn: sqlite3.Connection, table_id: str, body: dict[str, Any]) 
         conn.execute(
             'UPDATE tables SET "order" = ? WHERE id = ?',
             (_require_int(body["order"], "order"), table_id),
+        )
+    if "kind" in body:
+        conn.execute(
+            "UPDATE tables SET kind = ? WHERE id = ?",
+            (_require_table_kind(body["kind"]), table_id),
         )
     return table_id
 
@@ -696,8 +719,9 @@ def _record_change(
 # ---------- 数据行 ----------
 
 def _fields_map(conn: sqlite3.Connection, table_id: str) -> dict[str, sqlite3.Row]:
+    # `order` 供 025 的六节点识别兜底排序用（字段 id 解析不出语义键时按契约顺序判定串行）。
     rows = conn.execute(
-        "SELECT id, name, type, options FROM fields WHERE table_id = ?", (table_id,)
+        'SELECT id, name, type, options, "order" FROM fields WHERE table_id = ?', (table_id,)
     ).fetchall()
     return {row["id"]: row for row in rows}
 
@@ -860,10 +884,20 @@ def create_row(
         # 兼容期只有 key 鉴权的调用者填充负责人；旧 X-Agent-Id 调用保持原样。
         values = _fill_owner(fields, values, autofill_owner_by)
     _validate_values(conn, table_id, fields, values)
+    run_protocol.validate_row_write(
+        conn, fields, row_id, merged=values, submitted=values, creating=True
+    )
+    version_stage.validate_row_write(conn, fields, merged=values, previous={})
     _validate_row_constraints(conn, fields, values)
     if conn.execute(
         "SELECT 1 FROM row_records WHERE table_id = ? AND id = ?", (table_id, row_id)
     ).fetchone():
+        if run_protocol.is_run_table(fields):
+            # 行 id 已是 <版本号>--<用例号>：同版本同用例重复纳入必然撞到同一行。
+            raise WriteError(
+                f"该用例已纳入本版本（执行记录已存在）：{row_id}；"
+                "请回读该行后继续，不新建第二条记录"
+            )
         raise WriteError(f"行 id 已存在：{row_id}")
     conn.execute(
         "INSERT INTO row_records (id, table_id, data) VALUES (?, ?, ?)",
@@ -906,6 +940,10 @@ def update_row(
     _validate_values(conn, table_id, fields, values)
     old_values = _loads(row["data"]) or {}
     merged = {**old_values, **values}
+    run_protocol.validate_row_write(
+        conn, fields, row_id, merged=merged, submitted=values, creating=False
+    )
+    version_stage.validate_row_write(conn, fields, merged=merged, previous=old_values)
     # 只对本次提交的关系字段校验“目标行必须存在”；存量悬空引用不阻断无关字段的编辑（V060-04）。
     _validate_row_constraints(conn, fields, merged, relation_field_ids=set(values))
 

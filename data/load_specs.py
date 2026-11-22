@@ -82,6 +82,13 @@ VERSION = ("v0.3.0", {
     "tf-v-ver": "v0.3.0",
     "tf-v-date": "2026-11-06T23:59:00+08:00",
     "tf-v-status": "released",
+    # board@4：六节点必填；已发布版本按迁移口径六节点 done。
+    "tf-v-stage-plan": "done",
+    "tf-v-stage-test-design": "done",
+    "tf-v-stage-dev": "done",
+    "tf-v-stage-dev-accept": "done",
+    "tf-v-stage-test": "done",
+    "tf-v-stage-test-accept": "done",
     "tf-v-indep": ["002-AR", "003-AR", "004-AR"],
     "tf-v-dep": ["DEP-01-BR"],
     "tf-v-note": "字段体系 + 计算字段 + 界面体验",

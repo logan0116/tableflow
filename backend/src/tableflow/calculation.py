@@ -3,6 +3,9 @@
 硬约束（003 spec / 010 spec / 宪法 v6.0.0）：
 - 计算在写事务内完成并落 `computed_values`；读侧只读，不做任何业务计算。
 - kind 封闭为 count / percent / sum / rollup / and；不做用户表达式、跨表任意聚合。
+- `and` 的条件项是 `字段 == 取值`（023）：条件字段限本表，取值 MUST 与字段的取值域
+  类型一致（布尔/数字/枚举/文本/日期时间/标量），否则配置期 400；不支持算术、
+  逻辑运算符、跨表条件，也不存在用户可写表达式。
 - 依赖只来自本表 relation 指向的目标行；`and` 可引用同表计算字段，依赖必须无环。
 - 计算异常 / 配置非法 → `WriteError`，由 `run_write` 整体回滚。
 - 覆盖值优先于重算结果，带原因、可清除；清除后立即重算。
@@ -178,6 +181,100 @@ def _has_cycle(computed: dict[str, dict[str, Any]]) -> bool:
     return False
 
 
+def _enum_condition_values(field: sqlite3.Row) -> list[Any] | None:
+    """枚举字段声明的取值域（023）；options 形态异常时返回 None，跳过取值域校验。"""
+    options = _loads(field["options"])
+    items = options.get("items") if isinstance(options, dict) else options
+    if not isinstance(items, list):
+        return None
+    return [item.get("value") for item in items if isinstance(item, dict)]
+
+
+def _computed_condition_kind(field: sqlite3.Row) -> str:
+    """计算字段的输出取值域；用于条件项的类型校验（023）。"""
+    options = _loads(field["options"])
+    if not isinstance(options, dict):
+        raise WriteError(f"计算字段「{field['name']}」的配置损坏，无法作为条件字段")
+    kind = options.get("kind")
+    if kind == "and":
+        return "bool"
+    if kind == "rollup":
+        aggregate = options.get("aggregate")
+        if aggregate in BOOLEAN_AGGREGATES:
+            return "bool"
+        if aggregate in {"min", "max"}:
+            return "scalar"
+        return "number"
+    if kind == "ratio":
+        # ratio 输出"已完成/总数"文本（016），不是数字。
+        return "text"
+    if kind in {"count", "percent", "sum"}:
+        return "number"
+    raise WriteError(f"计算字段「{field['name']}」的计算类型未知，无法作为条件字段")
+
+
+def _condition_value_kind(field: sqlite3.Row) -> str:
+    """条件字段的取值域：text / number / datetime / enum / relation / bool / scalar。"""
+    if field["type"] == "computed":
+        return _computed_condition_kind(field)
+    return field["type"]
+
+
+def _validate_condition_equals(field: sqlite3.Row, equals: Any) -> None:
+    """`and` 条件项的值 MUST 落在条件字段的取值域内（023）。
+
+    不做类型强转：写错类型的条件是永远为假的配置错误，必须在配置期 400，
+    而不是等重算时静默给出 false。取值域只看字段类型（及枚举声明、计算输出类型）。
+    """
+    name = field["name"]
+    value_kind = _condition_value_kind(field)
+    if value_kind == "relation":
+        raise WriteError(
+            f"and.conditions 不能引用 relation 字段「{name}」：关联值是行 id 数组，无法与单个取值比较"
+        )
+    if value_kind == "bool":
+        if not isinstance(equals, bool):
+            raise WriteError(
+                f"and.conditions.equals 与字段「{name}」类型不符：布尔字段只能等于 true/false"
+            )
+        return
+    if value_kind == "number":
+        if isinstance(equals, bool) or not isinstance(equals, (int, float)):
+            raise WriteError(
+                f"and.conditions.equals 与字段「{name}」类型不符：数字字段只能等于数字"
+            )
+        return
+    if value_kind == "datetime":
+        if not isinstance(equals, str) or not equals:
+            raise WriteError(
+                f"and.conditions.equals 与字段「{name}」类型不符：日期时间字段只能等于日期时间字符串"
+            )
+        return
+    if value_kind == "enum":
+        if not isinstance(equals, str) or not equals:
+            raise WriteError(
+                f"and.conditions.equals 与字段「{name}」类型不符：枚举字段只能等于字符串取值"
+            )
+        allowed = _enum_condition_values(field)
+        if allowed is not None and equals not in allowed:
+            raise WriteError(
+                f"and.conditions.equals 不是枚举字段「{name}」的取值：{equals}"
+                f"（可选：{'、'.join(str(value) for value in allowed)}）"
+            )
+        return
+    if value_kind == "scalar":
+        if isinstance(equals, bool) or not isinstance(equals, (int, float, str)):
+            raise WriteError(
+                f"and.conditions.equals 与字段「{name}」类型不符：该计算字段的取值只能是数字或字符串"
+            )
+        return
+    # text
+    if not isinstance(equals, str):
+        raise WriteError(
+            f"and.conditions.equals 与字段「{name}」类型不符：文本字段只能等于字符串"
+        )
+
+
 def _validate_where(conn: sqlite3.Connection, target_fields: dict[str, sqlite3.Row], where: Any) -> None:
     if not isinstance(where, dict):
         raise WriteError("计算字段的 where 必须是对象")
@@ -235,6 +332,7 @@ def validate_computed_options(
                 raise WriteError(f"and.conditions 引用的字段不存在：{condition_field}")
             if "equals" not in condition or condition["equals"] is None:
                 raise WriteError("and.conditions.equals 不能为空")
+            _validate_condition_equals(fields[condition_field], condition["equals"])
         for key in ("true_label", "false_label"):
             if key in options and not isinstance(options[key], str):
                 raise WriteError(f"{key} 必须是字符串")
@@ -566,11 +664,16 @@ def _compute_and(
     cache: dict[str, Any],
     stored: dict[tuple[str, str], sqlite3.Row],
 ) -> bool:
+    """全部条件项 `字段 == 取值` 同时成立才为真（023）。
+
+    - 取值与字段同类型（配置期已校验），比较是严格相等：不做字符串/数字强转。
+    - null 与任何值都不相等：行上没填的条件字段判否，不把"没数据"当"满足"。
+    - 条件字段可以是本表普通字段或同表计算字段；后者取有效值（覆盖优先、重算缓存其次）。
+    """
     for condition in options["conditions"]:
         value = _effective_value(
             conn, table_id, row_id, condition["field_id"], fields, row_values, cache, stored
         )
-        # null 与任何值都不相等；条件不成立
         if value is None or value != condition["equals"]:
             return False
     return True

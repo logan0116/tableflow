@@ -58,10 +58,14 @@ def list_tables(conn: sqlite3.Connection, project_id: str) -> list[TableSummaryO
     if project is None:
         return None
     rows = conn.execute(
-        'SELECT id, name, "order" FROM tables WHERE project_id = ? ORDER BY "order" ASC, id ASC',
+        'SELECT id, name, "order", kind FROM tables'
+        ' WHERE project_id = ? ORDER BY "order" ASC, id ASC',
         (project_id,),
     ).fetchall()
-    return [TableSummaryOut(id=r["id"], name=r["name"], order=r["order"]) for r in rows]
+    return [
+        TableSummaryOut(id=r["id"], name=r["name"], order=r["order"], kind=r["kind"] or "board")
+        for r in rows
+    ]
 
 
 def _visible_fields(conn: sqlite3.Connection, table_id: str) -> list[FieldOut]:
@@ -129,7 +133,8 @@ def _merge_computed(
 def get_table(conn: sqlite3.Connection, table_id: str) -> TableOut | None:
     row = conn.execute(
         """
-        SELECT t.id, t.name, t."order" AS order_, t.project_id, p.name AS project_name
+        SELECT t.id, t.name, t."order" AS order_, t.kind,
+               t.project_id, p.name AS project_name
         FROM tables t JOIN projects p ON p.id = t.project_id
         WHERE t.id = ?
         """,
@@ -160,7 +165,9 @@ def get_table(conn: sqlite3.Connection, table_id: str) -> TableOut | None:
 
     return TableOut(
         project=ProjectOut(id=row["project_id"], name=row["project_name"]),
-        table=TableSummaryOut(id=row["id"], name=row["name"], order=row["order_"]),
+        table=TableSummaryOut(
+            id=row["id"], name=row["name"], order=row["order_"], kind=row["kind"] or "board"
+        ),
         fields=fields,
         rows=output_rows,
     )
@@ -170,7 +177,7 @@ def get_row_detail(
     conn: sqlite3.Connection, table_id: str, row_id: str
 ) -> RowDetailOut | None:
     table = conn.execute(
-        'SELECT id, name, "order" FROM tables WHERE id = ?', (table_id,)
+        'SELECT id, name, "order", kind FROM tables WHERE id = ?', (table_id,)
     ).fetchone()
     if table is None:
         return None
@@ -194,7 +201,9 @@ def get_row_detail(
     values, meta = _merge_computed(row["id"], values, computed_fields, computed_rows)
 
     return RowDetailOut(
-        table=TableSummaryOut(id=table["id"], name=table["name"], order=table["order"]),
+        table=TableSummaryOut(
+            id=table["id"], name=table["name"], order=table["order"], kind=table["kind"] or "board"
+        ),
         fields=fields,
         row=RowOut(id=row["id"], values=values, computed_meta=meta),
     )

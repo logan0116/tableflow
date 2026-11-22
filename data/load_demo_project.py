@@ -43,16 +43,22 @@ ROWS = {
         ("UD-01-BR", {
             "d-id": "UD-01-BR",
             "d-clause": "基于新版本知识图谱的图谱相关 skill 的更新",
+            "d-indep": ["UD-04-AR"],
+            "d-impact": "图谱 skill 与 embedding 输出",
             "d-regress": "todo",
         }),
         ("UD-02-BR", {
             "d-id": "UD-02-BR",
             "d-clause": "embedding 更新",
+            "d-indep": ["UD-04-AR"],
+            "d-impact": "embedding 索引",
             "d-regress": "todo",
         }),
         ("UD-03-BR", {
             "d-id": "UD-03-BR",
             "d-clause": "界面推荐案例更新",
+            "d-indep": ["UD-04-AR"],
+            "d-impact": "推荐案例展示",
             "d-regress": "todo",
         }),
     ],
@@ -60,11 +66,23 @@ ROWS = {
         ("7.0.0", {
             "v-ver": "7.0.0",
             "v-status": "released",
+            "v-stage-plan": "done",
+            "v-stage-test-design": "done",
+            "v-stage-dev": "done",
+            "v-stage-dev-accept": "done",
+            "v-stage-test": "done",
+            "v-stage-test-accept": "done",
         }),
         ("7.0.1", {
             "v-ver": "7.0.1",
             "v-date": "2026-11-10T00:00:00+08:00",
             "v-status": "planned",
+            "v-stage-plan": "todo",
+            "v-stage-test-design": "todo",
+            "v-stage-dev": "todo",
+            "v-stage-dev-accept": "todo",
+            "v-stage-test": "todo",
+            "v-stage-test-accept": "todo",
             "v-indep": ["UD-04-AR"],
             "v-dep": ["UD-01-BR", "UD-02-BR", "UD-03-BR"],
         }),
@@ -72,16 +90,28 @@ ROWS = {
             "v-ver": "7.0.2",
             "v-date": "2026-11-20T00:00:00+08:00",
             "v-status": "planned",
+            "v-stage-plan": "todo",
+            "v-stage-test-design": "todo",
+            "v-stage-dev": "todo",
+            "v-stage-dev-accept": "todo",
+            "v-stage-test": "todo",
+            "v-stage-test-accept": "todo",
         }),
         ("7.1.0", {
             "v-ver": "7.1.0",
             "v-date": "2026-11-30T00:00:00+08:00",
             "v-status": "planned",
+            "v-stage-plan": "todo",
+            "v-stage-test-design": "todo",
+            "v-stage-dev": "todo",
+            "v-stage-dev-accept": "todo",
+            "v-stage-test": "todo",
+            "v-stage-test-accept": "todo",
         }),
     ],
 }
 
-FIELD_ORDER = ["fd-indep", "fd-dep", "fd-bug", "fd-ver"]
+FIELD_ORDER = ["fd-indep", "fd-dep", "fd-case", "fd-run", "fd-bug", "fd-ver"]
 ROW_ORDER = ["fd-indep", "fd-dep", "fd-bug", "fd-ver"]
 
 
@@ -108,7 +138,8 @@ def run(client: httpx.Client, *, strict: bool = False) -> None:
     # 先建全部表格，再建字段（relation 需要目标表已存在），最后按依赖顺序写行。
     for table in TABLES:
         call(client, "POST", f"/api/agent/projects/{PROJECT_ID}/tables",
-             {"id": table["id"], "name": table["name"], "order": table["order"]}, strict=strict)
+             {"id": table["id"], "name": table["name"], "order": table["order"],
+              "kind": table.get("kind", "board")}, strict=strict)
     table_by_id = {table["id"]: table for table in TABLES}
     for table_id in FIELD_ORDER:
         table = table_by_id[table_id]

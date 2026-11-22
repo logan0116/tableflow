@@ -53,19 +53,31 @@ ROWS = {
         ("v0.1.0", {
             "tf-v-ver": "v0.1.0",
             "tf-v-status": "dropped",
+            "tf-v-stage-plan": "todo",
+            "tf-v-stage-test-design": "todo",
+            "tf-v-stage-dev": "todo",
+            "tf-v-stage-dev-accept": "todo",
+            "tf-v-stage-test": "todo",
+            "tf-v-stage-test-accept": "todo",
             "tf-v-note": "单表只读看板（已被 v0.2.0 取代）",
         }),
         ("v0.2.0", {
             "tf-v-ver": "v0.2.0",
             "tf-v-date": "2026-11-30T00:00:00+08:00",
             "tf-v-status": "planned",
+            "tf-v-stage-plan": "todo",
+            "tf-v-stage-test-design": "todo",
+            "tf-v-stage-dev": "todo",
+            "tf-v-stage-dev-accept": "todo",
+            "tf-v-stage-test": "todo",
+            "tf-v-stage-test-accept": "todo",
             "tf-v-indep": ["001-AR"],
             "tf-v-note": "多维表格：项目→多表 + relation 关联 + Agent 写接口",
         }),
     ],
 }
 
-FIELD_ORDER = ["tf-indep", "tf-dep", "tf-bug", "tf-ver"]
+FIELD_ORDER = ["tf-indep", "tf-dep", "tf-case", "tf-run", "tf-bug", "tf-ver"]
 ROW_ORDER = ["tf-indep", "tf-dep", "tf-bug", "tf-ver"]
 
 
@@ -92,7 +104,8 @@ def run(client: httpx.Client, *, strict: bool = False) -> None:
 
     for table in TABLES:
         call(client, "POST", f"/api/agent/projects/{PROJECT_ID}/tables",
-             {"id": table["id"], "name": table["name"], "order": table["order"]}, strict=strict)
+             {"id": table["id"], "name": table["name"], "order": table["order"],
+              "kind": table.get("kind", "board")}, strict=strict)
     table_by_id = {table["id"]: table for table in TABLES}
     for table_id in FIELD_ORDER:
         table = table_by_id[table_id]

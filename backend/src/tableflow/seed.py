@@ -57,6 +57,8 @@ def validate_seed(data: dict[str, Any]) -> None:
                 raise SeedError(f"表格 {tid} 缺少 name")
             if not isinstance(table.get("order", 0), int):
                 raise SeedError(f"表格 {tid} 的 order 必须是整数")
+            if table.get("kind", "board") not in ("board", "detail"):
+                raise SeedError(f"表格 {tid} 的 kind 只能是 board 或 detail")
 
             field_ids: set[str] = set()
             for field in table.get("fields", []):
@@ -146,8 +148,15 @@ def write_seed(db_file: Path, data: dict[str, Any]) -> dict[str, int]:
             counts["projects"] += 1
             for table in project.get("tables", []):
                 conn.execute(
-                    'INSERT INTO tables (id, project_id, name, "order") VALUES (?, ?, ?, ?)',
-                    (table["id"], project["id"], table["name"], table.get("order", 0)),
+                    'INSERT INTO tables (id, project_id, name, "order", kind)'
+                    " VALUES (?, ?, ?, ?, ?)",
+                    (
+                        table["id"],
+                        project["id"],
+                        table["name"],
+                        table.get("order", 0),
+                        table.get("kind", "board"),
+                    ),
                 )
                 counts["tables"] += 1
                 for field in table.get("fields", []):

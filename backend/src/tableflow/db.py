@@ -15,6 +15,10 @@ v0.3.0（003）表结构变化：
 v0.6.2（013）表结构变化：
 - 新增 `api_keys`：调用者 key 的摘要、label、吊销信息（只存 SHA-256，不存明文）。
 - `write_audit` 新增 `key_id`：本次写请求由哪把 key 发起；无 key 的旧调用为 NULL。
+
+board@4（019）表结构变化：
+- `tables` 新增 `kind`：board 进表导航，detail 不进导航（run 表为 detail）。
+- 迁移见 `backend/scripts/migrate_board4.py`；旧库由 `init_schema` 幂等补列。
 """
 
 from __future__ import annotations
@@ -32,7 +36,10 @@ CREATE TABLE IF NOT EXISTS tables (
     id         TEXT PRIMARY KEY,
     project_id TEXT NOT NULL REFERENCES projects(id),
     name       TEXT NOT NULL,
-    "order"    INTEGER NOT NULL DEFAULT 0
+    "order"    INTEGER NOT NULL DEFAULT 0,
+    -- board@4：表级分类。board 进表导航；detail 不进导航但仍可经接口读取、
+    -- 被 relation 弹层展示（用例执行情况表）。
+    kind       TEXT NOT NULL DEFAULT 'board' CHECK (kind IN ('board', 'detail'))
 );
 
 CREATE TABLE IF NOT EXISTS fields (
@@ -171,4 +178,6 @@ def init_schema(conn: sqlite3.Connection) -> None:
     # executescript 的 CREATE TABLE IF NOT EXISTS 不会给旧表补列，这里显式兜底。
     _ensure_column(conn, "write_audit", "origin", "origin TEXT NOT NULL DEFAULT 'agent'")
     _ensure_column(conn, "write_audit", "key_id", "key_id TEXT")
+    # board@4（019）：表级分类列；旧库没有时补 board，迁移脚本再把 run 改成 detail。
+    _ensure_column(conn, "tables", "kind", "kind TEXT NOT NULL DEFAULT 'board'")
     conn.commit()
