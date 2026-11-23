@@ -1,85 +1,57 @@
 ---
 name: tf-dev-check
-description: "推进 tableflow board@4 版本第 4 节点「开发验收」（软件开发角色）：只读校验本版全部规格 indep.验收状态=accepted 且 speckit-implement状态=done，再写 ver.开发验收=done 并回读六节点。验收状态由需求方给，技能不代写。触发词：tf-dev-check、开发验收、第4节点、规格验收、accepted、验收清单。"
+description: "推进 tableflow 版本第 4 节点「开发验收」（软件开发角色）：按客观判据——本版每份规格「实现完成 + 单测通过」——写 indep.验收状态=accepted，再写 ver.开发验收=done 并回读六节点。不需要人工判断，也不重跑单测。触发词：tf-dev-check、开发验收、第4节点、规格验收、accepted、验收清单。"
 ---
 
-# tf-dev-check：需求方确认了吗？
+# tf-dev-check：开发说的「做完了」成立吗？
 
-第 4 节点「开发验收」的明细口径是每份规格的 `验收状态`。本技能只读验收状态、列出未验收项，全部 `accepted` 后才把 `ver.开发验收` 置 `done`。
+判据是客观的，**不含人的判断**：本版每份规格的实现完成且单测通过。本技能据此把 `验收状态` 写成 `accepted`，再推进节点。
+
+## 两层分工（不叠加）
+
+| 节点 | 判据 | 谁写 |
+|---|---|---|
+| 开发 | 代码完成 + 单测通过 | `tf-dev-implement` 跑单测、校验 `plan.md`/`tasks.md` 回链，成立才写 `speckit-implement状态=done` |
+| 开发验收 | 本版规格全部「实现+单测」成立 | **本技能**按判据写 `验收状态=accepted`，再推进节点 |
+
+开发节点是「实现+单测成立」的唯一证据点；验收节点把这个结论翻译成「验收通过」。
+
+**所以本技能不重跑单测**——重跑等于给同一件事加第二套判据。
 
 - 角色：软件开发
 - 节点：`ver.stage.dev_accept`（字段名「开发验收」）
-- 表作用域：读 `版本管理`/`独立规格需求`；**只写** `版本管理`
-- 口径来源：board@4 `rules.version_stage_gate_consistency`（dev_accept 要求 `ver.spec_done`）、`rules.spec_done`
-
-## 何时用
-
-- 本版规格都已验收，要推进「开发验收」节点。
-- 想知道「开发验收卡在哪份规格」。
-
-## 何时不用
-
-- 给规格打 `accepted` → 需求方判定，Agent 不代写。
-- 推进开发节点 → `tf-dev-implement`。
-- 测试执行/测试验收 → `tf-test-implement`/`tf-test-check`。
-
-## 前置条件与检查项
-
-| 检查 | 通过条件 | 不通过 |
-|---|---|---|
-| 版本 | 存在且 `planned` | `failed`，零写入 |
-| 前序节点 | `版本需求设计`/`测试设计`/`开发` 均 `done` | `failed`，指出缺哪个 |
-| 规格存在 | `ver.独立需求管理` 的每行在 `indep` 表中存在 | `failed` |
-| 验收状态 | 每份规格 `验收状态=accepted` | `failed`，逐条列出 `pending/rejected` |
-| 实现状态 | 每份规格 `speckit-implement状态=done` | `failed` |
-| 空集 | 本版无规格时按空集语义通过（`spec_done=真`） | — |
+- 表作用域：读/写 `版本管理`/`独立规格需求`
+- 口径来源：board@5 `rules.spec_done`、`rules.spec_done_precondition`
 
 ## 命令
 
 ```bash
-export TF_BASE=http://localhost:8090
-export TF_PROJECT=tableflow
-export TF_AGENT=agent-tf-role
+export TF_BASE=http://localhost:8090 TF_PROJECT=tableflow TF_AGENT=agent-tf-role
 
-# 只读预览
-python3 skills/tf-dev-check/scripts/tf_dev_check.py --version v0.7.0 --dry-run
+# 只读预览：会写哪几份 accepted
+python3 skills/tf-dev-check/scripts/tf_dev_check.py --version v0.8.0 --dry-run
 
-# 推进节点
-python3 skills/tf-dev-check/scripts/tf_dev_check.py --version v0.7.0 --apply   # 显式确认写入（等价于上一行）
+# 写入并推进节点
+python3 skills/tf-dev-check/scripts/tf_dev_check.py --version v0.8.0
 ```
-
-> `--apply` 是写模式的显式别名（不传也写）；`--dry-run` 优先于 `--apply`。
 
 ## 写与回读
 
-只写 `ver.开发验收=done`；GET 版本行回读该字段，并输出六节点快照与 `stage_done`。三态按 012：`400` 不重试；`503`/超时按 `unknown` 回读。
-
-## 报告要点
-
-```jsonc
-{
-  "skill": "tf-dev-check",
-  "result": "failed",
-  "checks": [
-    {"name": "规格 019-AR 已验收", "ok": false, "detail": "验收状态=pending"}
-  ],
-  "readback": {"indep#acceptance/v0.7.0": {"017-AR": {"验收状态": "accepted", "speckit-implement状态": "done"}}},
-  "errors": ["开发验收未满足：019-AR 验收状态=pending"]
-}
-```
+1. 逐份 PATCH `indep`：`验收状态=accepted`（已是 accepted 的跳过）
+2. 表级读回：确认本版全部规格 `accepted`
+3. 推进 `ver.开发验收=done`；GET 版本行比对六节点快照
 
 ## 常见坑
 
 | 坑 | 说明 |
 |---|---|
-| 为了让节点过而写 `accepted` | 验收是需求方判定；技能拒绝代写，也不会自动改 |
-| 把 `rejected` 当未开始 | `pending`/`rejected` 都算未完成，报告要原样展示 |
-| 忽略前序 `failed` | 前序节点 `failed` 时后序不能推进；先返工改回 `doing` |
-| 空版本直接拒绝 | 本版无规格是空集语义（`spec_done=真`），不是错误 |
-| 打印凭据 | 严禁打印 `TF_API_KEY`/请求头 |
+| 有规格 implement 未 done | `failed` 并列出是哪份；先回去把开发节点做完 |
+| 手动填 accepted 再跑技能 | 不必——accepted 由本技能按判据写，人填等于绕过 |
+| 想让技能重跑单测 | 不做：单测是开发节点的证据，重跑会造两套判据 |
+| 已验收但想推翻 | 把 `验收状态` 改回 `pending` 再跑开发节点返工，不改历史结论 |
 
 ## 不做
 
-- 不写 `indep.验收状态`、不写 `dep.回归状态`、不写 `bug.status`。
+- 不写 `speckit-implement状态`（开发节点的事）。
+- 不跑单测、不改代码。
 - 不推进第 5-6 节点。
-- 不直接连数据库。
