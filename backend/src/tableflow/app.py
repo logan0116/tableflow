@@ -19,7 +19,7 @@ from typing import Any
 from fastapi import Body, Depends, FastAPI, Header, Query, Request
 from fastapi.responses import JSONResponse
 
-from . import auth, calculation, db, repository, write_service
+from . import auth, board_rules, calculation, db, repository, write_service
 from .config import db_path
 from .schemas import ChangesOut, ProjectsOut, RowDetailOut, TableOut
 
@@ -128,6 +128,30 @@ def get_tables(project_id: str, conn: sqlite3.Connection = Depends(get_conn)):
     if tables is None:
         return JSONResponse(status_code=404, content={"detail": "项目不存在"})
     return {"tables": [table.model_dump() for table in tables]}
+
+
+@app.get("/api/projects/{project_id}/delivery")
+def get_spec_delivery(
+    project_id: str,
+    spec: str | None = None,
+    dir: str | None = None,
+    conn: sqlite3.Connection = Depends(get_conn),
+):
+    """规格的交付记录与当前生效修订（033）。按 ``spec`` 或 ``dir`` 二选一定位。"""
+    from urllib.parse import unquote
+
+    spec_id = spec or (board_rules.resolve_spec_by_dir(conn, project_id, unquote(dir)) if dir else None)
+    if spec_id is None:
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "未指定 spec 或 dir，或该项目里找不到对应的规格"},
+        )
+    data = board_rules.spec_delivery(conn, project_id, spec_id)
+    if data is None:
+        return JSONResponse(
+            status_code=404, content={"detail": "项目不存在或没有可识别的版本表"}
+        )
+    return data
 
 
 @app.get("/api/tables/{table_id}/table", response_model=TableOut)

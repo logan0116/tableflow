@@ -354,3 +354,140 @@ def validate_row_write(
         conn, table_id, fields, row_id, merged,
         submitted if submitted is not None else merged,
     )
+
+
+# ---------- 交付记录查询（033 T001 / FR-006） ----------
+
+SPEC_REVISION_NAME = "规格修订"
+
+
+def _version_table_of(
+    conn: sqlite3.Connection, project_id: str
+) -> tuple[str, dict[str, sqlite3.Row]] | None:
+    rows = conn.execute(
+        'SELECT id FROM tables WHERE project_id = ? ORDER BY "order" ASC, id ASC',
+        (project_id,),
+    ).fetchall()
+    for row in rows:
+        fields = _table_fields(conn, row["id"])
+        if version_stage.stage_nodes(fields) is not None:
+            return row["id"], fields
+    return None
+
+
+def _dep_meta_fields(
+    conn: sqlite3.Connection, dep_table_id: str
+) -> tuple[sqlite3.Row | None, sqlite3.Row | None, sqlite3.Row | None]:
+    """依赖需求表的：关联规格、回归状态、规格修订。"""
+    fields = _table_fields(conn, dep_table_id)
+    spec_field = _dep_spec_field(conn, fields)
+    regress = next(
+        (
+            field
+            for field in fields.values()
+            if field["type"] == "enum" and _enum_values(field) == REGRESS_VALUES
+        ),
+        None,
+    )
+    revision = next(
+        (field for field in fields.values() if field["name"] == SPEC_REVISION_NAME),
+        None,
+    )
+    return spec_field, regress, revision
+
+
+def spec_delivery(
+    conn: sqlite3.Connection, project_id: str, spec_id: str
+) -> dict[str, Any] | None:
+    """某份规格的交付记录与当前生效修订。
+
+    返回 ``None`` 表示项目不存在或没有版本表（无法判定）。
+    """
+    if conn.execute("SELECT 1 FROM projects WHERE id = ?", (project_id,)).fetchone() is None:
+        return None
+    located = _version_table_of(conn, project_id)
+    if located is None:
+        return None
+    version_table_id, version_fields = located
+    relations = _relation_fields(conn, version_fields)
+    indep_field = relations.get("indep")
+    dep_field = relations.get("dep")
+
+    versions = _version_rows(conn, version_table_id)
+    delivered_in: str | None = None
+    if indep_field is not None:
+        for version_id, data in versions:
+            if spec_id not in _as_list(data.get(indep_field["id"])):
+                continue
+            if delivered_in is None or (
+                _semver(version_id) and _semver(delivered_in)
+                and _semver(version_id) > _semver(delivered_in)
+            ):
+                delivered_in = version_id
+
+    revisions: list[dict[str, Any]] = []
+    if dep_field is not None:
+        dep_table_id = _target_table_id(dep_field)
+        if dep_table_id is not None:
+            spec_field, regress, revision = _dep_meta_fields(conn, dep_table_id)
+            if spec_field is not None:
+                for version_id, data in versions:
+                    for dep_id in _as_list(data.get(dep_field["id"])):
+                        values = _row_values(conn, dep_table_id, dep_id)
+                        if values is None:
+                            continue
+                        if spec_id not in _as_list(values.get(spec_field["id"])):
+                            continue
+                        revisions.append(
+                            {
+                                "dep": dep_id,
+                                "version": version_id,
+                                "regress": values.get(regress["id"]) if regress else None,
+                                "spec_revision": values.get(revision["id"]) if revision else None,
+                            }
+                        )
+    revisions.sort(key=lambda item: (_semver(item["version"]) or (0, 0, 0), item["dep"]))
+
+    effective = [
+        item for item in revisions
+        if item["regress"] == "passed" and item["spec_revision"] == "done"
+    ]
+    current = (
+        {"source": "change", **effective[-1]}
+        if effective
+        else {"source": "initial", "dep": None, "version": delivered_in, "regress": None,
+              "spec_revision": None}
+    )
+    return {
+        "spec": spec_id,
+        "delivered_in": delivered_in,
+        "current_revision": current,
+        "effective_revisions": effective,
+        "all_changes": revisions,
+    }
+
+
+def resolve_spec_by_dir(
+    conn: sqlite3.Connection, project_id: str, directory: str
+) -> str | None:
+    """按规格目录找规格编号（033 US1 AS1：给 ``specs/026-ver-columns/`` 能查到交付记录）。"""
+    located = _version_table_of(conn, project_id)
+    if located is None:
+        return None
+    _version_table_id, version_fields = located
+    indep_field = _relation_fields(conn, version_fields).get("indep")
+    if indep_field is None:
+        return None
+    indep_table_id = _target_table_id(indep_field)
+    if indep_table_id is None:
+        return None
+    wanted = directory.strip().strip("/")
+    for row in conn.execute(
+        "SELECT id, data FROM row_records WHERE table_id = ?", (indep_table_id,)
+    ).fetchall():
+        values = _loads(row["data"]) or {}
+        for name, value in values.items():
+            if name.endswith("dir") and isinstance(value, str):
+                if value.strip().strip("/") == wanted:
+                    return row["id"]
+    return None
