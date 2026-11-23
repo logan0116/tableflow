@@ -19,7 +19,16 @@ from typing import Any
 from fastapi import Body, Depends, FastAPI, Header, Query, Request
 from fastapi.responses import JSONResponse
 
-from . import auth, board_rules, calculation, db, repository, stage_evidence, write_service
+from . import (
+    auth,
+    board_rules,
+    calculation,
+    db,
+    repository,
+    rules,
+    stage_evidence,
+    write_service,
+)
 from .config import db_path
 from .schemas import ChangesOut, ProjectsOut, RowDetailOut, TableOut
 
@@ -152,6 +161,12 @@ def get_spec_delivery(
             status_code=404, content={"detail": "项目不存在或没有可识别的版本表"}
         )
     return data
+
+
+@app.get("/api/rules")
+def get_rules(prefix: str | None = None):
+    """看板规则清单（040）：可枚举、可按规则号前缀过滤。"""
+    return {"rules": rules.as_dicts(prefix), "total": len(rules.as_dicts(prefix))}
 
 
 @app.get("/api/projects/{project_id}/stages")

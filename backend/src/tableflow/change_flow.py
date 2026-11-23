@@ -106,7 +106,7 @@ def validate_row_write(
                 missing.append(name)
         if missing:
             raise WriteError(
-                "依赖需求置 passed 前必须完成完整变更，缺少："
+                "D1：依赖需求置 passed 前必须完成完整变更，缺少："
                 + "、".join(missing)
                 + "。补丁不因规模小免除流程；跨规格变更还要逐份给出一致性检查结论"
             )
@@ -118,6 +118,6 @@ def validate_row_write(
         if new_revision == "not_needed" and old_revision != "not_needed":
             if not _text(merged, _by_name(fields, EVIDENCE_NAME)):
                 raise WriteError(
-                    "规格修订取 not_needed 时必须写明判定依据："
+                    "D2：规格修订取 not_needed 时必须写明判定依据："
                     "在「证据」里说明为什么本次改动不产生规格内容变化"
                 )

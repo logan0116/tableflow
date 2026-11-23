@@ -133,7 +133,7 @@ def _validate_indep(
 
     if old == "dropped" and new != "dropped":
         raise WriteError(
-            f"dropped 是终态：独立需求 {row_id} 已放弃，不能改回 {new or '空'}；"
+            f"L1：dropped 是终态：独立需求 {row_id} 已放弃，不能改回 {new or '空'}；"
             "要重新做这项能力，请新建独立需求"
         )
 
@@ -147,13 +147,13 @@ def _validate_indep(
             missing.append(DROPPED_AT_NAME)
         if missing:
             raise WriteError(
-                f"放弃独立需求 {row_id} 必须同时给出{'、'.join(missing)}；"
+                f"L2：放弃独立需求 {row_id} 必须同时给出{'、'.join(missing)}；"
                 "放弃要留下理由与时间，不能只改状态"
             )
         holders = _versions_holding(conn, row_id)
         if holders:
             raise WriteError(
-                f"放弃独立需求 {row_id} 前必须先摘除它与版本的关联：仍在 {'、'.join(holders)} 中"
+                f"L3：放弃独立需求 {row_id} 前必须先摘除它与版本的关联：仍在 {'、'.join(holders)} 中"
             )
 
     split_field = _by_name(fields, SPLIT_LOG_NAME)
@@ -163,7 +163,7 @@ def _validate_indep(
         if new_log != old_log and new_log.strip():
             if merged.get(acceptance["id"]) == "accepted":
                 raise WriteError(
-                    f"拆分只在独立需求尚未 accepted 时允许：{row_id} 已验收通过，"
+                    f"L6：拆分只在独立需求尚未 accepted 时允许：{row_id} 已验收通过，"
                     "范围变化请开依赖需求，不要拆分"
                 )
 
@@ -211,7 +211,7 @@ def _validate_version(
             dropped.append(spec_id)
     if dropped:
         raise WriteError(
-            f"已放弃的独立需求不能再挂到版本 {row_id}：{'、'.join(dropped)}；"
+            f"L4：已放弃的独立需求不能再挂到版本 {row_id}：{'、'.join(dropped)}；"
             "要重新做这项能力，请新建独立需求"
         )
 
@@ -242,6 +242,7 @@ def _validate_dep(
     if acceptance is None:
         return
     dropped: list[str] = []
+    unaccepted: list[str] = []
     for spec_id in targets:
         row = conn.execute(
             "SELECT data FROM row_records WHERE table_id = ? AND id = ?",
@@ -249,12 +250,21 @@ def _validate_dep(
         ).fetchone()
         if row is None:
             continue
-        if (_loads(row["data"]) or {}).get(acceptance["id"]) == "dropped":
+        state = (_loads(row["data"]) or {}).get(acceptance["id"])
+        if state == "dropped":
             dropped.append(spec_id)
+        elif state != "accepted":
+            unaccepted.append(f"{spec_id}={state}")
     if dropped:
         raise WriteError(
-            f"依赖需求 {row_id} 不能关联已放弃的规格：{'、'.join(dropped)}；"
+            f"L5：依赖需求 {row_id} 不能关联已放弃的规格：{'、'.join(dropped)}；"
             "该能力未建立，如要重做请新建独立需求"
+        )
+    if unaccepted:
+        raise WriteError(
+            f"C4：依赖需求 {row_id} 只能关联已验收的规格；以下尚未 accepted："
+            + "、".join(unaccepted)
+            + "。规格未验收时按 in_place 直接改规格，不开依赖需求"
         )
 
 

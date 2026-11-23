@@ -124,7 +124,7 @@ def validate_row_write(
             missing.append(f"{key}（字段「{field['name']}」）")
     if missing:
         raise WriteError(
-            "阶段置 done 必须留下证据：在「阶段证据」里补上 "
+            "S1：阶段置 done 必须留下证据：在「阶段证据」里补上 "
             + "、".join(
                 f"{item.split('（')[0]}=<产物路径或命令结论>" for item in missing
             )
