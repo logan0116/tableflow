@@ -141,12 +141,15 @@ def add_fields(table: dict, specs: list[dict], letter: str, apply: bool, planned
         planned.append(f"{table['id']} 新建字段 {field_id}「{spec['name']}」")
         if not apply:
             continue
+        # field.create 只接受 id/name/options/order/type/visible，说明只留在契约文档里
         result = call("POST", f"/api/agent/tables/{table['id']}/fields", {
             "id": field_id, "name": spec["name"], "type": spec["type"],
-            "options": spec["options"], "note": spec["note"], "visible": 1,
+            "options": spec["options"], "visible": 1,
         })
         state = "ok" if result.get("http") in (200, 201) else f"FAILED {result.get('error') or ''}"
         planned[-1] += f" -> {state}"
+        if not state.startswith("ok"):
+            failures.append(planned[-1])
 
 
 def extend_acceptance(field: dict, apply: bool, planned: list[str]) -> None:
@@ -180,6 +183,7 @@ def main() -> int:
         targets = [p for p in targets if p in set(args.project)]
 
     planned: list[str] = []
+    failures: list[str] = []
     for project_id in targets:
         tables = call("GET", f"/api/projects/{project_id}/tables")
         if tables.get("http") != 200:
@@ -203,7 +207,10 @@ def main() -> int:
                 print(f"[{project_id}] {line}")
 
     mode = "已写入" if args.apply else "待写入（dry-run）"
-    print(f"\n合计 {len(planned)} 项{mode}")
+    print(f"\n合计 {len(planned)} 项{mode}；失败 {len(failures)} 项")
+    for item in failures:
+        print("  FAILED", item)
+    return 1 if failures else 0
     return 0
 
 
