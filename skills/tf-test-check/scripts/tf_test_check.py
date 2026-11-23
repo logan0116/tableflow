@@ -57,17 +57,57 @@ def main(args, report) -> None:
     bug_ids = ver.relation(args.version, "Bug管理")
 
     run_states = {run_id: run_table.value(run_id, "执行状态") for run_id in run_ids}
+    # 036：执行结果为主判据；放行标记三字段在 board@5 才有，缺字段时视为不可放行
+    has_waiver = run_table.fid("放行标记", required=False) is not None
+    has_waiver_by = run_table.fid("放行批准人", required=False) is not None
+    has_waiver_reason = run_table.fid("放行理由", required=False) is not None
+    run_results = {run_id: run_table.value(run_id, "执行结果") for run_id in run_ids}
+    waiver_flag = {
+        run_id: (run_table.value(run_id, "放行标记") if has_waiver else None)
+        for run_id in run_ids
+    }
+    waiver_by = {
+        run_id: (run_table.value(run_id, "放行批准人") if has_waiver_by else None)
+        for run_id in run_ids
+    }
+    waiver_reason = {
+        run_id: (run_table.value(run_id, "放行理由") if has_waiver_reason else None)
+        for run_id in run_ids
+    }
+
+    def waiver_ok(run_id: str) -> bool:
+        """放行必须三者齐备：标记=waived、批准人非空、理由非空。"""
+        return (
+            str(waiver_flag.get(run_id)) == "waived"
+            and bool(str(waiver_by.get(run_id) or "").strip())
+            and bool(str(waiver_reason.get(run_id) or "").strip())
+        )
     change_states = {change_id: dep_table.value(change_id, "回归状态") for change_id in change_ids}
     bug_states = {bug_id: bug_table.value(bug_id, "状态") for bug_id in bug_ids}
 
     pending_runs = [run_id for run_id, state in run_states.items() if state != "done"]
+    failed_runs = [
+        run_id
+        for run_id, state in run_states.items()
+        if state == "done" and run_results.get(run_id) != "pass"
+    ]
+    waived_runs = [run_id for run_id in failed_runs if waiver_ok(run_id)]
+    not_passed_runs = [run_id for run_id in failed_runs if run_id not in waived_runs]
     failed_changes = [change_id for change_id, state in change_states.items() if state != "passed"]
     open_bugs = [bug_id for bug_id, state in bug_states.items() if state != "closed"]
 
     case_done = not pending_runs
+    result_ok = not not_passed_runs
     change_done = not failed_changes
     bug_clear = not open_bugs
 
+    report.check(
+        "执行结果全部通过",
+        result_ok,
+        f"{len(run_ids)} 条全部 pass（放行 {len(waived_runs)} 条）"
+        if result_ok
+        else f"未通过 {not_passed_runs}；其中已放行 {waived_runs}",
+    )
     report.check(
         "用例全部执行",
         case_done,
@@ -86,12 +126,22 @@ def main(args, report) -> None:
         f"{len(bug_ids)} 条全部 closed（空集为真）" if bug_clear else f"未关闭 {open_bugs}",
     )
     report.readback(
-        f"run#state/{args.version}", {run_id: {"执行状态": state} for run_id, state in run_states.items()}
+        f"run#state/{args.version}",
+        {
+            run_id: {
+                "执行状态": state,
+                "执行结果": run_results.get(run_id),
+                "放行": waiver_flag.get(run_id) if has_waiver else "（无该字段）",
+            }
+            for run_id, state in run_states.items()
+        },
     )
     report.readback(f"dep#regress/{args.version}", change_states)
     report.readback(f"bug#status/{args.version}", bug_states)
 
     blockers = []
+    if not_passed_runs:
+        blockers.append(f"执行结果未通过且未放行：{not_passed_runs}")
     if pending_runs:
         blockers.append(f"用例未全部执行：{pending_runs}")
     if failed_changes:

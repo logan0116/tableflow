@@ -31,6 +31,8 @@ description: "推进 tableflow board@4 版本第 6 节点「测试验收」（�
 | 版本 | 存在且 `planned` | `failed`，零写入 |
 | 前序节点 | 前 5 个节点均 `done` | `failed`，指出缺哪个 |
 | 用例完成 | `ver.测试用例` 中全部 `run.state=done` | `failed`，列出未执行记录 |
+| 执行结果通过（036） | 每条 `run.result=pass`，或带有效放行标记 | `failed`，分别列出未通过项与已放行项 |
+| 放行标记有效（036） | `放行标记=waived` 且 `放行批准人`、`放行理由` 都非空 | 该条按未放行处理 |
 | 缺陷清零 | `ver.Bug管理` 中全部 `bug.status=closed` | `failed`，列出未关闭缺陷 |
 | 变更回归 | `ver.依赖需求管理` 中全部 `dep.回归状态=passed` | `failed`，列出未通过变更单 |
 | 空集 | 未关联时按空集为真（本版无此类工作） | 不阻断 |

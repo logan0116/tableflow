@@ -4,7 +4,7 @@ meta:
   status: draft
   revision: 5
   revised: 2026-11-23
-  revision_note: 033：区分规格、独立需求、依赖需求三种对象；新增交付唯一性与先后规则（C1/C2/C3）；「冻结」限定为交付记录，规格内容可通过依赖需求形成新修订；新增规格当前修订指针。
+  revision_note: '033：区分规格、独立需求、依赖需求三种对象；新增交付唯一性与先后规则（C1/C2/C3）；「冻结」限定为交付记录；新增规格当前修订指针。036：测试验收改以执行结果为主判据，新增执行行放行标记（批准人/理由），结论一经记录不得被后续版本改写。'
   updated: '2026-11-23'
   project: tableflow
   scope:
@@ -125,7 +125,7 @@ rules:
     rollup: 空集all/none为真、any为假
   ratio: 契约只存"总数"与"就绪"；需要分子时再加一个 count 字段（判定已单字段化，可算）
   case_done: 用例是否全部执行 = ver.runs 中全部 state == done（rollup all）；空集为真
-  case_progress_only: '版本表只管理测试进度（总数/已完成数/是否完成），不展示通过率。测试是否通过留在 run.result 与缺陷表，不进入版本闸门。'
+  case_progress_only: '版本表的用例三字段只管理测试进度（总数/已完成数/是否完成），不展示通过率；质量结论留在 run.result。但「测试验收」节点会读取执行结果（见 rules.test_accept_gate）——两者不矛盾：进度字段不掺质量，质量由节点闸门单独判定。'
   run_state_result_consistency: '写入期校验：run.state == todo 时 run.result 必须为空；run.state == done 时 run.result 必须非空。两者不一致返回 400。'
   bug_done: bug.status == closed
   bug_not_done: bug.status != closed
@@ -144,6 +144,10 @@ rules:
   run_owned_by_version: 执行记录只由版本表的 runs 持有；run 行不得再有指向版本的字段（引擎禁双向，且会造成两个真相）。
   run_needs_case: 每条执行记录必须指向一条用例（run.case 非空）；未纳入本版本的用例不建记录行。
   run_one_per_version_case: 同一版本内同一用例只允许一条执行记录；重跑就地更新该行（结果/证据/时间/执行人），不新建。
+  run_result_judgement: 测试验收以本版本每条执行记录的 执行结果 为准：只有 pass 算通过；fail/blocked/skip 一律视为未通过，必须有放行标记才能推进测试验收。缺陷关闭状态只作旁证，不得替代执行结果。
+  run_waiver: '放行标记落在执行行上：waived=waived 时必须同时给出批准人与理由；缺任一视为未放行。执行结果重跑为 pass 后标记失效，不再计入放行清单。'
+  acceptance_conclusion_immutable: 版本测试验收结论一经记录，不因后续版本修复同一缺陷而改变；重新验收必须在本版本内补齐证据后进行，并保留前后两次结论与证据。
+  test_accept_gate: ver.stage.test_accept 置 done 要求同时满足：本版执行记录全部 执行状态=done；每条 执行结果=pass 或带有效放行标记；本版变更单全部 回归状态=passed；本版缺陷全部 状态=closed。任一不满足返回 400。
   version_stage_serial: '六节点串行推进：ver.stage.plan → ver.stage.test_design → ver.stage.dev → ver.stage.dev_accept → ver.stage.test → ver.stage.test_accept。后一节点不得早于前一节点到达 done（写入期校验）；前一节点处于 failed 时，后一节点不得推进。'
   version_stage_failure: 节点置 failed 后必须返工并改回 doing 再重新推进；不提供"跳过"取值。失败影响哪个下游节点由人判断，契约不自动回退其他节点。
   version_stage_gate_consistency: '写入期校验，防止人工把六节点改成全 done 绕过自动判定：ver.stage.test 置 done 要求 ver.case_done 为真；ver.stage.test_accept 置 done 要求 ver.bug_clear 与 ver.change_done 都为真；ver.stage.dev_accept 置 done 要求 ver.spec_done 为真。任一不满足返回 400。'
@@ -602,6 +606,22 @@ tables:
     - key: run.note
       name: 备注
       type: text
+    - key: run.waived
+      name: 放行标记
+      type: enum
+      values:
+      - none
+      - waived
+      default: none
+      note: 执行结果非 pass 时，置 waived 表示本次不阻塞发布；必须同时给出批准人与理由，否则视为未放行。重跑为 pass 后标记失效。
+    - key: run.waiver_by
+      name: 放行批准人
+      type: text
+      note: 置 waived 时必填；谁批准了这次放行
+    - key: run.waiver_reason
+      name: 放行理由
+      type: text
+      note: 置 waived 时必填；为什么这次失败不阻塞发布
       note: 失败或阻塞的原因
   bug:
     id: <前缀>-bug

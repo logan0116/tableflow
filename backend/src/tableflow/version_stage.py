@@ -57,6 +57,10 @@ NAME_TO_KEY = {label: key for key, label in STAGE_LABELS.items()}
 
 # 目标表（版本表关联进来的"证据来源"）识别：按目标表的判据枚举值域。
 BUG_STATUS_VALUES = frozenset({"open", "fixing", "verifying", "closed"})
+RUN_RESULT_VALUES = frozenset({"pass", "fail", "blocked", "skip"})
+WAIVER_VALUES = frozenset({"none", "waived"})
+WAIVER_BY_NAME = "放行批准人"
+WAIVER_REASON_NAME = "放行理由"
 REGRESS_VALUES = frozenset({"todo", "doing", "passed", "failed"})
 ACCEPTANCE_VALUES = frozenset({"pending", "accepted", "rejected"})
 
@@ -65,6 +69,7 @@ NODE_REQUIREMENTS: dict[str, tuple[tuple[str, str, str], ...]] = {
     "dev_accept": (("indep", "accepted", "本版规格必须全部 accepted"),),
     "test": (("run", "done", "本版用例必须全部执行"),),
     "test_accept": (
+        ("run", "done", "本版用例必须全部执行"),
         ("bug", "closed", "本版缺陷必须全部 closed"),
         ("dep", "passed", "本版变更单必须全部 passed（回归通过）"),
     ),
@@ -243,6 +248,68 @@ def _unsatisfied(
     return problems
 
 
+def _run_quality_fields(
+    fields: dict[str, sqlite3.Row],
+) -> tuple[sqlite3.Row | None, sqlite3.Row | None, sqlite3.Row | None, sqlite3.Row | None]:
+    """执行记录的质量判据：执行结果、放行标记、批准人、理由。认不出返回 None（不猜）。"""
+    if run_protocol.state_result_fields(fields) is None:
+        return None, None, None, None
+    result = _unique(
+        [
+            field
+            for field in fields.values()
+            if field["type"] == "enum" and _enum_values(field) == RUN_RESULT_VALUES
+        ]
+    )
+    waived = _unique(
+        [
+            field
+            for field in fields.values()
+            if field["type"] == "enum" and _enum_values(field) == WAIVER_VALUES
+        ]
+    )
+    by_name = {
+        field["name"]: field for field in fields.values() if field["type"] == "text"
+    }
+    return result, waived, by_name.get(WAIVER_BY_NAME), by_name.get(WAIVER_REASON_NAME)
+
+
+def _run_result_problems(
+    conn: sqlite3.Connection,
+    target_id: str,
+    relation_field: sqlite3.Row,
+    values: dict[str, Any],
+) -> list[str]:
+    """036：执行结果必须 pass，或带有效放行标记（批准人与理由都不为空）。"""
+    ids = values.get(relation_field["id"])
+    if not isinstance(ids, list) or not ids:
+        return []
+    fields = _table_fields(conn, target_id)
+    result, waived, by_field, reason_field = _run_quality_fields(fields)
+    if result is None:
+        return []  # 认不出质量字段：不猜
+    rows = _fetch_values(conn, target_id, [str(item) for item in ids])
+    problems: list[str] = []
+    for row_id in ids:
+        data = rows.get(str(row_id))
+        if data is None:
+            continue  # 行不存在由 _unsatisfied 报
+        outcome = data.get(result["id"])
+        if outcome == "pass":
+            continue
+        if (
+            waived is not None
+            and by_field is not None
+            and reason_field is not None
+            and data.get(waived["id"]) == "waived"
+            and (data.get(by_field["id"]) or "").strip()
+            and (data.get(reason_field["id"]) or "").strip()
+        ):
+            continue
+        problems.append(f"{row_id}={outcome if outcome not in (None, '') else '空'}")
+    return problems
+
+
 def _check_serial(
     nodes: list[tuple[sqlite3.Row, str | None]],
     merged: dict[str, Any],
@@ -311,6 +378,17 @@ def _check_gate(
                     f"「{field['name']}」置 done 前，{description}：{detail}"
                     f"（字段「{relation_field['name']}」）"
                 )
+        if key != "test_accept":
+            continue
+        source = sources.get("run")
+        if source is None:
+            continue
+        quality = _run_result_problems(conn, source[1], source[0], merged)
+        if quality:
+            raise WriteError(
+                "「测试验收」置 done 前，本版执行结果必须全部 pass，"
+                "或带有效放行标记（放行批准人与放行理由都不为空）：" + "、".join(quality)
+            )
 
 
 def validate_row_write(
