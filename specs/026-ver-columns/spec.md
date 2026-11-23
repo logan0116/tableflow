@@ -85,6 +85,17 @@
 2. **Given** 合并前后同一份数据，**When** 跑 `check_board --base`，**Then** 差异仍为 0。
 3. **Given** 合并后的界面，**When** 用 `tf-status` 只读查询版本差距，**Then** 输出与合并前一致。
 
+### User Story 5 - 边界与组合补充 (Priority: P2)
+
+合并后的列在空集、大数据量、失败态与多行版本下都保持可读。
+
+**Acceptance Scenarios**:
+
+1. **Given** 某版本的独立需求为 999/999，**When** 看该列，**Then** 数字完整显示不换行、不撑破列宽。
+2. **Given** 某版本六个节点中含 `failed`，**When** 看灯组，**Then** 对应灯显示失败色且其余灯颜色不变。
+3. **Given** 版本表有 15 行，**When** 逐行看灯组，**Then** 每行的灯数量、间距、列宽完全一致。
+4. **Given** 某版本四组关联都为空，**When** 点击任一组合并列，**Then** 弹层显示 `0 项` 空态，不报错、不一直 loading。
+
 ## Requirements *(mandatory)*
 
 - **FR-001**: 版本表 MUST 把六个节点与「六节点是否全部完成」渲染为一组灯，MUST NOT 各占独立列。

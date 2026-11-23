@@ -60,6 +60,16 @@
 1. **Given** 任一表格页，**When** 看工具栏，**Then** 没有「行密度」标签与两个按钮。
 2. **Given** 表格渲染，**When** 量行高，**Then** 等于默认舒适档（40px 量级），不随任何开关变化。
 
+### User Story 4 - 移除后的残留检查 (Priority: P2)
+
+移除控件后没有残留入口，旧本地状态不报错。
+
+**Acceptance Scenarios**:
+
+1. **Given** localStorage 里仍有旧的密度与列宽键，**When** 打开任一表，**Then** 不读取、不报错、渲染正常。
+2. **Given** 任一表格页，**When** 检查表头，**Then** 没有列宽拖拽手柄（resizer）出现。
+3. **Given** 紧凑密度曾生效过，**When** 打开页面，**Then** 行高仍是默认舒适档（不继承旧设置）。
+
 ## Requirements *(mandatory)*
 
 - **FR-001**: 工具栏 MUST 移除跨列关键字筛选输入框及其清除按钮、筛选态计数。

@@ -71,6 +71,17 @@
 1. **Given** 任一筛选状态，**When** 对比接口返回与界面显示，**Then** 行数与内容一致（过滤后）。
 2. **Given** 筛选状态，**When** 跑 `check_board`，**Then** 差异仍为 0。
 
+### User Story 5 - 跨表一致性补充 (Priority: P2)
+
+筛选在四表间切换、刷新、空集时保持一致。
+
+**Acceptance Scenarios**:
+
+1. **Given** 选了某版本，**When** 依次切换需求→依赖需求→用例→缺陷，**Then** 四张表的筛选都保持同一版本。
+2. **Given** 选「全部版本」，**When** 切到任一表，**Then** 该表显示全量行。
+3. **Given** 所选版本有用例但缺陷为零，**When** 看缺陷表，**Then** 显示空状态而不是全量缺陷。
+4. **Given** 选了某版本，**When** 刷新页面，**Then** 筛选与各表行数保持。
+
 ## Requirements *(mandatory)*
 
 - **FR-001**: 版本筛选状态 MUST 为全局（跨表保持），切换表时不重置。

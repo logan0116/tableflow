@@ -66,6 +66,17 @@
 1. **Given** 筛选到某版本，**When** 对比接口返回的该行与界面显示，**Then** 字段值一致。
 2. **Given** 筛选状态，**When** 跑 `check_board --base`，**Then** 差异仍为 0。
 
+### User Story 4 - 语义序与异常输入 (Priority: P2)
+
+版本筛选在版本号跨位数、本地状态损坏、与角色叠加时都表现正确。
+
+**Acceptance Scenarios**:
+
+1. **Given** 版本表同时有 `v0.9.0` 与 `v0.10.0`，**When** 选「最新版本」，**Then** 显示 `v0.10.0`（按数字比较，不是字符串）。
+2. **Given** localStorage 里存着已被删除的版本号，**When** 打开页面，**Then** 回退到「最新版本」而不是空白。
+3. **Given** localStorage 内容损坏，**When** 打开页面，**Then** 不抛错，按「最新版本」渲染。
+4. **Given** 已选某版本并切到「软件测试」角色，**When** 再看版本表，**Then** 版本筛选仍生效。
+
 ## Requirements *(mandatory)*
 
 - **FR-001**: 版本表 MUST 默认只展示版本号语义序最大的行，MUST 提供「最新版本/全部/具体版本」三种筛选。
