@@ -7,9 +7,9 @@
 - **生成者**：tf-dev-implement
 
 - [ ] T001 实现 US1 拆分一条做不完的需求（覆盖场景：034-US1-AS1、034-US1-AS2、034-US1-AS3、034-US1-AS4）
-- [ ] T002 实现 US2 放弃一条不做的需求（覆盖场景：034-US2-AS1、034-US2-AS2、034-US2-AS3）
+- [x] T002 实现 US2 放弃一条不做的需求（覆盖场景：034-US2-AS1、034-US2-AS2、034-US2-AS3）——`spec_lifecycle.py` 实现：置 dropped 必须同时给出放弃理由与放弃时间、且必须先摘除全部版本关联；dropped 为终态不可回退；保留当时阶段状态与未完成结论。
 - [ ] T003 实现 US3 拆分与放弃之后仍然可追溯（覆盖场景：034-US3-AS1、034-US3-AS2、034-US3-AS3）
-- [ ] T004 实现 US4 非法操作被明确拒绝（覆盖场景：034-US4-AS1、034-US4-AS2、034-US4-AS3、034-US4-AS4）
-- [ ] T005 补齐单元测试（覆盖上述全部实现项）
-- [ ] T006 更新文档与契约引用（如涉及）
-- [ ] T007 跑通全量测试并记录结果
+- [x] T004 实现 US4 非法操作被明确拒绝（覆盖场景：034-US4-AS1、034-US4-AS2、034-US4-AS3、034-US4-AS4）——已 accepted 不得写拆分记录；已 dropped 不得挂版本；已 dropped 的规格不得新开依赖需求；拒绝信息含实际状态与下一步建议。
+- [x] T005 补齐单元测试（覆盖上述全部实现项）——`backend/tests/test_spec_lifecycle_034.py` 8 项：放弃缺理由/缺时间、未摘除版本、摘除后成功、终态不可回退、已放弃不得挂版本、已放弃不得开变更单、未验收可拆分、已验收拒绝拆分。
+- [x] T006 更新文档与契约引用（如涉及）——契约 board@5：`验收状态` 增加 dropped 终态；indep 新增 放弃理由/放弃时间/拆分记录 三字段；新增 spec_terminal_states、spec_drop、spec_drop_immutable、spec_split、spec_split_not_terminal 五条规则；迁移脚本 `backend/scripts/migrate_board5.py` 覆盖 board@5 全部字段（dry-run：8 个项目 56 项）。
+- [x] T007 跑通全量测试并记录结果——`.venv/bin/python -m pytest -q` → 252 passed。

@@ -30,7 +30,12 @@ from typing import Any
 from . import version_stage
 from .errors import WriteError
 
-ACCEPTANCE_VALUES = frozenset({"pending", "accepted", "rejected"})
+ACCEPTANCE_VALUES = frozenset({"pending", "accepted", "rejected", "dropped"})
+# board@5 前是三元域；迁移未完成的项目仍按三元识别，两种都认
+ACCEPTANCE_DOMAINS = frozenset({
+    ACCEPTANCE_VALUES,
+    frozenset({"pending", "accepted", "rejected"}),
+})
 REGRESS_VALUES = frozenset({"todo", "doing", "passed", "failed"})
 
 SEMVER_RE = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)$")
@@ -99,7 +104,7 @@ def _target_role(conn: sqlite3.Connection, field: sqlite3.Row) -> str | None:
         for item in _table_fields(conn, target_id).values()
         if item["type"] == "enum"
     }
-    if ACCEPTANCE_VALUES in domains:
+    if ACCEPTANCE_DOMAINS & domains:
         return "indep"
     if REGRESS_VALUES in domains:
         return "dep"

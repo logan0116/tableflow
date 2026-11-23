@@ -49,8 +49,9 @@ status_definitions:
     - pending
     - accepted
     - rejected
-    question: 需求方是否确认这份交付物满足条款？
-    note: 该次交付是否完成的唯一判据；pending/rejected 即未完成。它冻结的是交付记录，不是规格内容。board@4 起它承载"开发验收"的明细语义，在测试执行之前落定。
+    - dropped
+    question: 这次交付是完成、未通过，还是放弃？
+    note: 终态只有 accepted（完成）与 dropped（放弃）；pending/rejected 是过程态。它冻结的是交付记录，不是规格内容。board@4 起它承载"开发验收"的明细语义，在测试执行之前落定；board@5 起 dropped 表示明确不做，须保留当时未完成结论。
   regress:
     field: change.regress
     values:
@@ -115,6 +116,11 @@ rules:
   change_requires_accepted: 依赖需求只能关联已 accepted 的规格；规格尚未 accepted 时按 classify.in_place 直接改规格与其独立需求行，不开依赖需求。
   spec_current_revision: '规格的当前生效修订 = 最近一条「回归状态=passed 且 规格修订=done」的依赖需求。没有任何此类依赖需求时，当前修订为首次修订，来源指向它的独立需求。'
   delivery_conclusion_scope: 原独立需求的验收结论只覆盖它当时交付的范围，不得用于证明后续修订已通过；后续修订的验证结论由产生它的依赖需求自带。
+  spec_terminal_states: 独立需求的终态只有两个：accepted（完成）与 dropped（放弃）；pending 与 rejected 都是过程态，不得当作终态使用。
+  spec_drop: '放弃（034）：置 dropped 时必须同时给出放弃理由与放弃时间；必须先摘除该需求与所有版本的关联，仍在版本里的需求不得直接放弃；放弃保留当时的阶段状态与未完成结论，不得回写为 accepted。'
+  spec_drop_immutable: dropped 是终态，不得改回 pending/accepted/rejected；该需求对应的规格不得再新开依赖需求（能力未建立，没有可修改的对象）。
+  spec_split: '拆分（034）：仅当独立需求尚未 accepted 时允许。把部分条款或场景移交给一条新建的关联需求，原需求保留其余部分继续交付；原需求必须记录拆分时间、移交条目与承接方编号，承接方必须反向指回原需求。被移交条目从原需求移出，不得两处同时生效。'
+  spec_split_not_terminal: 拆分不是终态，是范围调整动作；原需求继续存在，最终按其保留范围判定 accepted 或 dropped。
   spec_cancel: 取消的规格从版本关联摘除或删行，不用验收状态表达"不做"，否则就绪被永久卡住
   single_source: 每张表只有一个完成判据字段；不另设"状态"字段，避免同一问题两个真相
   empty_set: 未关联任何行时"就绪"为真，含义是"本版无此类工作"，不是"已验证"
@@ -440,6 +446,18 @@ tables:
     - key: spec.constitution_version
       name: 宪法版本
       type: text
+    - key: spec.abandon_reason
+      name: 放弃理由
+      type: text
+      note: 置 dropped 时必填；为什么不做
+    - key: spec.abandoned_at
+      name: 放弃时间
+      type: datetime
+      note: 置 dropped 时必填；放弃的时点
+    - key: spec.split_log
+      name: 拆分记录
+      type: text
+      note: 拆分留痕，一行一条：`<时间> 移交 <条款或场景号清单> -> <承接方编号>`；仅在需求未 accepted 时允许写入
     - key: spec.acceptance
       name: 验收状态
       type: enum

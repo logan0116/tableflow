@@ -62,7 +62,12 @@ WAIVER_VALUES = frozenset({"none", "waived"})
 WAIVER_BY_NAME = "放行批准人"
 WAIVER_REASON_NAME = "放行理由"
 REGRESS_VALUES = frozenset({"todo", "doing", "passed", "failed"})
-ACCEPTANCE_VALUES = frozenset({"pending", "accepted", "rejected"})
+ACCEPTANCE_VALUES = frozenset({"pending", "accepted", "rejected", "dropped"})
+# board@5 前是三元域；迁移未完成的项目仍按三元识别，两种都认
+ACCEPTANCE_DOMAINS = frozenset({
+    ACCEPTANCE_VALUES,
+    frozenset({"pending", "accepted", "rejected"}),
+})
 
 # 节点钥匙 → (来源角色, 判据字段取值, 人读说明)。
 NODE_REQUIREMENTS: dict[str, tuple[tuple[str, str, str], ...]] = {
@@ -149,16 +154,16 @@ def _completion_field(fields: dict[str, sqlite3.Row], role: str) -> sqlite3.Row 
     if role == "run":
         pair = run_protocol.state_result_fields(fields)
         return pair[0] if pair is not None else None
-    domain = {
-        "bug": BUG_STATUS_VALUES,
-        "dep": REGRESS_VALUES,
-        "indep": ACCEPTANCE_VALUES,
+    domains = {
+        "bug": frozenset({BUG_STATUS_VALUES}),
+        "dep": frozenset({REGRESS_VALUES}),
+        "indep": ACCEPTANCE_DOMAINS,
     }[role]
     return _unique(
         [
             field
             for field in fields.values()
-            if field["type"] == "enum" and _enum_values(field) == domain
+            if field["type"] == "enum" and _enum_values(field) in domains
         ]
     )
 
@@ -171,12 +176,12 @@ def _target_role(fields: dict[str, sqlite3.Row]) -> str | None:
         for field in fields.values()
         if field["type"] == "enum"
     }
-    for role, domain in (
-        ("bug", BUG_STATUS_VALUES),
-        ("dep", REGRESS_VALUES),
-        ("indep", ACCEPTANCE_VALUES),
+    for role, domain_set in (
+        ("bug", frozenset({BUG_STATUS_VALUES})),
+        ("dep", frozenset({REGRESS_VALUES})),
+        ("indep", ACCEPTANCE_DOMAINS),
     ):
-        if domain in domains:
+        if domain_set & domains:
             return role
     return None
 
