@@ -118,6 +118,18 @@ def base(version_specs):
                         ],
                         "rows": [],
                     },
+                    {
+                        "id": "l-case",
+                        "name": "测试用例",
+                        "order": 4,
+                        "fields": [
+                            {"id": "c-id", "name": "用例号", "type": "text",
+                             "options": None, "order": 1, "visible": 1},
+                            {"id": "c-spec", "name": "来源规格", "type": "relation",
+                             "options": {"table_id": "l-indep"}, "order": 2, "visible": 1},
+                        ],
+                        "rows": [],
+                    },
                 ],
             }
         ]
@@ -250,3 +262,24 @@ def test_lifecycle_report_shows_abandon_trace(tmp_path, monkeypatch) -> None:
 
 def test_lifecycle_report_404_for_unknown_spec(env) -> None:
     assert env.get("/api/projects/p034/lifecycle", params={"spec": "nope"}).status_code == 404
+
+
+def test_case_can_link_pending_spec(env) -> None:
+    """035：用例是规格场景的投影，来源规格未验收也允许建用例行（C4 只管依赖需求）。"""
+    resp = env.post(
+        "/api/agent/tables/l-case/rows/034-US1-AS1",
+        json={"values": {"c-id": "034-US1-AS1", "c-spec": ["034-AR"]}},
+        headers=HEADERS,
+    )
+    assert resp.status_code == 200, resp.text
+
+
+def test_dep_still_requires_accepted(env) -> None:
+    """C4 原意保留：依赖需求仍不得关联未验收的规格。"""
+    resp = env.post(
+        "/api/agent/tables/l-dep/rows/DEP-PEND",
+        json={"values": {"d-id": "DEP-PEND", "d-spec": ["035-AR"], "d-regress": "todo"}},
+        headers=HEADERS,
+    )
+    assert resp.status_code == 400, resp.text
+    assert "C4" in resp.json()["error"]

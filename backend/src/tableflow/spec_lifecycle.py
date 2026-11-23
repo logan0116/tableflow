@@ -10,7 +10,7 @@
 
 识别口径与其它模块一致：不依赖表 id。独立需求表按 `验收状态` 的枚举值域识别
 （board@5 前是三元域，迁移未完成的项目仍按三元识别）；版本表按 025 的六节点识别；
-依赖需求表按它指向独立需求的关系识别。
+依赖需求表按「回归状态」枚举值域识别（与 board_rules 同口径），不按表 id。
 """
 
 from __future__ import annotations
@@ -27,6 +27,9 @@ ACCEPTANCE_DOMAINS = frozenset({
     frozenset({"pending", "accepted", "rejected", "dropped"}),
     frozenset({"pending", "accepted", "rejected"}),
 })
+
+# 依赖需求表的识别口径与 board_rules 一致：按「回归状态」枚举值域，不按表 id。
+REGRESS_VALUES = frozenset({"todo", "doing", "passed", "failed"})
 
 DROP_REASON_NAME = "放弃理由"
 DROPPED_AT_NAME = "放弃时间"
@@ -217,6 +220,14 @@ def _validate_version(
         )
 
 
+def _is_dep_table(fields: dict[str, sqlite3.Row]) -> bool:
+    """只有依赖需求表才有「回归状态」；用例等表不适用 C4/L5。"""
+    return any(
+        field["type"] == "enum" and _enum_values(field) == REGRESS_VALUES
+        for field in fields.values()
+    )
+
+
 def _validate_dep(
     conn: sqlite3.Connection,
     fields: dict[str, sqlite3.Row],
@@ -285,6 +296,8 @@ def validate_row_write(
         return
     if version_stage.stage_nodes(fields) is not None:
         _validate_version(conn, fields, row_id, merged, previous)
+        return
+    if not _is_dep_table(fields):
         return
     _validate_dep(conn, fields, row_id, merged)
 
