@@ -52,6 +52,26 @@ def semver(value: str) -> tuple[int, int, int]:
     return tuple(int(x) for x in match.groups()) if match else (999, 999, 999)
 
 
+def plan_cleanup(occurrences: dict[str, list[str]]) -> dict[str, tuple[str, list[str]]]:
+    """跨版本重复的清理计划：同一需求只保留首次出现（语义序最小）的版本。
+
+    返回 ``{需求编号: (保留的版本, 要摘除的版本列表)}``；没有重复的需求不出现。
+    """
+    plan: dict[str, tuple[str, list[str]]] = {}
+    for spec_id, version_ids in occurrences.items():
+        if len(version_ids) <= 1:
+            continue
+        ordered = sorted(version_ids, key=semver)
+        plan[spec_id] = (ordered[0], ordered[1:])
+    return plan
+
+
+def build_split_log(existing: str, at: str, clauses: str, target: str) -> str:
+    """一行一条拆分记录：``<时间> 移交 <条款清单> -> <承接方>``。"""
+    line = f"{at} 移交 {clauses} -> {target}"
+    return (existing.rstrip("\n") + "\n" + line).strip() if existing else line
+
+
 def holders(ver, spec_id: str) -> list[str]:
     """该独立需求当前被哪些版本持有。"""
     out = []
@@ -137,9 +157,9 @@ def do_split(args, report, client, ver, indep) -> None:
         raise SkillFailure("split 必须给 --clauses：移交哪些条款或场景要写清楚")
 
     now = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
-    log_line = f"{now} 移交 {clauses} -> {target}"
     existing = indep.value(spec_id, "拆分记录", default="") or ""
-    merged_log = (existing + "\n" + log_line).strip()
+    merged_log = build_split_log(existing, now, clauses, target)
+    log_line = merged_log.splitlines()[-1]
 
     report.note("plan", f"新建承接方 {target}，并在 {spec_id} 记录：{log_line}")
     if not args.apply:
@@ -182,12 +202,7 @@ def do_cleanup(args, report, client, ver) -> None:
         for spec_id in ver.relation(version_id, "独立需求管理") or []:
             occurrences.setdefault(spec_id, []).append(version_id)
 
-    plan: dict[str, tuple[list[str], list[str]]] = {}
-    for spec_id, version_ids in occurrences.items():
-        if len(version_ids) <= 1:
-            continue
-        ordered = sorted(version_ids, key=semver)
-        plan[spec_id] = (ordered[0], ordered[1:])
+    plan = plan_cleanup(occurrences)
     if not plan:
         report.check("跨版本重复", True, "无重复挂载")
         report.finish("success")

@@ -128,3 +128,15 @@ def test_detect_test_cmd_prefers_backend_venv() -> None:
         assert cwd == REPO_ROOT / "backend"
     else:  # pragma: no cover - 本仓库有 venv，此分支仅作环境兜底
         assert cwd == REPO_ROOT
+
+
+def test_tasks_block_implement_until_checked(tmp_path: Path, spec_path: Path) -> None:
+    """生成的 tasks.md 必然含未勾选项，因此 implement 阶段一定被拦住。"""
+    stories = common.parse_spec(spec_path)
+    tasks = tmp_path / "tasks.md"
+    tasks.write_text(
+        skill.render_tasks("042-AR", SPEC_REL, "示例能力", stories, TODAY), encoding="utf-8"
+    )
+    parsed = common.parse_tasks(tasks)
+    assert parsed["checked"] == 0
+    assert len(parsed["unchecked"]) > 0  # 有未勾选项 -> implement 不成立

@@ -75,6 +75,16 @@ def _case_expected(case: dict, spec_id: str) -> dict:
     }
 
 
+def find_orphans(existing_ids: list[str], derived_ids: list[str], spec_prefix: str) -> list[str]:
+    """同前缀但不在本次派生集合里的既有用例：源场景已消失，报告而不是静默删除。"""
+    derived = set(derived_ids)
+    return sorted(
+        case_id
+        for case_id in existing_ids
+        if case_id.startswith(f"{spec_prefix}-") and case_id not in derived
+    )
+
+
 def split_scope(wanted: list[str], version_specs: list[str]) -> tuple[list[str], list[str]]:
     """035：交付范围与测试范围分离——把用例来源拆成「本版交付内」与「本版交付外」。
 

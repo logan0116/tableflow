@@ -26,6 +26,29 @@ ALLOWED = ("ver", "run", "dep", "bug")
 NODE = "测试验收"
 
 
+def classify_run(state, result, flag, approver, reason) -> str:
+    """单条执行记录的分类：pending / pass / waived / failed。
+
+    重跑为 pass 后放行标记自动失效——它不再算放行，只是普通通过。
+    """
+    if state != "done":
+        return "pending"
+    if result == "pass":
+        return "pass"
+    if is_waived(flag, approver, reason):
+        return "waived"
+    return "failed"
+
+
+def is_waived(flag, approver, reason) -> bool:
+    """放行必须三者齐备：标记=waived、批准人非空、理由非空。"""
+    return (
+        str(flag) == "waived"
+        and bool(str(approver or "").strip())
+        and bool(str(reason or "").strip())
+    )
+
+
 def build_parser():
     # 统一参数 --dry-run/--apply/--no-stage 由 _tf_common.base_parser 提供。
     return base_parser(
@@ -76,23 +99,22 @@ def main(args, report) -> None:
     }
 
     def waiver_ok(run_id: str) -> bool:
-        """放行必须三者齐备：标记=waived、批准人非空、理由非空。"""
-        return (
-            str(waiver_flag.get(run_id)) == "waived"
-            and bool(str(waiver_by.get(run_id) or "").strip())
-            and bool(str(waiver_reason.get(run_id) or "").strip())
+        return is_waived(
+            waiver_flag.get(run_id), waiver_by.get(run_id), waiver_reason.get(run_id)
         )
     change_states = {change_id: dep_table.value(change_id, "回归状态") for change_id in change_ids}
     bug_states = {bug_id: bug_table.value(bug_id, "状态") for bug_id in bug_ids}
 
     pending_runs = [run_id for run_id, state in run_states.items() if state != "done"]
-    failed_runs = [
-        run_id
-        for run_id, state in run_states.items()
-        if state == "done" and run_results.get(run_id) != "pass"
-    ]
-    waived_runs = [run_id for run_id in failed_runs if waiver_ok(run_id)]
-    not_passed_runs = [run_id for run_id in failed_runs if run_id not in waived_runs]
+    kinds = {
+        run_id: classify_run(
+            run_states[run_id], run_results.get(run_id),
+            waiver_flag.get(run_id), waiver_by.get(run_id), waiver_reason.get(run_id),
+        )
+        for run_id in run_ids
+    }
+    waived_runs = [run_id for run_id, kind in kinds.items() if kind == "waived"]
+    not_passed_runs = [run_id for run_id, kind in kinds.items() if kind == "failed"]
     failed_changes = [change_id for change_id, state in change_states.items() if state != "passed"]
     open_bugs = [bug_id for bug_id, state in bug_states.items() if state != "closed"]
 

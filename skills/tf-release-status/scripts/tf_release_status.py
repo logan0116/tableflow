@@ -29,6 +29,16 @@ ALLOWED = ("ver", "indep", "dep", "bug", "run", "case")
 NODE = "发布就绪"
 
 
+def verdict(status: str, nodes: dict[str, object]) -> tuple[str, str]:
+    """根据发布状态与六节点给出（结论, 理由）。"""
+    if status == "dropped":
+        return "已终止", "发布状态=dropped：本版决定不发布，红灯与证据保留"
+    unfinished = [(name, state) for name, state in nodes.items() if state != "done"]
+    if not unfinished:
+        return "可发布", "六节点全部 done，发布条件成立"
+    return "不可发布", "六节点未齐：" + "、".join(f"{k}={v}" for k, v in unfinished)
+
+
 def build_parser():
     return base_parser("只读报告某版本能否发布：按 board@5 口径复算六节点与发布条件")
 
@@ -95,21 +105,9 @@ def main(args, report) -> None:
         },
     )
 
-    if status == "dropped":
-        report.note("verdict", "已终止")
-        report.note("reason", "发布状态=dropped：本版决定不发布，红灯与证据保留")
-        report.finish("success")
-        return
-
-    if done:
-        report.note("verdict", "可发布")
-        report.note("reason", "六节点全部 done，发布条件成立")
-    else:
-        report.note("verdict", "不可发布")
-        report.note(
-            "reason",
-            "六节点未齐：" + "、".join(f"{k}={v}" for k, v in nodes.items() if v != "done"),
-        )
+    result, reason = verdict(str(status), nodes)
+    report.note("verdict", result)
+    report.note("reason", reason)
     report.finish("success")
 
 

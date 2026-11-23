@@ -241,3 +241,33 @@ def test_unexecuted_run_blocks_close(tmp_path, monkeypatch) -> None:
         resp = close_version(env)
         assert resp.status_code == 400
         assert "必须全部执行" in resp.json()["error"]
+
+
+def test_waiver_flag_expires_after_pass() -> None:
+    """重跑为 pass 后放行标记失效：分类里只算 pass，不再算放行。"""
+    import sys
+    from pathlib import Path
+
+    skill = Path(__file__).resolve().parents[2] / "skills" / "tf-test-check" / "scripts"
+    if str(skill) not in sys.path:
+        sys.path.insert(0, str(skill))
+    import tf_test_check
+
+    waived_still_failing = tf_test_check.classify_run("done", "fail", "waived", "张三", "已知")
+    passed_after_waiver = tf_test_check.classify_run("done", "pass", "waived", "张三", "已知")
+    assert waived_still_failing == "waived"
+    assert passed_after_waiver == "pass"
+
+
+def test_conclusion_not_rewritten_by_later_version(tmp_path, monkeypatch) -> None:
+    """后一版修好了，前一版的失败记录仍是失败（结论按本版自身执行结果）。"""
+    runs = [
+        run_row(RUN_A, "done", "fail"),
+        run_row("v0.2.0--033-US1-AS1", "done", "pass"),
+    ]
+    with make_env(tmp_path, monkeypatch, runs) as env:
+        # 前一版仍判定失败
+        assert close_version(env).status_code == 400
+        # 后一版记录在库且为 pass，不改变前一版的判定
+        back = env.get("/api/tables/t-run/rows/v0.2.0--033-US1-AS1").json()
+        assert (back.get("row") or back)["values"]["r-result"] == "pass"

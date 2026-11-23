@@ -230,3 +230,23 @@ def test_existing_violation_does_not_block_unrelated_edit(tmp_path, monkeypatch)
             headers=HEADERS,
         )
         assert resp.status_code == 200, resp.text
+
+
+def test_rejection_is_atomic(env) -> None:
+    """拒绝时目标行保持操作前状态，且返回体带规则号与已占用版本。"""
+    # 同一文件的测试共用底层连接，先清干净两个版本的关联
+    for version in ("v0.1.0", "v0.2.0"):
+        assert attach(env, version, "v-specs", []).status_code == 200
+    assert attach(env, "v0.1.0", "v-specs", ["033-AR"]).status_code == 200
+    before = env.get("/api/tables/t-ver/rows/v0.2.0").json()
+    before = (before.get("row") or before)["values"]
+
+    resp = attach(env, "v0.2.0", "v-specs", ["033-AR"])
+    assert resp.status_code == 400
+    body = resp.json()["error"]
+    assert body.startswith("C1")
+    assert "v0.1.0" in body
+
+    after = env.get("/api/tables/t-ver/rows/v0.2.0").json()
+    after = (after.get("row") or after)["values"]
+    assert after.get("v-specs") == before.get("v-specs")
