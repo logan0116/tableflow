@@ -42,7 +42,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
-from . import calculation, run_protocol, version_stage
+from . import board_rules, calculation, run_protocol, version_stage
 from .errors import WriteError
 
 TZ = timezone(timedelta(hours=8))
@@ -888,6 +888,9 @@ def create_row(
         conn, fields, row_id, merged=values, submitted=values, creating=True
     )
     version_stage.validate_row_write(conn, fields, merged=values, previous={})
+    board_rules.validate_row_write(
+        conn, table_id, fields, row_id, merged=values, previous={}, submitted=values
+    )
     _validate_row_constraints(conn, fields, values)
     if conn.execute(
         "SELECT 1 FROM row_records WHERE table_id = ? AND id = ?", (table_id, row_id)
@@ -944,6 +947,10 @@ def update_row(
         conn, fields, row_id, merged=merged, submitted=values, creating=False
     )
     version_stage.validate_row_write(conn, fields, merged=merged, previous=old_values)
+    board_rules.validate_row_write(
+        conn, table_id, fields, row_id,
+        merged=merged, previous=old_values, submitted=values,
+    )
     # 只对本次提交的关系字段校验“目标行必须存在”；存量悬空引用不阻断无关字段的编辑（V060-04）。
     _validate_row_constraints(conn, fields, merged, relation_field_ids=set(values))
 

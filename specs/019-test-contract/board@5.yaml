@@ -1,0 +1,712 @@
+meta:
+  id: board@5
+  supersedes: board@4
+  status: draft
+  revision: 5
+  revised: 2026-11-23
+  revision_note: 033：区分规格、独立需求、依赖需求三种对象；新增交付唯一性与先后规则（C1/C2/C3）；「冻结」限定为交付记录，规格内容可通过依赖需求形成新修订；新增规格当前修订指针。
+  updated: '2026-11-23'
+  project: tableflow
+  scope:
+  - 六张表的字段：语义键、名称、类型、枚举、必填、只读/可写、是否闸门
+  - 状态定义、完成判定规则、需求分类判定树
+  - 新增两表的行 id 规范、关系方向与两步写入口径
+  - 版本表六节点进度的四态定义与串行推进规则
+  out_of_scope:
+  - 计算口径的落地、重算与空集/悬空处理（010；六节点的条件表达式归 023）
+  - 接口协议与两步写入的实现（012/020）
+  - 界面视图与角色切换（021/022）
+  - 六个角色技能（024）
+  - 存量项目的建表与字段迁移（实现另立，本契约只登记 migrations）
+  note: board@4 取代 board@3。四表工程的既定关系（ver→indep/dep/bug）不变；新增 ver→run→case→indep 一条链。不设测试计划表：版本直接持有执行记录，一条执行记录对应一条用例，关联用例的动作即建一条执行记录行。
+conventions:
+  semantic_key: 契约主键。体检按语义键比对，字段 id 只是各项目的本地值。
+  field_id: <项目前缀>-<v|i|d|c|r|b>-<短名>
+  row_id: 业务编号（v0.6.0 / 008-AR / D01 / 008-US1-AS1 / v0.7.0--008-US1-AS1 / BUG-01），创建后不可改；每张表的行id字段由tables.<表>.row_id声明，值格式见该字段note。行 id 只允许字母、数字、点、短横线与下划线——它会出现在 REST 路径里，斜杠与井号会破坏路由。
+  gate_tag: '[闸门] 参与发布条件'
+  gate_mapping: '契约字段的gate: true在数据层表达为计算字段的fields.options.gate=true（布尔；010实现，calculation.py校验options.get("gate")）；仅and或rollup的all/any/none允许打标，数量类打标返回400。写接口据此拒绝人工覆盖（清除覆盖仍允许）。'
+  status_values_scope: status_definitions每个域自洽且域内互斥；跨域允许字面同名（stage、version_stage、run_result都含todo/doing，语义不同），引用必须带域前缀（如spec.stage.implement、ver.stage.dev、run.result），判定只看本域字段。
+  relation_status_column: 'relation字段options.status_field（关联弹层第三列）指向目标表的完成判据字段，不是表里第一个enum：indep→验收状态（spec.acceptance）、dep→回归状态（change.regress）、bug→状态（bug.status）、run→执行状态（run.state）、case→不给状态列（用例是资产，无完成判据）。'
+  object_boundary: '规格、独立需求、依赖需求是三种对象，不是同一种东西的三个叫法：规格是某项能力的行为约定，长期存在并可修订；独立需求是首次建立该能力的一次交付；依赖需求是其后基于既有规格的一次增量。冻结的是交付记录（范围、结论、证据），不是规格内容。'
+  delivery_once: '一次交付工作不得重复计入版本：同一独立需求在所有版本的独立需求管理中出现次数不超过 1；同一依赖需求在所有版本的依赖需求管理中出现次数不超过 1。判定取全部 ver 行关联的并集计次。'
+  relation_direction: '全域关系单向且无环（引擎禁双向）：ver→indep、ver→dep、ver→bug、ver→run、run→case、case→indep、dep→indep、bug→indep。任何一对表之间只允许一条边；执行记录不得再有指向版本的字段，版本是执行清单的唯一持有者。'
+  table_kind: '表级元数据 kind：board 进表导航，detail 不进导航但仍可经接口读取与被 relation 弹层展示。run 表为 detail，其余五表为 board。该标记落在 tables 表的新字段上，属实现范围。'
+  run_two_step_write: '把一个用例纳入某版本是两步：先 POST run 行（带 case 与 result=todo），再 PATCH 版本行的 runs 数组追加该 run 行 id。第二步失败会留下"记录存在但版本看不到"的悬空行，客户端必须回读版本行确认；不得只说第一步成功就报完成。'
+  run_one_per_version_case: 同一版本内同一用例只允许一条执行记录；重跑就地更新该行的结果/证据/时间/执行人，不新建行。
+  display_of_run: '执行清单弹窗复用关系弹层：第一列为 run 行 id，第二列由 relation 的 display_field 指定（run.case_no 用例号文本），第三列由 status_field 指定（run.state，即是否执行）。通过与否点进明细看 run.result。'
+status_definitions:
+  stage:
+    field: spec.stage.*
+    values:
+    - todo
+    - doing
+    - done
+    question: 这份规格的 speckit 各阶段走到哪一步？
+    note: 只有 implement 参与完成判定，其余阶段只是推进记录。
+  acceptance:
+    field: spec.acceptance
+    values:
+    - pending
+    - accepted
+    - rejected
+    question: 需求方是否确认这份交付物满足条款？
+    note: 该次交付是否完成的唯一判据；pending/rejected 即未完成。它冻结的是交付记录，不是规格内容。board@4 起它承载"开发验收"的明细语义，在测试执行之前落定。
+  regress:
+    field: change.regress
+    values:
+    - todo
+    - doing
+    - passed
+    - failed
+    question: 这张变更单走到哪一步、验证结论是什么？
+    note: 唯一判定字段。todo=未合入，doing=已合入待验，passed=受影响范围验证通过（含"确认不受影响"），failed=不通过。没有 na。
+  bug:
+    field: bug.status
+    values:
+    - open
+    - fixing
+    - verifying
+    - closed
+    question: 这个缺陷修到哪一步、结论是什么？
+    note: 唯一判定字段，closed是唯一终态。open=待修，fixing=修复中，verifying=已修待验，closed=已关闭（修复发布，或明确不修复并写明依据）；没有na。
+  release:
+    field: ver.release_status
+    values:
+    - planned
+    - released
+    - dropped
+    question: 这个版本是否已经实际发出？
+    note: 与"发布条件"不同——发布条件是资格，发布状态是事实。允许版本长期停留 planned 甚至 dropped。
+  version_stage:
+    field: ver.stage.*
+    values:
+    - todo
+    - doing
+    - done
+    - failed
+    question: 版本进度的这个节点走到哪一步？
+    note: 四个值域内互斥。todo=未开始，doing=进行中，done=已完成，failed=失败待返工。failed 不是终态，返工后必须改回 doing。
+  run_state:
+    field: run.state
+    values:
+    - todo
+    - done
+    question: 这条用例在这个版本里跑过没有？
+    note: 只表达进度，不表达结论。todo=已纳入本版本但尚未执行，done=已执行（不论通过与否）。版本表的"用例总数/已完成用例数/用例是否完成"全部由它判定。
+  run_result:
+    field: run.result
+    values:
+    - pass
+    - fail
+    - blocked
+    - skip
+    question: 这条用例跑出了什么结论？
+    note: 只表达质量结论，不表达进度。state=todo 时必须为空；state=done 时必须填。pass=通过，fail=失败，blocked=被环境或前置阻塞，skip=本版不执行（写明理由）。
+rules:
+  spec_done: spec.acceptance == accepted
+  change_done: change.regress == passed
+  change_flow: todo(未合入) → doing(已合入待验) → passed / failed；没有 na
+  change_evidence: passed 必须能指到证据（提交号/构建/截图/用例号）；确认不受影响也记 passed，理由写进证据
+  spec_done_precondition: 只有 implement == done 时才允许置 accepted（写入期校验，后续需求实现）
+  spec_done_frozen: 置 accepted 后冻结的是该次交付记录（范围、结论、证据不再改写），规格内容不冻结；再改动一律开变更单（dep）并形成新修订，原独立需求不重新打开
+  spec_delivery_once: 'C1 写入期校验：同一独立需求在所有版本的独立需求管理中出现次数不得超过 1。违规返回 400，并指出已占用的版本号与该需求编号。'
+  change_delivery_once: 'C2 写入期校验：同一依赖需求在所有版本的依赖需求管理中出现次数不得超过 1。违规返回 400，并指出已占用的版本号。'
+  change_not_before_spec: 'C3 写入期校验：依赖需求所在版本不得早于其关联的任一独立需求所在版本；允许同版本。关联多份规格时，以其中最晚交付者作为比较基准。'
+  change_requires_accepted: 依赖需求只能关联已 accepted 的规格；规格尚未 accepted 时按 classify.in_place 直接改规格与其独立需求行，不开依赖需求。
+  spec_current_revision: '规格的当前生效修订 = 最近一条「回归状态=passed 且 规格修订=done」的依赖需求。没有任何此类依赖需求时，当前修订为首次修订，来源指向它的独立需求。'
+  delivery_conclusion_scope: 原独立需求的验收结论只覆盖它当时交付的范围，不得用于证明后续修订已通过；后续修订的验证结论由产生它的依赖需求自带。
+  spec_cancel: 取消的规格从版本关联摘除或删行，不用验收状态表达"不做"，否则就绪被永久卡住
+  single_source: 每张表只有一个完成判据字段；不另设"状态"字段，避免同一问题两个真相
+  empty_set: 未关联任何行时"就绪"为真，含义是"本版无此类工作"，不是"已验证"
+  empty_set_numbers:
+    count: 空集落库数字0（整数）
+    sum: 空集落库0.0（浮点，带decimals的sum按浮点舍入后落库）；不要按整数0比对
+    percent: 空集落null（不是0）
+    rollup: 空集all/none为真、any为假
+  ratio: 契约只存"总数"与"就绪"；需要分子时再加一个 count 字段（判定已单字段化，可算）
+  case_done: 用例是否全部执行 = ver.runs 中全部 state == done（rollup all）；空集为真
+  case_progress_only: '版本表只管理测试进度（总数/已完成数/是否完成），不展示通过率。测试是否通过留在 run.result 与缺陷表，不进入版本闸门。'
+  run_state_result_consistency: '写入期校验：run.state == todo 时 run.result 必须为空；run.state == done 时 run.result 必须非空。两者不一致返回 400。'
+  bug_done: bug.status == closed
+  bug_not_done: bug.status != closed
+  bug_flow: open(待修) → fixing(修复中) → verifying(已修待验) → closed(已关闭)；closed是唯一终态，没有na
+  bug_closed_evidence: closed必须满足其一——修复版本有值且证据指向可核验的修复（提交号/构建/用例号）；或证据写明"不修复"的结论与依据，且剩余事项为空。两者都不满足不得置closed（写入期校验，后续需求实现）
+  bug_fix_record: 修复版本只记录"修在哪一版"，不参与完成判定；不修复时留空
+  bug_severity_record: 严重度只记录影响程度，不进任何闸门；发布条件只数未解决数，避免同一问题两个真相
+  bug_unattributed: 关联规格为空数组即"暂未归因"，允许存在；归因不改变缺陷状态与任何判定
+  bug_intake: 缺陷不走需求分类树，发现即进bug表；缺陷引发的规格改动才按classify走（改已accepted规格→dep）
+  bug_set_meaning: '版本表的 Bug 管理 关联的集合是"本版本需要清零的缺陷"。默认取发现于上一版本的缺陷（bug.found == 上一版本），但不强求来源：人工把本版新发现的缺陷挂进来同样有效，判定只看集合内成员的 status。'
+  bug_prev_version: 版本vX的"上一版本"= 版本号按v<主>.<次>.<修>语义序严格小于vX的最大版本；不看发布时间、不看发布状态；无上一版本或版本号无法解析时集合为空
+  ver_bug_total: ver.bug_total = count({bug | bug 属于该版本的 Bug 管理集合})
+  ver_bug_open: ver.bug_open = count({bug | 属于该集合 and bug.status != closed})；已解决数 = 总数 − 未解决数，不单独存
+  case_projection: '测试用例是规格验收场景的派生投影，不是真源。一条 Acceptance Scenario 对应一条用例，行 id 即场景号（如 008-US1-AS1）；spec 改动后由同步脚本按场景号幂等更新，禁止在看板上手工改写步骤与预期。真源永远是 specs/<dir>/spec.md。'
+  case_needs_spec: 每条用例必须能指回一份规格（case.indep 非空），指不到规格的用例不得登记。
+  run_owned_by_version: 执行记录只由版本表的 runs 持有；run 行不得再有指向版本的字段（引擎禁双向，且会造成两个真相）。
+  run_needs_case: 每条执行记录必须指向一条用例（run.case 非空）；未纳入本版本的用例不建记录行。
+  run_one_per_version_case: 同一版本内同一用例只允许一条执行记录；重跑就地更新该行（结果/证据/时间/执行人），不新建。
+  version_stage_serial: '六节点串行推进：ver.stage.plan → ver.stage.test_design → ver.stage.dev → ver.stage.dev_accept → ver.stage.test → ver.stage.test_accept。后一节点不得早于前一节点到达 done（写入期校验）；前一节点处于 failed 时，后一节点不得推进。'
+  version_stage_failure: 节点置 failed 后必须返工并改回 doing 再重新推进；不提供"跳过"取值。失败影响哪个下游节点由人判断，契约不自动回退其他节点。
+  version_stage_gate_consistency: '写入期校验，防止人工把六节点改成全 done 绕过自动判定：ver.stage.test 置 done 要求 ver.case_done 为真；ver.stage.test_accept 置 done 要求 ver.bug_clear 与 ver.change_done 都为真；ver.stage.dev_accept 置 done 要求 ver.spec_done 为真。任一不满足返回 400。'
+  version_stage_done: ver.stage_done = 六节点全部 done 之与（闸门字段）
+  release_gate: ver.gate = and(ver.stage_done == true)；三布尔（spec_done/change_done/bug_clear）自 board@4 起降为展示字段，不再直接参与 gate。
+  version_not_shipped: 允许版本长期停留 planned 或不发布；不发布用 release_status=dropped 表达，不用"六节点未齐"表达"不做了"。
+classify:
+  question: 一条新需求落在哪张表
+  bug_note: 缺陷不是需求，不进这棵树；直接进bug表（见rules.bug_intake）
+  case_note: 测试用例不是需求，不进这棵树；由 tf-test-plan 从 spec 场景派生（见rules.case_projection）
+  order:
+  - id: in_place
+    when: 现有规格的条款/场景已覆盖，且该规格尚未 accepted
+    action: 改 spec 与 indep 行，不新建行
+  - id: change
+    when: 现有规格已 accepted，需求改变其行为或验收口径
+    action: 在 dep 开一行，挂被改规格（可多份）
+  - id: new_spec
+    when: 现有规格都不覆盖，需要新条款或新场景
+    action: 在 indep 新增一行
+  - id: cross
+    when: 一次改动横切多份已 accepted 规格
+    action: 一张 dep 挂多份规格，影响面分别写清
+  - id: out_of_board
+    when: 不改变产品行为（构建/部署/环境/文档）
+    action: 不进看板，记版本变更说明
+  evidence_required: 判定必须指到规格编号与场景号（或"新增条款"），指不到则不允许登记
+  note: 同时新增能力又改动已完成规格时，拆成一条 indep 与一条 dep，影响面互相引用
+tables:
+  ver:
+    id: <前缀>-ver
+    name: 版本管理
+    kind: board
+    row_meaning: 一个发布版本
+    row_id: ver.version
+    fields:
+    - key: ver.version
+      name: 版本号
+      type: text
+      required: true
+      note: 行 id；格式 v<主>.<次>.<修>
+    - key: ver.release_date
+      name: 发布时间
+      type: datetime
+      note: 精确到日
+    - key: ver.stage.plan
+      name: 版本需求设计
+      type: enum
+      values:
+      - todo
+      - doing
+      - done
+      - failed
+      required: true
+      note: 六节点第1；版本范围确定、需求已挂载
+    - key: ver.stage.test_design
+      name: 测试设计
+      type: enum
+      values:
+      - todo
+      - doing
+      - done
+      - failed
+      required: true
+      note: 六节点第2；用例就绪并纳入本版本，须先于开发完成
+    - key: ver.stage.dev
+      name: 开发
+      type: enum
+      values:
+      - todo
+      - doing
+      - done
+      - failed
+      required: true
+      note: 六节点第3；代码与单测完成
+    - key: ver.stage.dev_accept
+      name: 开发验收
+      type: enum
+      values:
+      - todo
+      - doing
+      - done
+      - failed
+      required: true
+      note: 六节点第4；需求方确认交付物满足条款，明细口径是 spec.acceptance
+    - key: ver.stage.test
+      name: 测试
+      type: enum
+      values:
+      - todo
+      - doing
+      - done
+      - failed
+      required: true
+      note: 六节点第5；本版纳入的用例全部执行完毕（无 todo）
+    - key: ver.stage.test_accept
+      name: 测试验收
+      type: enum
+      values:
+      - todo
+      - doing
+      - done
+      - failed
+      required: true
+      note: 六节点第6；缺陷清零且变更回归通过
+    - key: ver.stage_done
+      name: 六节点是否全部完成
+      type: computed
+      gate: true
+      rule: and(ver.stage.plan == done, ver.stage.test_design == done, ver.stage.dev == done, ver.stage.dev_accept == done, ver.stage.test == done, ver.stage.test_accept == done)
+      note: 'and 的条件项支持「字段 == 取值」的严格相等比较，枚举字段可直接与 done 比较；023 补齐的是配置期类型校验（域外取值或类型不符在配置时 400），不改变运行时比较语义。不需要中间布尔字段。'
+    - key: ver.gate
+      name: 发布条件
+      type: computed
+      gate: true
+      rule: and(ver.stage_done == true)
+      note: board@4 起只由六节点决定
+    - key: ver.release_status
+      name: 发布状态
+      type: enum
+      values:
+      - planned
+      - released
+      - dropped
+      required: true
+    - key: ver.specs
+      name: 独立需求管理
+      type: relation
+      target: indep
+      note: 本版新增的规格
+    - key: ver.spec_ratio
+      name: 独立需求已完成/总数
+      type: computed
+      rule: ratio(ver.specs, spec.acceptance == accepted)
+      note: 展示字段，不参与 gate
+    - key: ver.spec_done
+      name: 独立需求是否完成
+      type: computed
+      rule: rollup(ver.specs, spec.acceptance, all == accepted)
+      note: 展示字段，不参与 gate
+    - key: ver.changes
+      name: 依赖需求管理
+      type: relation
+      target: dep
+    - key: ver.change_ratio
+      name: 依赖需求已完成/总数
+      type: computed
+      rule: ratio(ver.changes, change.regress == passed)
+    - key: ver.change_done
+      name: 依赖需求是否完成
+      type: computed
+      rule: rollup(ver.changes, change.regress, all == passed)
+      note: 展示字段，不参与 gate
+    - key: ver.runs
+      name: 测试用例
+      type: relation
+      target: run
+      note: 本版纳入的用例与执行结果；弹层入口。关联动作即建执行记录行，见 conventions.run_two_step_write
+    - key: ver.case_total
+      name: 用例总数
+      type: computed
+      rule: count(ver.runs)
+      note: 本版纳入的用例条数；空集 0
+    - key: ver.case_done_count
+      name: 已完成用例数
+      type: computed
+      rule: count(ver.runs, run.state == done)
+      note: 已完成=已执行，不看通过与否；空集 0
+    - key: ver.case_done
+      name: 用例是否完成
+      type: computed
+      rule: rollup(ver.runs, run.state, all == done)
+      note: 全部执行过为真；空集为真
+    - key: ver.bugs
+      name: Bug管理
+      type: relation
+      target: bug
+      note: 本版需要清零的缺陷；默认来自上一版本，也可人工挂入本版新发现的缺陷
+    - key: ver.bug_ratio
+      name: Bug已修复/总数
+      type: computed
+      rule: ratio(ver.bugs, bug.status == closed)
+    - key: ver.bug_clear
+      name: Bug是否清空
+      type: computed
+      rule: rollup(ver.bugs, bug.status, all == closed)
+      note: 展示字段，不直接参与 gate；但测试验收节点置 done 时要求它为真
+    - key: ver.owner
+      name: 负责人
+      type: text
+    - key: ver.note
+      name: 变更说明
+      type: text
+  indep:
+    id: <前缀>-indep
+    name: 独立规格需求
+    kind: board
+    row_meaning: 一份规格
+    row_id: spec.id
+    fields:
+    - key: spec.id
+      name: 编号
+      type: text
+      required: true
+      note: 行 id；NNN-AR
+    - key: spec.clause
+      name: 条款
+      type: text
+      required: true
+    - key: spec.dir
+      name: 规格目录
+      type: text
+      note: specs/<dir>/
+    - key: spec.scenes
+      name: 场景数
+      type: number
+      min: 0
+      note: spec.md 场景条数；board@4 起可由用例表 count 派生，实现归 023
+    - key: spec.tasks
+      name: 任务总数
+      type: number
+      min: 0
+    - key: spec.stage.constitution
+      name: speckit-constitution状态
+      type: enum
+      values:
+      - todo
+      - doing
+      - done
+      - na
+    - key: spec.stage.specify
+      name: speckit-specify状态
+      type: enum
+      values:
+      - todo
+      - doing
+      - done
+      - na
+    - key: spec.stage.plan
+      name: speckit-plan状态
+      type: enum
+      values:
+      - todo
+      - doing
+      - done
+      - na
+    - key: spec.stage.task
+      name: speckit-task状态
+      type: enum
+      values:
+      - todo
+      - doing
+      - done
+      - na
+    - key: spec.stage.implement
+      name: speckit-implement状态
+      type: enum
+      values:
+      - todo
+      - doing
+      - done
+      required: true
+      note: 进度记录；是置 accepted 的前置条件，无 na
+    - key: spec.stage.clarify
+      name: speckit-clarify状态
+      type: enum
+      values:
+      - todo
+      - doing
+      - done
+      - na
+    - key: spec.stage.analyze
+      name: speckit-analyze状态
+      type: enum
+      values:
+      - todo
+      - doing
+      - done
+      - na
+    - key: spec.stage.checklist
+      name: speckit-checklist状态
+      type: enum
+      values:
+      - todo
+      - doing
+      - done
+      - na
+    - key: spec.constitution_version
+      name: 宪法版本
+      type: text
+    - key: spec.acceptance
+      name: 验收状态
+      type: enum
+      values:
+      - pending
+      - accepted
+      - rejected
+      required: true
+      note: 规格完成的唯一判据；implement=done 才允许置 accepted
+    - key: spec.owner
+      name: 负责人
+      type: text
+  dep:
+    id: <前缀>-dep
+    name: 依赖变更需求
+    kind: board
+    row_meaning: 一张变更单（已完成的规格又被改动）
+    row_id: change.id
+    fields:
+    - key: change.id
+      name: 编号
+      type: text
+      required: true
+      note: 行 id；D01
+    - key: change.clause
+      name: 条款
+      type: text
+      required: true
+      note: 改动点；必须点到规格编号与场景号
+    - key: change.spec
+      name: 关联的独立规格需求
+      type: relation
+      target: indep
+      required: true
+      note: 被改的规格，可多份（横切改动）
+    - key: change.impact
+      name: 影响面
+      type: text
+      required: true
+      note: 受影响的能力/接口/场景/用例/下游
+    - key: change.regress
+      name: 回归状态
+      type: enum
+      values:
+      - todo
+      - doing
+      - passed
+      - failed
+      required: true
+      note: 唯一判定字段；todo=未合入，doing=已合入待验
+    - key: change.evidence
+      name: 证据
+      type: text
+      note: 提交号/构建/截图/用例号；置 passed 时必须有可核验证据
+    - key: change.rest
+      name: 剩余事项
+      type: text
+      note: 未完成的部分与阻塞；空表示无
+    - key: change.spec_revision
+      name: 规格修订
+      type: enum
+      values:
+      - not_needed
+      - pending
+      - done
+      note: 改动是否已写回 spec；不参与完成判定，只为防文档与代码脱节
+    - key: change.owner
+      name: 负责人
+      type: text
+  case:
+    id: <前缀>-case
+    name: 测试用例
+    kind: board
+    row_meaning: 一条验收场景对应的可执行用例
+    row_id: case.id
+    fields:
+    - key: case.id
+      name: 用例号
+      type: text
+      required: true
+      note: 行 id；即场景号，格式 <规格号>-US<n>-AS<m>，如 008-US1-AS1。它是幂等键与缺陷回溯键，不可改。
+    - key: case.name
+      name: 用例名
+      type: text
+      required: true
+      note: 场景 Then 的摘要，保持可读
+    - key: case.indep
+      name: 来源规格
+      type: relation
+      target: indep
+      required: true
+      note: 单值；指不到规格的用例不得登记
+    - key: case.precondition
+      name: 前置条件
+      type: text
+      note: 场景 Given
+    - key: case.steps
+      name: 操作步骤
+      type: text
+      note: 场景 When；多步用换行
+    - key: case.expect
+      name: 预期结果
+      type: text
+      note: 场景 Then
+    - key: case.priority
+      name: 优先级
+      type: enum
+      values:
+      - P0
+      - P1
+      - P2
+      note: 只记录排序意图，不进任何闸门
+    - key: case.owner
+      name: 负责人
+      type: text
+  run:
+    id: <前缀>-run
+    name: 用例执行情况
+    kind: detail
+    row_meaning: 一条用例在一个版本中的执行结果
+    row_id: run.id
+    fields:
+    - key: run.id
+      name: 执行编号
+      type: text
+      required: true
+      note: 行 id；格式 <版本号>--<用例号>，如 v0.7.0--008-US1-AS1。不含斜杠与井号（会破坏 REST 路径）。同一版本内同一用例只有一行。
+    - key: run.case_no
+      name: 用例号
+      type: text
+      required: true
+      note: 供弹层第二列显示；与 run.case 指向同一用例，属展示冗余，写入时由脚本同步，不单独维护
+    - key: run.case
+      name: 用例
+      type: relation
+      target: case
+      required: true
+      note: 单值；指向被执行的用例行
+    - key: run.state
+      name: 执行状态
+      type: enum
+      values:
+      - todo
+      - done
+      required: true
+      note: 进度字段；新建时 todo，执行后置 done。版本表三个用例字段只依赖它
+    - key: run.result
+      name: 执行结果
+      type: enum
+      values:
+      - pass
+      - fail
+      - blocked
+      - skip
+      note: 质量字段；state=todo 时为空，state=done 时必填。弹层第三列
+    - key: run.evidence
+      name: 证据
+      type: text
+      note: 截图目录、日志路径或提交号；置 pass 时应有可核验证据
+    - key: run.executed_at
+      name: 执行时间
+      type: datetime
+    - key: run.executor
+      name: 执行人
+      type: text
+    - key: run.note
+      name: 备注
+      type: text
+      note: 失败或阻塞的原因
+  bug:
+    id: <前缀>-bug
+    name: 缺陷
+    kind: board
+    row_meaning: 一个缺陷；与版本的关系由版本表的 Bug管理 反向表达
+    row_id: bug.id
+    fields:
+    - key: bug.id
+      name: 编号
+      type: text
+      required: true
+      note: 行 id；BUG-01
+    - key: bug.title
+      name: 标题
+      type: text
+      required: true
+    - key: bug.status
+      name: 状态
+      type: enum
+      values:
+      - open
+      - fixing
+      - verifying
+      - closed
+      required: true
+      note: closed 为完成判据
+    - key: bug.severity
+      name: 严重度
+      type: enum
+      values:
+      - blocker
+      - critical
+      - major
+      - minor
+    - key: bug.source
+      name: 来源
+      type: enum
+      values:
+      - ms_case
+      - manual
+      - prod
+      - review
+    - key: bug.indep
+      name: 关联规格
+      type: relation
+      target: indep
+      note: 可多份、可暂未归因
+    - key: bug.found_version
+      name: 发现版本号
+      type: text
+      note: 017：由 relation 改文本，避免与版本表双向；用于定位默认进入哪一版的 Bug 管理集合
+    - key: bug.evidence
+      name: 证据
+      type: text
+    - key: bug.rest
+      name: 剩余事项
+      type: text
+    - key: bug.ms_case
+      name: MS用例号
+      type: text
+    - key: bug.owner
+      name: 负责人
+      type: text
+migrations:
+- id: gate-tag-existing
+  status: 已执行（2026-11-19）
+  what: 存量闸门字段补 gate=true
+  target: 见 board@3 同名条目
+- id: bug-relation-017
+  status: 已执行（2026-11-19，仅 tableflow）
+  target: 见 board@3 同名条目
+- id: add-case-run
+  status: 未执行
+  what: 为存量项目增加 case/run 两张表
+  target: 按本契约 tables.case/run 建表；表级 kind 落库（run=detail）
+  scope: 7个已迁到 board@3 的项目
+  owner: 019 实现
+  note: 建表属于结构变更，须经 019 的规格与门禁校验后执行；本契约只登记
+- id: ver-add-stage-and-runs
+  status: 未执行
+  what: 版本表增加六个四态节点字段、用例关联与三个用例字段，改 gate
+  target: 六节点 enum + ver.runs relation + case_total/case_done_count/case_done + stage_done + gate 改为 and(ver.stage_done == true)
+  scope: 同 add-case-run
+  owner: 019 实现
+  note: '存量版本行需给定初始值：已 released 的行六节点置 done，planned 的行置 todo，dropped 的行保持 todo；写入期串行校验与节点闸门一致性校验对存量行放行一次。'
+- id: rename-bug-fields
+  status: 未执行
+  what: 版本表两个 Bug 字段改名
+  target: '上一版本Bug已修复/总数 → Bug已修复/总数；上一版本Bug是否清空 → Bug是否清空'
+  scope: 同 add-case-run
+  owner: 019 实现
+  note: 只改名称不改口径；语义键不变，判定规则见 rules.bug_set_meaning
+decisions:
+- 不设测试计划表：版本直接持有执行记录，一条执行记录对应一条用例，关联用例即建执行记录行
+- 用例表是规格场景的派生投影，不是真源；真源始终是 specs/<dir>/spec.md
+- 用例执行情况表不进表导航（kind=detail），只经版本行的弹层展示
+- 执行清单只由 ver.runs 持有，run 不得反向指版本（引擎禁双向）
+- 同一版本内同一用例只有一条执行记录，重跑就地更新，不新建行
+- 进度与结论分两个字段：run.state 表达是否执行，run.result 表达通过与否；版本表只消费 state，不消费 result
+- 六节点串行推进，不提供"跳过"；failed 不是终态，返工改回 doing
+- 节点闸门一致性由写入期校验保证：测试节点要求用例全部执行、测试验收要求缺陷清零与回归通过、开发验收要求规格全部验收
+- 发布条件自 board@4 起只由六节点之与决定，三布尔降为展示字段
+- 允许版本长期 planned 或 dropped；不发布用 release_status 表达
+- 版本表 Bug 字段去掉"上一版本"字样，但集合语义仍是"本版需要清零的缺陷"，默认来源是上一版本
+- 用例行 id 采用场景号，执行记录行 id 采用 <版本号>--<用例号>，均只含安全字符
+- 测试进度只统计本版本已纳入的用例（ver.runs）；未纳入的用例不进分母、不影响判定，覆盖率由"测试设计"节点把关
+- 版本表三个用例字段沿用 empty_set 语义：本版一条用例都没纳入时，用例总数 0、已完成 0、用例是否完成为真

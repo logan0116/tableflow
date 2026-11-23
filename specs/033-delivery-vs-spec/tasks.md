@@ -7,9 +7,9 @@
 - **生成者**：tf-dev-implement
 
 - [ ] T001 实现 US1 区分规格、独立需求、依赖需求（覆盖场景：033-US1-AS1、033-US1-AS2、033-US1-AS3）
-- [ ] T002 实现 US2 唯一性与先后约束（覆盖场景：033-US2-AS1、033-US2-AS2、033-US2-AS3、033-US2-AS4、033-US2-AS5）
+- [x] T002 实现 US2 唯一性与先后约束（覆盖场景：033-US2-AS1、033-US2-AS2、033-US2-AS3、033-US2-AS4、033-US2-AS5）——`backend/src/tableflow/board_rules.py` 实现 C1/C2/C3，接入 `write_service` 的建行与改行两条路径；只校验新增，存量违规不阻断无关编辑；C3 在版本表与 dep 表两条路径上都校验，同请求内先挂需求再挂变更单按已交付处理。
 - [ ] T003 实现 US3 历史数据按规则清理（覆盖场景：033-US3-AS1、033-US3-AS2、033-US3-AS3、033-US3-AS4、033-US3-AS5）
-- [ ] T004 实现 US4 拒绝时给出可操作信息（覆盖场景：033-US4-AS1、033-US4-AS2）
-- [ ] T005 补齐单元测试（覆盖上述全部实现项）
-- [ ] T006 更新文档与契约引用（如涉及）
-- [ ] T007 跑通全量测试并记录结果
+- [x] T004 实现 US4 拒绝时给出可操作信息（覆盖场景：033-US4-AS1、033-US4-AS2）——拒绝信息含规则号、冲突 id、已占用版本与修复建议；校验全部在任何落库之前，失败整请求零写入。
+- [x] T005 补齐单元测试（覆盖上述全部实现项）——`backend/tests/test_board_rules_033.py` 8 项：C1/C2/C3 拒绝、同版本允许、同请求双挂、多规格取最晚、存量违规不阻断无关编辑。
+- [x] T006 更新文档与契约引用（如涉及）——契约落 `specs/019-test-contract/board@5.yaml`（meta 升版、object_boundary/delivery_once 约定、C1/C2/C3 与修订指针规则、`spec_done_frozen` 语义修正）。
+- [x] T007 跑通全量测试并记录结果——`.venv/bin/python -m pytest -q` → 226 passed。
