@@ -12,7 +12,7 @@
 规则号会出现在所有拒绝信息里，照着规则号就能查到含义、判定式与反例。
 
 
-共 13 条。
+共 14 条。
 
 ## 需求 033
 
@@ -124,4 +124,12 @@
 - **判定式**：`merged.stage[k] == done ∧ previous.stage[k] ≠ done ⇒ evidence[k] ≠ ''`
 - **实现位置**：`stage_evidence.validate_row_write`
 - **反例**：speckit-plan状态 从 todo 改为 done，阶段证据里没有 plan= 开头的行
+- **执行方**：engine
+
+### S2 复用产物的来源版本必须有效
+
+- **含义**：复用既有产物时，来源版本与当前宪法版本不一致的，必须在证据行写明「已重新确认仍适用」。
+- **判定式**：`evidence[k].startswith('reused:') ⇒ @<version> == 宪法版本 ∨ 行内包含重新确认标记`
+- **实现位置**：`stage_evidence._check_reuse`
+- **反例**：宪法版本已升到 v2，证据仍写 reused:.specify/memory/constitution.md@v1 且没有确认说明
 - **执行方**：engine

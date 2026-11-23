@@ -34,6 +34,10 @@ from .errors import WriteError
 STAGE_VALUES = frozenset({"todo", "doing", "done", "na"})
 STAGE_NAME_RE = re.compile(r"^speckit-([a-z_]+)状态$", re.I)
 EVIDENCE_FIELD_NAME = "阶段证据"
+CONSTITUTION_VERSION_NAME = "宪法版本"
+REUSE_PREFIX = "reused:"
+REUSE_VERSION_RE = re.compile(r"@([^\s（）()，,；;]+)")
+CONFIRM_MARKERS = ("重新确认", "仍适用", "已确认")
 EVIDENCE_LINE_RE = re.compile(r"^\s*([a-z_]+)\s*=\s*(.+?)\s*$", re.I)
 
 
@@ -94,6 +98,41 @@ def _evidence_field(fields: dict[str, sqlite3.Row]) -> sqlite3.Row | None:
     )
 
 
+def _check_reuse(
+    fields: dict[str, sqlite3.Row],
+    merged: dict[str, Any],
+    evidence: dict[str, str],
+) -> None:
+    """S2：复用产物的来源版本与当前宪法版本不一致时，必须写明已重新确认。"""
+    version_field = next(
+        (field for field in fields.values() if field["name"] == CONSTITUTION_VERSION_NAME),
+        None,
+    )
+    if version_field is None:
+        return
+    current = str(merged.get(version_field["id"]) or "").strip()
+    if not current:
+        return
+    stale: list[str] = []
+    for key, value in evidence.items():
+        if not value.startswith(REUSE_PREFIX):
+            continue
+        match = REUSE_VERSION_RE.search(value)
+        if match is None:
+            stale.append(f"{key}=复用了 {value}，但没写来源版本")
+            continue
+        reused = match.group(1).strip()
+        if reused != current and not any(mark in value for mark in CONFIRM_MARKERS):
+            stale.append(
+                f"{key}=复用 {reused}，当前宪法版本是 {current}"
+            )
+    if stale:
+        raise WriteError(
+            "S2：复用产物的来源版本与当前版本不一致时，必须在证据行里写明「已重新确认仍适用」；"
+            "未确认的复用不算有效证据：" + "；".join(stale)
+        )
+
+
 def validate_row_write(
     conn: sqlite3.Connection,
     table_id: str,
@@ -112,6 +151,7 @@ def validate_row_write(
     if evidence_field is None:
         return  # 未迁移的项目没有证据字段：不猜，也不阻断
     evidence = parse_evidence(merged.get(evidence_field["id"]))
+    _check_reuse(fields, merged, evidence)
 
     missing: list[str] = []
     for key, field in stages.items():

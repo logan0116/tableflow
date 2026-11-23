@@ -106,6 +106,10 @@ def main(args, report) -> None:
             raise SkillFailure("变更单必须指定 --id（形如 DEP-07-BR）")
         if not args.impact:
             raise SkillFailure("变更单必须指定 --impact（受影响的能力/接口/场景/下游）")
+        if not args.affected:
+            raise SkillFailure(
+                "变更单必须指定 --affected：没有实际增量（无受影响条款）的关联不构成依赖需求（037 FR-009）"
+            )
 
     if kind == "new_spec" and not args.id:
         raise SkillFailure("新规格必须指定 --id（形如 043-AR）")

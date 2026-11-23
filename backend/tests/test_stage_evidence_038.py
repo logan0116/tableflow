@@ -161,3 +161,35 @@ def test_stage_report_marks_missing_evidence_unprovable(tmp_path, monkeypatch) -
 
 def test_stage_report_404_for_unknown_spec(env) -> None:
     assert env.get("/api/projects/p038/stages", params={"spec": "nope"}).status_code == 404
+
+
+def test_stale_reuse_requires_reconfirmation(tmp_path, monkeypatch) -> None:
+    """S2：复用的来源版本与当前宪法版本不一致时必须写明重新确认。"""
+    text = project([
+        {"id": "038-AR", "values": {"i-id": "038-AR", "i-plan": "todo",
+                                    "i-accept": "pending"}},
+    ])
+    table = text["projects"][0]["tables"][0]
+    table["fields"].append({"id": "i-cv", "name": "宪法版本", "type": "text",
+                            "options": None, "order": 6, "visible": 1})
+    table["rows"][0]["values"]["i-cv"] = "v2"
+    db = tmp_path / "stage_evidence_reuse.db"
+    write_seed(db, text)
+    monkeypatch.setenv("TABLEFLOW_DB", str(db))
+    with TestClient(app) as client:
+        stale = client.patch(
+            "/api/agent/tables/e-indep/rows/038-AR",
+            json={"values": {"i-evidence": "plan=reused:.specify/memory/constitution.md@v1",
+                             "i-plan": "done"}},
+            headers=HEADERS,
+        )
+        assert stale.status_code == 400
+        assert "S2" in stale.json()["error"]
+
+        confirmed = client.patch(
+            "/api/agent/tables/e-indep/rows/038-AR",
+            json={"values": {"i-evidence": "plan=reused:.specify/memory/constitution.md@v1（已重新确认仍适用）",
+                             "i-plan": "done"}},
+            headers=HEADERS,
+        )
+        assert confirmed.status_code == 200, confirmed.text
