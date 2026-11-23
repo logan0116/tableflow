@@ -75,6 +75,17 @@ def _case_expected(case: dict, spec_id: str) -> dict:
     }
 
 
+def split_scope(wanted: list[str], version_specs: list[str]) -> tuple[list[str], list[str]]:
+    """035：交付范围与测试范围分离——把用例来源拆成「本版交付内」与「本版交付外」。
+
+    返回 ``(in_scope, out_of_scope)``。交付外来源照常派生用例，只是不计入本版交付。
+    """
+    version_set = set(version_specs)
+    in_scope = [spec_id for spec_id in wanted if spec_id in version_set]
+    out_of_scope = [spec_id for spec_id in wanted if spec_id not in version_set]
+    return in_scope, out_of_scope
+
+
 def main(args, report) -> None:
     report.note("role", "软件测试")
     report.note("node", NODE)
@@ -89,16 +100,20 @@ def main(args, report) -> None:
 
     version_specs = ver.relation(args.version, "独立需求管理")
     wanted = list(dict.fromkeys(args.spec)) or list(version_specs)
-    report.check("版本已关联规格", bool(wanted), f"{len(wanted)} 份：{'、'.join(wanted) or '无'}")
+    report.check("用例来源已确定", bool(wanted), f"{len(wanted)} 份：{'、'.join(wanted) or '无'}")
     if not wanted:
-        raise SkillFailure("版本未关联任何独立规格需求，无处派生用例")
-    for spec_id in wanted:
-        attached = spec_id in version_specs
-        report.check(f"规格 {spec_id} 已挂到版本", attached, "在 ver.独立需求管理 中")
-        if not attached:
-            raise SkillFailure(
-                f"规格 {spec_id} 未挂到版本 {args.version}，不能把其用例纳入本版"
-            )
+        raise SkillFailure("本版既未关联独立需求，也未用 --spec 指定来源，无处派生用例")
+
+    # 035：交付范围与测试范围解耦——用例来源可以不属于本版交付
+    _in_scope, out_of_scope = split_scope(wanted, version_specs)
+    report.check(
+        "用例来源可跨版本（035）",
+        True,
+        f"{len(out_of_scope)} 份不属本版交付：{'、'.join(out_of_scope)}；只纳入用例，不计入交付范围"
+        if out_of_scope
+        else "全部来源都在本版交付范围内",
+    )
+    report.note("out_of_scope_specs", out_of_scope)
 
     indep = client.table("indep")
     indep.require(["编号", "条款", "规格目录", "场景数", "验收状态"])
@@ -107,12 +122,16 @@ def main(args, report) -> None:
     run_table = client.table("run")
     run_table.require(list(RUN_FIELDS))
 
+    unaccepted: dict[str, object] = {}
     # 1) 从真源派生
     derived: list[dict] = []
     by_spec: dict[str, list[str]] = {}
     for spec_id in wanted:
         if not indep.row_exists(spec_id):
             raise SkillFailure(f"规格「{spec_id}」在独立规格需求表中不存在")
+        acceptance = indep.value(spec_id, "验收状态", default=None)
+        if acceptance != "accepted":
+            unaccepted[spec_id] = acceptance
         path = spec_file(repo_root, indep, spec_id)
         stories = parse_spec(path)
         count = scenario_count(stories)
@@ -133,6 +152,14 @@ def main(args, report) -> None:
     if duplicates:
         raise SkillFailure(f"derived 用例行 id 重复：{duplicates}")
     report.count(derived_cases=len(derived), specs=len(wanted))
+    if unaccepted:
+        # 035 FR-008：来源能力尚未验收时允许纳入，但必须标注
+        report.check(
+            "来源能力未验收（已标注）",
+            True,
+            "、".join(f"{k}={v}" for k, v in unaccepted.items()),
+        )
+        report.note("unaccepted_specs", unaccepted)
 
     # 2) 幂等派生 case 行
     created_cases = updated_cases = unchanged_cases = 0

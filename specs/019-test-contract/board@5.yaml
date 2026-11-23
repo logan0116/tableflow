@@ -141,6 +141,8 @@ rules:
   ver_bug_open: ver.bug_open = count({bug | 属于该集合 and bug.status != closed})；已解决数 = 总数 − 未解决数，不单独存
   case_projection: '测试用例是规格验收场景的派生投影，不是真源。一条 Acceptance Scenario 对应一条用例，行 id 即场景号（如 008-US1-AS1）；spec 改动后由同步脚本按场景号幂等更新，禁止在看板上手工改写步骤与预期。真源永远是 specs/<dir>/spec.md。'
   case_needs_spec: 每条用例必须能指回一份规格（case.indep 非空），指不到规格的用例不得登记。
+  case_scope_independent: '035：交付范围与测试范围分离。版本内的用例可以来自未挂在本版本的独立需求；「独立需求管理」只记录本版新增/修改/补齐的交付工作，不因复测而追加。复测历史能力时只纳入用例（ver.测试用例），不重复挂载需求。'
+  delivery_scope_only: 版本的两个关联字段各自只表达一件事：独立需求管理与依赖需求管理记录本版交付工作；测试用例记录本版要验证的能力集合。两者不得互相推导。
   run_owned_by_version: 执行记录只由版本表的 runs 持有；run 行不得再有指向版本的字段（引擎禁双向，且会造成两个真相）。
   run_needs_case: 每条执行记录必须指向一条用例（run.case 非空）；未纳入本版本的用例不建记录行。
   run_one_per_version_case: 同一版本内同一用例只允许一条执行记录；重跑就地更新该行（结果/证据/时间/执行人），不新建。
