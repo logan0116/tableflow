@@ -42,9 +42,9 @@ RUN_STATE_VALUES = frozenset({"todo", "done"})
 RUN_RESULT_VALUES = frozenset({"pass", "fail", "blocked", "skip"})
 # 用例号字段的兜底识别：迁移脚本若没沿用 `-case_no` 后缀，至少认契约里的名称。
 RUN_CASE_NO_FIELD_NAME = "用例号"
-# 执行记录行 id：<版本号>--<用例号>。版本号形如 v0.7.0，用例号即场景号（008-US1-AS1）。
-RUN_ID_RE = re.compile(r"^v\d+\.\d+\.\d+--[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
-VERSION_ID_RE = re.compile(r"^v\d+\.\d+\.\d+$")
+# 执行记录行 id：<版本号>--<用例号>。版本号取版本行 id 本身（不假设 v<主>.<次>.<修>：
+# demo-cnc 用 4.0.0_001、demo 用 7.0.1），用例号即场景号（008-US1-AS1）。
+RUN_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}--[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
 
 def _loads(raw: Any) -> Any:
@@ -167,7 +167,7 @@ def _check_case_no(row_id: str, values: dict[str, Any], fields: dict[str, sqlite
 def _check_run_row_id(row_id: str, values: dict[str, Any], fields: dict[str, sqlite3.Row]) -> None:
     if not RUN_ID_RE.match(row_id):
         raise WriteError(
-            "执行记录行 id 必须是「<版本号>--<用例号>」（如 v0.7.0--008-US1-AS1）："
+            "执行记录行 id 必须是「<版本号>--<用例号>」（版本号取版本行 id，如 4.0.0_001--008-US1-AS1）："
             f"{row_id!r}"
         )
     _check_case_no(row_id, values, fields)
@@ -186,8 +186,6 @@ def _check_run_list(row_id: str, field: sqlite3.Row, ids: list[Any]) -> None:
         raise WriteError(
             f"执行清单不得重复纳入同一执行记录：{duplicates}（字段「{field['name']}」）"
         )
-    if not VERSION_ID_RE.match(row_id):
-        return
     foreign = [item for item in ids if not str(item).startswith(f"{row_id}--")]
     if foreign:
         raise WriteError(

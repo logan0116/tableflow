@@ -60,6 +60,7 @@ BASE = {
                     "rows": [
                         {"id": "v0.7.0", "values": {"tf-v-version": "v0.7.0", "tf-v-runs": []}},
                         {"id": "v0.8.0", "values": {"tf-v-version": "v0.8.0", "tf-v-runs": []}},
+                        {"id": "4.0.0_001", "values": {"tf-v-version": "4.0.0_001", "tf-v-runs": []}},
                     ],
                 },
                 {
@@ -514,3 +515,23 @@ def test_case_no_fallback_by_field_name(env):
     assert resp.status_code == 400
     assert "用例号一致" in resp.json()["error"]
     assert _rows(db, "t-run-odd") == {}
+
+
+def test_run_id_uses_version_row_id_not_hardcoded_semver(env):
+    """版本行 id 不是 v<主>.<次>.<修>（如 4.0.0_001）时，执行记录 id 仍按 <版本号>--<用例号>。"""
+    client, db = env
+    run_id = "4.0.0_001--008-US1-AS1"
+    resp = _create_run(client, run_id)
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"result": "success", "id": run_id}
+    assert run_id in _rows(db, "t-run")
+
+
+def test_run_list_foreign_check_applies_to_non_semver_version(env):
+    """执行清单的「只能收录本版本」不因版本号不是 semver 而失效。"""
+    client, db = env
+    resp = _patch_runs(client, "4.0.0_001", ["v0.7.0--008-US1-AS1"])
+
+    assert resp.status_code == 400, resp.text
+    assert "本版本" in resp.json()["error"]
