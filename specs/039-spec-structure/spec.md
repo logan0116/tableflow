@@ -59,8 +59,8 @@
 **Acceptance Scenarios**:
 
 1. **Given** 一份规格只有 1 个 User Story，**When** 请求推进开发节点，**Then** 拒绝并指出低于下限
-2. **Given** 一份规格有 5 条验收场景、6 条功能需求、3 条边界情况、2 个 User Story，**When** 校验，**Then** 通过
-3. **Given** 一份规格缺少边界情况章节，**When** 校验，**Then** 拒绝
+2. **Given** 一份规格有 5 条验收场景、6 条功能需求、3 条边界情况、2 个 User Story，**When** 校验，**Then** 结构校验通过，四层均达下限
+3. **Given** 一份规格缺少边界情况章节，**When** 校验，**Then** 拒绝，并指出缺少 Edge Cases 章节
 
 ### User Story 3 - 现有规格按新标准补齐 (Priority: P2)
 

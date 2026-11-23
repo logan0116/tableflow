@@ -56,7 +56,7 @@
 
 1. **Given** 一条 pending 需求已挂在本版，**When** 执行放弃并填写理由，**Then** 验收状态变为 dropped，版本关联被摘除
 2. **Given** 一条需求被放弃，**When** 查询它的历史，**Then** 仍能看到放弃前的阶段状态与未完成的结论
-3. **Given** 一条需求被放弃，**When** 尝试把它的验收状态改为 accepted，**Then** 拒绝
+3. **Given** 一条需求被放弃，**When** 尝试把它的验收状态改为 accepted，**Then** 拒绝修改，终态不可回退
 
 ### User Story 3 - 拆分与放弃之后仍然可追溯 (Priority: P2)
 

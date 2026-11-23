@@ -42,7 +42,7 @@
 **Acceptance Scenarios**:
 
 1. **Given** 某版本 82 条用例中 81 条结果为 pass、1 条为 fail，**When** 执行测试验收判定，**Then** 结果为 failed，并指出失败的用例号
-2. **Given** 某版本全部用例结果为 pass，**When** 执行判定，**Then** 结果为 done
+2. **Given** 某版本全部用例结果为 pass，**When** 执行判定，**Then** 测试验收结果为 done
 3. **Given** 某版本存在未执行用例，**When** 执行判定，**Then** 结果为 failed，且区分"未执行"与"执行未通过"两种原因
 
 ### User Story 2 - 后续版本的修复不改变前序版本结论 (Priority: P1)
@@ -67,7 +67,7 @@
 
 **Acceptance Scenarios**:
 
-1. **Given** 一条用例结果为 fail 且未标记放行，**When** 判定，**Then** failed
+1. **Given** 一条用例结果为 fail 且未标记放行，**When** 判定，**Then** 判定为 failed，并列出该用例
 2. **Given** 一条用例结果为 fail 但已标记"不阻塞本次发布"并记录理由与批准人，**When** 判定，**Then** 通过，同时在报告中单列被放行项
 3. **Given** 一条被放行的用例，**When** 查询它的放行记录，**Then** 能读到理由、批准人与时间
 4. **Given** 一条用例被放行后又修复，**When** 重跑并置为 pass，**Then** 放行标记失效，不再出现在放行清单里

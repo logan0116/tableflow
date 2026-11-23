@@ -53,7 +53,7 @@
 **Acceptance Scenarios**:
 
 1. **Given** v0.7.3 有 1 条失败用例，**When** 出报告，**Then** 结论为不可发布，并列出失败用例号与规则依据
-2. **Given** 一个六节点全 done 的版本，**When** 出报告，**Then** 结论为可发布
+2. **Given** 一个六节点全 done 的版本，**When** 出报告，**Then** 结论为可发布，并列出六节点状态
 3. **Given** 报告中的任一判定，**When** 质疑，**Then** 能给出复算口径与数据来源
 4. **Given** 报告涉及的规则来自 040 的清单，**When** 规则更新，**Then** 报告口径随之更新，不改技能代码
 
@@ -66,7 +66,7 @@
 **Acceptance Scenarios**:
 
 1. **Given** 重构完成，**When** 检索 `tf-update`、`tf-status`、`ms-update`、`ms-implement`、`ms-summary`，**Then** 仓库与全局目录均无残留
-2. **Given** 某处文档仍引用旧技能名，**When** 检查，**Then** 被识别为待修引用
+2. **Given** 某处文档仍引用旧技能名，**When** 检查，**Then** 检查报告把它列为待修引用
 3. **Given** 旧技能的职责，**When** 逐条对照新技能，**Then** 每一项都有明确承接者或明确废止说明
 
 ### User Story 4 - 新技能覆盖登记与报告之外的必要操作 (Priority: P2)
