@@ -41,6 +41,21 @@ STAGE_FIELDS = {
 STRUCT_FLOOR = {"us": 2, "scen": 5, "fr": 6, "edge": 3}
 
 HEADING_RE = re.compile(r"^(#{1,4})\s+(.*?)\s*$")
+EVIDENCE_FIELD = "阶段证据"
+EVIDENCE_LINE_RE = re.compile(r"^\s*([a-z_]+)\s*=\s*(.+?)\s*$", re.I)
+
+
+def merge_evidence(existing: object, updates: dict[str, str]) -> str:
+    """把新证据并入既有「阶段证据」文本；同键覆盖，输出按键排序。"""
+    lines: dict[str, str] = {}
+    if isinstance(existing, str):
+        for line in existing.splitlines():
+            match = EVIDENCE_LINE_RE.match(line)
+            if match:
+                lines[match.group(1).lower()] = line.strip()
+    for key, value in updates.items():
+        lines[key] = f"{key}={value}"
+    return "\n".join(lines[key] for key in sorted(lines))
 FR_RE = re.compile(r"^\s*[-*]\s+\*\*FR-\d+", re.I)
 BULLET_RE = re.compile(r"^\s*[-*]\s+\S")
 
@@ -121,6 +136,7 @@ def main(args, report) -> None:
 
     constant_version = indep.value(specs[0], "宪法版本") if specs else None
     stage_plan: dict[str, dict[str, str]] = {}
+    stage_evidence: dict[str, dict[str, str]] = {}
 
     for spec_id in specs:
         if not indep.row_exists(spec_id):
@@ -166,6 +182,18 @@ def main(args, report) -> None:
             STAGE_FIELDS["checklist"]: "na",
         }
 
+        # 038：置 done 的阶段必须留下可定位证据
+        stage_evidence[spec_id] = {
+            "specify": f"{spec_rel}/spec.md（US{len(stories)}/场景{count}/FR{numbers['fr']}/边界{numbers['edge']}）",
+        }
+        constitution_state = stage_plan[spec_id][STAGE_FIELDS["constitution"]]
+        if constitution_state == "done":
+            stage_evidence[spec_id]["constitution"] = (
+                f"reused:.specify/memory/constitution.md@{constant_version or '未记录版本'}"
+            )
+        if stage_plan[spec_id][STAGE_FIELDS["clarify"]] == "done":
+            stage_evidence[spec_id]["clarify"] = f"{spec_rel}/spec.md#Clarifications（无未决项）"
+
     for change_id in changes:
         if not dep.row_exists(change_id):
             raise SkillFailure(f"版本关联的变更单「{change_id}」在依赖需求表中不存在")
@@ -194,6 +222,28 @@ def main(args, report) -> None:
                 STAGE_FIELDS["checklist"]: "本项目未启用 speckit-checklist 检查清单",
             },
         )
+    evidence_fid = indep.fid(EVIDENCE_FIELD, required=False)
+    if evidence_fid:
+        for spec_id, entries in stage_evidence.items():
+            if not entries:
+                continue
+            merged = merge_evidence(indep.value(spec_id, EVIDENCE_FIELD, default=None), entries)
+            if indep.value(spec_id, EVIDENCE_FIELD, default=None) == merged:
+                continue
+            if args.dry_run:
+                report.write(f"indep/{spec_id}", EVIDENCE_FIELD, f"{len(entries)} 条", "skipped", error="dry-run：未写")
+                continue
+            detail = client.write_verified(
+                "update", "indep", spec_id, {evidence_fid: merged}, {EVIDENCE_FIELD: merged}
+            )
+            report.write(f"indep/{spec_id}", EVIDENCE_FIELD, f"{len(entries)} 条",
+                         detail["state"], detail.get("http"), detail.get("error"))
+            if detail["state"] != "success":
+                raise SkillFailure(
+                    f"写规格 {spec_id} 的阶段证据失败：{detail.get('error') or '回读不一致'}",
+                    state=detail["state"],
+                )
+
     for spec_id, updates in stage_plan.items():
         for field, value in updates.items():
             if indep.value(spec_id, field) == value:

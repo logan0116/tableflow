@@ -42,7 +42,14 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
-from . import board_rules, calculation, run_protocol, spec_lifecycle, version_stage
+from . import (
+    board_rules,
+    calculation,
+    run_protocol,
+    spec_lifecycle,
+    stage_evidence,
+    version_stage,
+)
 from .errors import WriteError
 
 TZ = timezone(timedelta(hours=8))
@@ -894,6 +901,9 @@ def create_row(
     spec_lifecycle.validate_row_write(
         conn, table_id, fields, row_id, merged=values, previous={}, submitted=values
     )
+    stage_evidence.validate_row_write(
+        conn, table_id, fields, row_id, merged=values, previous={}, submitted=values
+    )
     _validate_row_constraints(conn, fields, values)
     if conn.execute(
         "SELECT 1 FROM row_records WHERE table_id = ? AND id = ?", (table_id, row_id)
@@ -955,6 +965,10 @@ def update_row(
         merged=merged, previous=old_values, submitted=values,
     )
     spec_lifecycle.validate_row_write(
+        conn, table_id, fields, row_id,
+        merged=merged, previous=old_values, submitted=values,
+    )
+    stage_evidence.validate_row_write(
         conn, table_id, fields, row_id,
         merged=merged, previous=old_values, submitted=values,
     )

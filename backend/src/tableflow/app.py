@@ -19,7 +19,7 @@ from typing import Any
 from fastapi import Body, Depends, FastAPI, Header, Query, Request
 from fastapi.responses import JSONResponse
 
-from . import auth, board_rules, calculation, db, repository, write_service
+from . import auth, board_rules, calculation, db, repository, stage_evidence, write_service
 from .config import db_path
 from .schemas import ChangesOut, ProjectsOut, RowDetailOut, TableOut
 
@@ -150,6 +150,21 @@ def get_spec_delivery(
     if data is None:
         return JSONResponse(
             status_code=404, content={"detail": "项目不存在或没有可识别的版本表"}
+        )
+    return data
+
+
+@app.get("/api/projects/{project_id}/stages")
+def get_spec_stages(
+    project_id: str,
+    spec: str,
+    conn: sqlite3.Connection = Depends(get_conn),
+):
+    """某份独立需求的八阶段视图：取值、证据、是否「无法证明」（038）。"""
+    data = stage_evidence.project_stage_report(conn, project_id, spec)
+    if data is None:
+        return JSONResponse(
+            status_code=404, content={"detail": "项目或规格不存在，或没有可识别的独立需求表"}
         )
     return data
 

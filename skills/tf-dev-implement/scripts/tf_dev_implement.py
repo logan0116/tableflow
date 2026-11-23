@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import datetime
+import re
 import subprocess
 from pathlib import Path
 
@@ -50,6 +51,22 @@ IMPLEMENT_FIELD = "speckit-implement状态"
 
 # 生成产物里每条实现项必带的回链标记
 COVER = "覆盖场景"
+
+EVIDENCE_FIELD = "阶段证据"
+EVIDENCE_LINE_RE = re.compile(r"^\s*([a-z_]+)\s*=\s*(.+?)\s*$", re.I)
+
+
+def merge_evidence(existing: object, updates: dict[str, str]) -> str:
+    """把新证据并入既有「阶段证据」文本；同键覆盖，输出按键排序。"""
+    lines: dict[str, str] = {}
+    if isinstance(existing, str):
+        for line in existing.splitlines():
+            match = EVIDENCE_LINE_RE.match(line)
+            if match:
+                lines[match.group(1).lower()] = line.strip()
+    for key, value in updates.items():
+        lines[key] = f"{key}={value}"
+    return "\n".join(lines[key] for key in sorted(lines))
 
 
 def build_parser():
@@ -349,6 +366,42 @@ def main(args, report) -> None:
             continue
         stage_updates.setdefault(spec_id, {})[IMPLEMENT_FIELD] = "pending-test"
 
+    # ---- 038：先写阶段证据，再改状态（置 done 必须有证据行） ----
+    evidence_fid = indep.fid(EVIDENCE_FIELD, required=False)
+    check_counts = {
+        spec_id: parse_tasks(repo_root / spec_dir_of(indep, spec_id) / "tasks.md")
+        for spec_id in wanted
+        if (repo_root / spec_dir_of(indep, spec_id) / "tasks.md").exists()
+    }
+    for spec_id, updates in stage_updates.items():
+        if evidence_fid is None:
+            break
+        entries: dict[str, str] = {}
+        rel = spec_dir_of(indep, spec_id).rstrip("/")
+        if updates.get(PLAN_FIELD) == "done":
+            entries["plan"] = f"{rel}/plan.md（回链 {len(scenario_ids(spec_id, parse_spec(spec_file(repo_root, indep, spec_id))))} 条场景）"
+        if updates.get(TASK_FIELD) == "done" and spec_id in check_counts:
+            counts = check_counts[spec_id]
+            entries["task"] = f"{rel}/tasks.md（已勾选 {counts['checked']} 条，未勾选 {len(counts['unchecked'])} 条）"
+        if not entries:
+            continue
+        merged = merge_evidence(indep.value(spec_id, EVIDENCE_FIELD, default=None), entries)
+        if indep.value(spec_id, EVIDENCE_FIELD, default=None) == merged:
+            continue
+        if args.dry_run:
+            report.write(f"indep/{spec_id}", EVIDENCE_FIELD, f"{len(entries)} 条", "skipped", error="dry-run：未写")
+            continue
+        detail = client.write_verified(
+            "update", "indep", spec_id, {evidence_fid: merged}, {EVIDENCE_FIELD: merged}
+        )
+        report.write(f"indep/{spec_id}", EVIDENCE_FIELD, f"{len(entries)} 条",
+                     detail["state"], detail.get("http"), detail.get("error"))
+        if detail["state"] != "success":
+            raise SkillFailure(
+                f"写规格 {spec_id} 的阶段证据失败：{detail.get('error') or '回读不一致'}",
+                state=detail["state"],
+            )
+
     # ---- 写阶段状态（plan/tasks 先落库，implement 待单测结论） ----
     for spec_id, updates in stage_updates.items():
         for field, value in updates.items():
@@ -386,6 +439,30 @@ def main(args, report) -> None:
     report.note("test_output_tail", output[-800:])
     if not ok:
         raise SkillFailure(f"单测未通过，不能置 implement 完成：`{command}`")
+
+    if evidence_fid:
+        implement_entries = {
+            spec_id: merge_evidence(
+                indep.value(spec_id, EVIDENCE_FIELD, default=None),
+                {"implement": f"单测通过（{command}）"},
+            )
+            for spec_id in wanted
+            if indep.value(spec_id, IMPLEMENT_FIELD) != "done"
+        }
+        for spec_id, merged_text in implement_entries.items():
+            if args.dry_run:
+                report.write(f"indep/{spec_id}", EVIDENCE_FIELD, "implement", "skipped", error="dry-run：未写")
+                continue
+            detail = client.write_verified(
+                "update", "indep", spec_id, {evidence_fid: merged_text}, {EVIDENCE_FIELD: merged_text}
+            )
+            report.write(f"indep/{spec_id}", EVIDENCE_FIELD, "implement",
+                         detail["state"], detail.get("http"), detail.get("error"))
+            if detail["state"] != "success":
+                raise SkillFailure(
+                    f"写规格 {spec_id} 的 implement 证据失败：{detail.get('error') or '回读不一致'}",
+                    state=detail["state"],
+                )
 
     for spec_id in wanted:
         if indep.value(spec_id, IMPLEMENT_FIELD) == "done":

@@ -51,6 +51,8 @@ INDEP_FIELDS = [
      "note": "置 dropped 时必填；放弃的时点"},
     {"suffix": "split-log", "name": "拆分记录", "type": "text", "options": None,
      "note": "一行一条：<时间> 移交 <条款或场景号清单> -> <承接方编号>；仅在需求未 accepted 时允许"},
+    {"suffix": "stage-evidence", "name": "阶段证据", "type": "text", "options": None,
+     "note": "每行一条 <阶段>=<证据>；阶段置 done 时必须有对应行（038）"},
 ]
 
 

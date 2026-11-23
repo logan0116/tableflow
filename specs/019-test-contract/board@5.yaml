@@ -114,6 +114,11 @@ rules:
   change_delivery_once: 'C2 写入期校验：同一依赖需求在所有版本的依赖需求管理中出现次数不得超过 1。违规返回 400，并指出已占用的版本号。'
   change_not_before_spec: 'C3 写入期校验：依赖需求所在版本不得早于其关联的任一独立需求所在版本；允许同版本。关联多份规格时，以其中最晚交付者作为比较基准。'
   change_requires_accepted: 依赖需求只能关联已 accepted 的规格；规格尚未 accepted 时按 classify.in_place 直接改规格与其独立需求行，不开依赖需求。
+  stage_artifact_matrix: '每个阶段的产物与验证方式：constitution→项目宪法（复用则记来源版本）；specify→spec.md（结构下限见 039）；plan→plan.md（回链场景号）；task→tasks.md（回链计划项或场景号）；implement→代码与单测（单测通过）；clarify→spec 的 Clarifications 小节；analyze→一致性检查结论；checklist→检查清单。没有产物的阶段取 na 并写明理由，不得置 done。'
+  stage_done_needs_evidence: '阶段置 done 的写入期校验：`阶段证据` 必须含该阶段对应的 `<阶段>=...>` 行且值非空。只校验状态发生变化的那一刻，历史已 done 的行不因缺证据而被改写（视为「无法证明」，见 rules.stage_unprovable）。'
+  stage_unprovable: 历史记录中阶段为空、或已 done 但无证据行，一律呈现为「无法证明」；不得批量补写为 done，也不得据此推断已完成或未完成。
+  stage_backfill: 事后补做某阶段时必须记录补做时间与操作者，与当时完成区分（写在阶段证据的该行内，格式 `<阶段>=<产物>（补做 <时间> <操作者>）`）。
+  stage_reuse: 复用既有产物必须写明来源路径与版本；来源版本已被取代时须重新确认适用性，确认结论写进该证据行。
   spec_current_revision: '规格的当前生效修订 = 最近一条「回归状态=passed 且 规格修订=done」的依赖需求。没有任何此类依赖需求时，当前修订为首次修订，来源指向它的独立需求。'
   delivery_conclusion_scope: 原独立需求的验收结论只覆盖它当时交付的范围，不得用于证明后续修订已通过；后续修订的验证结论由产生它的依赖需求自带。
   spec_terminal_states: 独立需求的终态只有两个：accepted（完成）与 dropped（放弃）；pending 与 rejected 都是过程态，不得当作终态使用。
@@ -443,6 +448,10 @@ tables:
       - doing
       - done
       - na
+    - key: spec.stage_evidence
+      name: 阶段证据
+      type: text
+      note: 每行一条 `<阶段>=<证据>`，阶段键取阶段字段名的中段（constitution/specify/plan/task/implement/clarify/analyze/checklist）。证据必须是可定位的产物路径或命令结论；复用既有产物写 `reused:<来源路径>@<版本>`。阶段置 done 时必须有对应行，否则视为无法证明。
     - key: spec.constitution_version
       name: 宪法版本
       type: text
