@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from typing import Any
 
@@ -286,3 +287,106 @@ def validate_row_write(
         _validate_version(conn, fields, row_id, merged, previous)
         return
     _validate_dep(conn, fields, row_id, merged)
+
+
+SPLIT_LINE_RE = re.compile(r"^(\S+)\s+移交\s+(.+?)\s*->\s*(\S+)\s*$")
+SPLIT_LOG_NAME = "拆分记录"
+ABANDON_REASON_NAME = "放弃理由"
+ABANDONED_AT_NAME = "放弃时间"
+
+
+def _indep_table_of(
+    conn: sqlite3.Connection, project_id: str
+) -> tuple[str, dict[str, sqlite3.Row]] | None:
+    for row in conn.execute(
+        'SELECT id FROM tables WHERE project_id = ? ORDER BY "order" ASC, id ASC',
+        (project_id,),
+    ).fetchall():
+        fields = _table_fields(conn, row["id"])
+        if _acceptance_field(fields) is not None:
+            return row["id"], fields
+    return None
+
+
+def _parse_split_log(text: Any) -> list[dict[str, str]]:
+    if not isinstance(text, str):
+        return []
+    out: list[dict[str, str]] = []
+    for line in text.splitlines():
+        match = SPLIT_LINE_RE.match(line.strip())
+        if match:
+            out.append({"at": match.group(1), "clauses": match.group(2), "to": match.group(3)})
+    return out
+
+
+def lifecycle_report(
+    conn: sqlite3.Connection, project_id: str, spec_id: str
+) -> dict[str, Any] | None:
+    """独立需求的生命周期视图：终态、放弃留痕、拆分链（034 T003）。
+
+    拆分链双向可追：``split_out`` 是从本需求拆出去的，``split_in`` 是哪些需求拆到了本需求，
+    ``chain`` 沿 ``split_out`` 继续向下展开（深度上限 10，防环）。
+    """
+    located = _indep_table_of(conn, project_id)
+    if located is None:
+        return None
+    table_id, fields = located
+    acceptance = _acceptance_field(fields)
+    reason_field = _by_name(fields, ABANDON_REASON_NAME)
+    at_field = _by_name(fields, ABANDONED_AT_NAME)
+    log_field = _by_name(fields, SPLIT_LOG_NAME)
+
+    def load(cid: str) -> dict[str, Any] | None:
+        row = conn.execute(
+            "SELECT data FROM row_records WHERE table_id = ? AND id = ?", (table_id, cid)
+        ).fetchone()
+        return None if row is None else (_loads(row["data"]) or {})
+
+    values = load(spec_id)
+    if values is None:
+        return None
+
+    split_out = _parse_split_log(values.get(log_field["id"])) if log_field else []
+    split_in: list[dict[str, str]] = []
+    if log_field is not None:
+        for row in conn.execute(
+            "SELECT id, data FROM row_records WHERE table_id = ?", (table_id,)
+        ).fetchall():
+            if row["id"] == spec_id:
+                continue
+            for entry in _parse_split_log((_loads(row["data"]) or {}).get(log_field["id"])):
+                if entry["to"] == spec_id:
+                    split_in.append({"from": row["id"], **entry})
+
+    chain: list[dict[str, Any]] = []
+    seen = {spec_id}
+    frontier = [entry["to"] for entry in split_out]
+    depth = 0
+    while frontier and depth < 10:
+        depth += 1
+        nxt: list[str] = []
+        for cid in frontier:
+            if cid in seen:
+                continue
+            seen.add(cid)
+            target = load(cid)
+            entry: dict[str, Any] = {"spec": cid, "exists": target is not None}
+            if target is not None:
+                entry["acceptance"] = (
+                    target.get(acceptance["id"]) if acceptance else None
+                )
+                out = _parse_split_log(target.get(log_field["id"])) if log_field else []
+                entry["split_out"] = out
+                nxt.extend(item["to"] for item in out)
+            chain.append(entry)
+        frontier = nxt
+
+    return {
+        "spec": spec_id,
+        "acceptance": values.get(acceptance["id"]) if acceptance else None,
+        "abandon_reason": values.get(reason_field["id"]) if reason_field else None,
+        "abandoned_at": values.get(at_field["id"]) if at_field else None,
+        "split_out": split_out,
+        "split_in": split_in,
+        "chain": chain,
+    }

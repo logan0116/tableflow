@@ -204,3 +204,49 @@ def test_split_rejected_after_accepted(env) -> None:
                      json={"values": {"i-split": f"{AT} 移交 US1 -> 040-AR"}}, headers=HEADERS)
     assert resp.status_code == 400
     assert "尚未 accepted" in resp.json()["error"]
+
+
+def test_lifecycle_report_parses_split_chain(env) -> None:
+    """拆分链双向可追：本需求拆出去、以及谁拆到了本需求。"""
+    # 034-AR 拆出 US3 给 035-AR（035-AR 已存在则换一个不存在的承接方）
+    assert env.patch(
+        "/api/agent/tables/l-indep/rows/034-AR",
+        json={"values": {"i-split": "2026-11-23T20:00:00+08:00 移交 US3 -> 099-AR"}},
+        headers=HEADERS,
+    ).status_code == 200
+    body = env.get("/api/projects/p034/lifecycle", params={"spec": "034-AR"}).json()
+    assert body["split_out"] == [
+        {"at": "2026-11-23T20:00:00+08:00", "clauses": "US3", "to": "099-AR"}
+    ]
+    # 099-AR 不存在，链节点标 exists=false
+    assert body["chain"] == [{"spec": "099-AR", "exists": False}]
+
+
+def test_lifecycle_report_finds_split_in(env) -> None:
+    assert env.patch(
+        "/api/agent/tables/l-indep/rows/034-AR",
+        json={"values": {"i-split": "2026-11-23T20:00:00+08:00 移交 US3 -> 035-AR"}},
+        headers=HEADERS,
+    ).status_code == 200
+    body = env.get("/api/projects/p034/lifecycle", params={"spec": "035-AR"}).json()
+    assert [item["from"] for item in body["split_in"]] == ["034-AR"]
+
+
+def test_lifecycle_report_shows_abandon_trace(tmp_path, monkeypatch) -> None:
+    db = tmp_path / "lifecycle_trace.db"
+    write_seed(db, base([]))
+    monkeypatch.setenv("TABLEFLOW_DB", str(db))
+    with TestClient(app) as client:
+        assert client.patch(
+            "/api/agent/tables/l-indep/rows/034-AR",
+            json={"values": {"i-accept": "dropped", "i-reason": "能力取消", "i-at": AT}},
+            headers=HEADERS,
+        ).status_code == 200
+        body = client.get("/api/projects/p034/lifecycle", params={"spec": "034-AR"}).json()
+    assert body["acceptance"] == "dropped"
+    assert body["abandon_reason"] == "能力取消"
+    assert body["abandoned_at"]
+
+
+def test_lifecycle_report_404_for_unknown_spec(env) -> None:
+    assert env.get("/api/projects/p034/lifecycle", params={"spec": "nope"}).status_code == 404

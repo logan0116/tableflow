@@ -364,6 +364,8 @@ def validate_row_write(
 # ---------- 交付记录查询（033 T001 / FR-006） ----------
 
 SPEC_REVISION_NAME = "规格修订"
+AFFECTED_NAME = "受影响条款"
+SPEC_ID_RE = re.compile(r"[A-Za-z0-9_]+-AR\b")
 
 
 def _version_table_of(
@@ -382,8 +384,8 @@ def _version_table_of(
 
 def _dep_meta_fields(
     conn: sqlite3.Connection, dep_table_id: str
-) -> tuple[sqlite3.Row | None, sqlite3.Row | None, sqlite3.Row | None]:
-    """依赖需求表的：关联规格、回归状态、规格修订。"""
+) -> tuple[sqlite3.Row | None, sqlite3.Row | None, sqlite3.Row | None, sqlite3.Row | None]:
+    """依赖需求表的：关联规格、回归状态、规格修订、受影响条款。"""
     fields = _table_fields(conn, dep_table_id)
     spec_field = _dep_spec_field(conn, fields)
     regress = next(
@@ -398,7 +400,18 @@ def _dep_meta_fields(
         (field for field in fields.values() if field["name"] == SPEC_REVISION_NAME),
         None,
     )
-    return spec_field, regress, revision
+    affected = next(
+        (field for field in fields.values() if field["name"] == AFFECTED_NAME),
+        None,
+    )
+    return spec_field, regress, revision, affected
+
+
+def _affected_specs(text: Any) -> set[str]:
+    """从「受影响条款」里解析出被改到的规格编号（一行一份 `<spec> <条款>`）。"""
+    if not isinstance(text, str):
+        return set()
+    return set(SPEC_ID_RE.findall(text))
 
 
 def spec_delivery(
@@ -434,7 +447,7 @@ def spec_delivery(
     if dep_field is not None:
         dep_table_id = _target_table_id(dep_field)
         if dep_table_id is not None:
-            spec_field, regress, revision = _dep_meta_fields(conn, dep_table_id)
+            spec_field, regress, revision, affected = _dep_meta_fields(conn, dep_table_id)
             if spec_field is not None:
                 for version_id, data in versions:
                     for dep_id in _as_list(data.get(dep_field["id"])):
@@ -443,19 +456,33 @@ def spec_delivery(
                             continue
                         if spec_id not in _as_list(values.get(spec_field["id"])):
                             continue
+                        affected_specs = _affected_specs(
+                            values.get(affected["id"]) if affected else None
+                        )
                         revisions.append(
                             {
                                 "dep": dep_id,
                                 "version": version_id,
                                 "regress": values.get(regress["id"]) if regress else None,
                                 "spec_revision": values.get(revision["id"]) if revision else None,
+                                # 受影响条款非空且未点名本规格 → 本次变更没有动到它
+                                "affects_this_spec": not affected_specs or spec_id in affected_specs,
+                                # 逐份修订标识（037 T003）：<依赖需求编号>@<所在版本>
+                                "revision_tag": (
+                                    f"{dep_id}@{version_id}"
+                                    if values.get(revision["id"]) == "done"
+                                    and (not affected_specs or spec_id in affected_specs)
+                                    else None
+                                ),
                             }
                         )
     revisions.sort(key=lambda item: (_semver(item["version"]) or (0, 0, 0), item["dep"]))
 
     effective = [
         item for item in revisions
-        if item["regress"] == "passed" and item["spec_revision"] == "done"
+        if item["regress"] == "passed"
+        and item["spec_revision"] == "done"
+        and item["affects_this_spec"]
     ]
     current = (
         {"source": "change", **effective[-1]}

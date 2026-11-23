@@ -26,6 +26,7 @@ from . import (
     db,
     repository,
     rules,
+    spec_lifecycle,
     stage_evidence,
     write_service,
 )
@@ -159,6 +160,21 @@ def get_spec_delivery(
     if data is None:
         return JSONResponse(
             status_code=404, content={"detail": "项目不存在或没有可识别的版本表"}
+        )
+    return data
+
+
+@app.get("/api/projects/{project_id}/lifecycle")
+def get_spec_lifecycle(
+    project_id: str,
+    spec: str,
+    conn: sqlite3.Connection = Depends(get_conn),
+):
+    """独立需求的生命周期视图：终态、放弃留痕与拆分链（034）。"""
+    data = spec_lifecycle.lifecycle_report(conn, project_id, spec)
+    if data is None:
+        return JSONResponse(
+            status_code=404, content={"detail": "项目、规格或独立需求表不存在"}
         )
     return data
 
