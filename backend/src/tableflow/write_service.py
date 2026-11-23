@@ -45,6 +45,7 @@ from typing import Any, Callable
 from . import (
     board_rules,
     calculation,
+    change_flow,
     run_protocol,
     spec_lifecycle,
     stage_evidence,
@@ -904,6 +905,9 @@ def create_row(
     stage_evidence.validate_row_write(
         conn, table_id, fields, row_id, merged=values, previous={}, submitted=values
     )
+    change_flow.validate_row_write(
+        conn, table_id, fields, row_id, merged=values, previous={}, submitted=values
+    )
     _validate_row_constraints(conn, fields, values)
     if conn.execute(
         "SELECT 1 FROM row_records WHERE table_id = ? AND id = ?", (table_id, row_id)
@@ -969,6 +973,10 @@ def update_row(
         merged=merged, previous=old_values, submitted=values,
     )
     stage_evidence.validate_row_write(
+        conn, table_id, fields, row_id,
+        merged=merged, previous=old_values, submitted=values,
+    )
+    change_flow.validate_row_write(
         conn, table_id, fields, row_id,
         merged=merged, previous=old_values, submitted=values,
     )

@@ -1,0 +1,146 @@
+"""037：依赖需求的完整变更流。
+
+对应 `specs/037-dep-change-workflow/spec.md` 与 board@5 规则：
+- 回归状态置 passed 前，受影响条款、一致性检查、集成验收三项都必须非空；
+- 规格修订取 not_needed 时必须有判定依据（证据非空）；
+- 新建行（历史导入）不校验；未迁移的表没有这些字段时也不阻断。
+"""
+
+from __future__ import annotations
+
+import pytest
+from fastapi.testclient import TestClient
+
+from tableflow.app import app
+from tableflow.seed import write_seed
+
+HEADERS = {"X-Agent-Id": "agent-test"}
+
+REGRESS = [
+    {"value": "todo", "label": "未合入", "tone": "neutral"},
+    {"value": "doing", "label": "已合入待验", "tone": "info"},
+    {"value": "passed", "label": "通过", "tone": "success"},
+    {"value": "failed", "label": "不通过", "tone": "danger"},
+]
+REVISION = [
+    {"value": "not_needed", "label": "无需修订", "tone": "neutral"},
+    {"value": "pending", "label": "待写回", "tone": "info"},
+    {"value": "done", "label": "已写回", "tone": "success"},
+]
+
+FULL_FIELDS = [
+    {"id": "d-id", "name": "编号", "type": "text", "options": None, "order": 1, "visible": 1},
+    {"id": "d-regress", "name": "回归状态", "type": "enum", "options": REGRESS, "order": 2, "visible": 1},
+    {"id": "d-affected", "name": "受影响条款", "type": "text", "options": None, "order": 3, "visible": 1},
+    {"id": "d-consistency", "name": "一致性检查", "type": "text", "options": None, "order": 4, "visible": 1},
+    {"id": "d-integration", "name": "集成验收", "type": "text", "options": None, "order": 5, "visible": 1},
+    {"id": "d-evidence", "name": "证据", "type": "text", "options": None, "order": 6, "visible": 1},
+    {"id": "d-revision", "name": "规格修订", "type": "enum", "options": REVISION, "order": 7, "visible": 1},
+]
+
+LEGACY_FIELDS = [
+    {"id": "d-id", "name": "编号", "type": "text", "options": None, "order": 1, "visible": 1},
+    {"id": "d-regress", "name": "回归状态", "type": "enum", "options": REGRESS, "order": 2, "visible": 1},
+]
+
+READY = {
+    "d-affected": "026-AR US1-AS1、US1-AS2",
+    "d-consistency": "026 与 027 的条款无冲突；028 的场景 3 需补充说明",
+    "d-integration": "两规格集成验收通过，证据 commit 353ce0e",
+}
+
+
+def project(fields, rows):
+    return {
+        "projects": [
+            {
+                "id": "p037",
+                "name": "037 变更流",
+                "tables": [
+                    {
+                        "id": "c-dep",
+                        "name": "依赖变更需求",
+                        "order": 1,
+                        "fields": fields,
+                        "rows": rows,
+                    }
+                ],
+            }
+        ]
+    }
+
+
+@pytest.fixture()
+def env(tmp_path, monkeypatch):
+    db = tmp_path / "change_flow_037.db"
+    write_seed(db, project(FULL_FIELDS, [
+        {"id": "DEP-A", "values": {"d-id": "DEP-A", "d-regress": "todo",
+                                   "d-revision": "pending"}},
+    ]))
+    monkeypatch.setenv("TABLEFLOW_DB", str(db))
+    with TestClient(app) as client:
+        yield client
+
+
+def patch(env, values, row="DEP-A"):
+    return env.patch(f"/api/agent/tables/c-dep/rows/{row}",
+                     json={"values": values}, headers=HEADERS)
+
+
+def test_passed_without_flow_fields_is_rejected(env) -> None:
+    resp = patch(env, {"d-regress": "passed"})
+    assert resp.status_code == 400
+    body = resp.json()["error"]
+    assert "受影响条款" in body and "一致性检查" in body and "集成验收" in body
+
+
+def test_passed_with_full_flow_is_allowed(env) -> None:
+    assert patch(env, {"d-regress": "doing"}).status_code == 200
+    resp = patch(env, {**READY, "d-regress": "passed"})
+    assert resp.status_code == 200, resp.text
+
+
+def test_missing_one_field_blocks(env) -> None:
+    values = {k: v for k, v in READY.items() if k != "d-integration"}
+    resp = patch(env, {**values, "d-regress": "passed"})
+    assert resp.status_code == 400
+    assert "集成验收" in resp.json()["error"]
+    assert "受影响条款" not in resp.json()["error"]
+
+
+def test_not_needed_requires_evidence(env) -> None:
+    resp = patch(env, {"d-revision": "not_needed"})
+    assert resp.status_code == 400
+    assert "判定依据" in resp.json()["error"]
+
+
+def test_not_needed_with_evidence_is_allowed(env) -> None:
+    resp = patch(env, {"d-revision": "not_needed", "d-evidence": "仅确认不受影响，无内容变化"})
+    assert resp.status_code == 200, resp.text
+
+
+def test_import_of_already_passed_row_is_allowed(tmp_path, monkeypatch) -> None:
+    """历史导入：整行写回已 passed 的依赖需求不触发流程校验。"""
+    db = tmp_path / "change_flow_import.db"
+    write_seed(db, project(FULL_FIELDS, []))
+    monkeypatch.setenv("TABLEFLOW_DB", str(db))
+    with TestClient(app) as client:
+        resp = client.post(
+            "/api/agent/tables/c-dep/rows/DEP-OLD",
+            json={"values": {"d-id": "DEP-OLD", "d-regress": "passed"}},
+            headers=HEADERS,
+        )
+        assert resp.status_code == 200, resp.text
+
+
+def test_legacy_table_without_fields_is_not_blocked(tmp_path, monkeypatch) -> None:
+    """未迁移的表没有流程字段：不猜、不阻断。"""
+    db = tmp_path / "change_flow_legacy.db"
+    write_seed(db, project(LEGACY_FIELDS, [
+        {"id": "DEP-A", "values": {"d-id": "DEP-A", "d-regress": "todo"}},
+    ]))
+    monkeypatch.setenv("TABLEFLOW_DB", str(db))
+    with TestClient(app) as client:
+        resp = client.patch("/api/agent/tables/c-dep/rows/DEP-A",
+                            json={"values": {"d-regress": "passed"}}, headers=HEADERS)
+        assert resp.status_code == 200, resp.text

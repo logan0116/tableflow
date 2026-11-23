@@ -114,6 +114,11 @@ rules:
   change_delivery_once: 'C2 写入期校验：同一依赖需求在所有版本的依赖需求管理中出现次数不得超过 1。违规返回 400，并指出已占用的版本号。'
   change_not_before_spec: 'C3 写入期校验：依赖需求所在版本不得早于其关联的任一独立需求所在版本；允许同版本。关联多份规格时，以其中最晚交付者作为比较基准。'
   change_requires_accepted: 依赖需求只能关联已 accepted 的规格；规格尚未 accepted 时按 classify.in_place 直接改规格与其独立需求行，不开依赖需求。
+  change_flow_full: '037：依赖需求是一次完整变更，依次具备——增量说明、每份目标规格的基线修订与受影响条款、统一设计与任务、逐份一致性检查、各目标验证与跨规格集成验收、产出新修订。缺项不得置 passed。'
+  change_regress_precondition: '回归状态置 passed 的写入期校验：受影响条款、一致性检查、集成验收三项都必须非空；缺任一项返回 400。补丁不因规模小免除流程，但可复用既有设计与宪法并记录来源。'
+  change_revision_not_needed: 规格修订取 not_needed 时必须同时给出判定依据（证据字段非空），说明为什么本次改动不产生规格内容变化。
+  change_revision_tag: 依赖需求产出的规格修订标识 = `<依赖需求编号>@<所在版本>`；规格的当前生效修订据此推导（见 rules.spec_current_revision 与 `GET /api/projects/<项目>/delivery`）。
+  change_no_increment: 没有实际增量（无受影响条款）的关联不构成依赖需求；仅仅把几份规格连起来不产生交付工作，应使用规格之间的关联而不是依赖需求。
   spec_structure_floor: '039：每份规格必须具备 User Scenarios & Testing、Functional Requirements、Edge Cases 三个章节，且 User Story ≥2、验收场景 ≥5、功能需求 ≥6、边界情况 ≥3。低于下限或缺章节不得置 speckit-specify状态=done，也不得推进版本需求设计节点。'
   spec_scenario_form: 验收场景必须写成 `1. **Given** … **When** … **Then** …` 的可判定形式；缺任一要素的场景不会被派生为用例，属于静默丢失，必须作为缺陷修正，不得忽略。
   spec_traceability: '039：功能需求与验收场景应建立可追溯引用——场景行内标 `（FR-001）`，或需求行列出覆盖它的场景号。存量规格大多未建立引用，当前在结构报告里呈现为缺口而不是门禁；新规格应从正文起就带引用。'
@@ -528,6 +533,30 @@ tables:
       name: 剩余事项
       type: text
       note: 未完成的部分与阻塞；空表示无
+    - key: change.increment
+      name: 增量说明
+      type: text
+      note: 本次改什么、为什么改；「条款」指到具体规格条款，「增量说明」讲动机与范围
+    - key: change.baselines
+      name: 基线修订
+      type: text
+      note: 一行一份：`<规格编号>@<基线版本或修订标识>`；改动前必须先锁定基线，基线过期要重新取
+    - key: change.affected
+      name: 受影响条款
+      type: text
+      note: 一行一份：`<规格编号> <条款号或场景号>`；置 passed 前必须非空
+    - key: change.plan
+      name: 设计与任务
+      type: text
+      note: 统一设计只写一次，差异按规格分列；复用既有产物须写来源版本
+    - key: change.consistency
+      name: 一致性检查
+      type: text
+      note: 逐份规格的一致性结论；跨规格冲突与遗漏必须列明，不得留空
+    - key: change.integration
+      name: 集成验收
+      type: text
+      note: 跨规格集成验收的结论与证据，与单规格验证分开记录
     - key: change.spec_revision
       name: 规格修订
       type: enum

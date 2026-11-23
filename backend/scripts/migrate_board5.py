@@ -26,6 +26,7 @@ import urllib.request
 
 RUN_STATE_VALUES = {"todo", "done"}
 RUN_RESULT_VALUES = {"pass", "fail", "blocked", "skip"}
+REGRESS_VALUES = {"todo", "doing", "passed", "failed"}
 ACCEPTANCE_DOMAINS = (
     {"pending", "accepted", "rejected", "dropped"},
     {"pending", "accepted", "rejected"},
@@ -42,6 +43,21 @@ RUN_FIELDS = [
      "note": "置 waived 时必填"},
     {"suffix": "reason", "name": "放行理由", "type": "text", "options": None,
      "note": "置 waived 时必填；为什么这次失败不阻塞发布"},
+]
+
+CHANGE_FIELDS = [
+    {"suffix": "increment", "name": "增量说明", "type": "text", "options": None,
+     "note": "本次改什么、为什么改"},
+    {"suffix": "baselines", "name": "基线修订", "type": "text", "options": None,
+     "note": "一行一份：<规格编号>@<基线版本或修订标识>"},
+    {"suffix": "affected", "name": "受影响条款", "type": "text", "options": None,
+     "note": "一行一份：<规格编号> <条款号或场景号>；置 passed 前必须非空"},
+    {"suffix": "plan", "name": "设计与任务", "type": "text", "options": None,
+     "note": "统一设计只写一次，差异按规格分列；复用需写来源版本"},
+    {"suffix": "consistency", "name": "一致性检查", "type": "text", "options": None,
+     "note": "逐份规格的一致性结论；冲突与遗漏必须列明"},
+    {"suffix": "integration", "name": "集成验收", "type": "text", "options": None,
+     "note": "跨规格集成验收的结论与证据"},
 ]
 
 INDEP_FIELDS = [
@@ -104,18 +120,24 @@ def acceptance_field(fields: list[dict]) -> dict | None:
     return hits[0] if len(hits) == 1 else None
 
 
+def is_change_table(fields: list[dict]) -> bool:
+    """依赖需求表识别：恰好一个 {todo,doing,passed,failed} 的 enum。"""
+    hits = [f for f in fields if f.get("type") == "enum" and enum_values(f) == set(REGRESS_VALUES)]
+    return len(hits) == 1
+
+
 def is_run_table(fields: list[dict]) -> bool:
     domains = {frozenset(v) for f in fields if f.get("type") == "enum" and (v := enum_values(f))}
     return frozenset(RUN_STATE_VALUES) in domains and frozenset(RUN_RESULT_VALUES) in domains
 
 
-def add_fields(table: dict, specs: list[dict], apply: bool, planned: list[str]) -> None:
+def add_fields(table: dict, specs: list[dict], letter: str, apply: bool, planned: list[str]) -> None:
     existing = {field["name"] for field in table["fields"]}
     prefix = table["id"].split("-", 1)[0]
     for spec in specs:
         if spec["name"] in existing:
             continue
-        field_id = f"{prefix}-{'i' if spec in INDEP_FIELDS else 'r'}-{spec['suffix']}"
+        field_id = f"{prefix}-{letter}-{spec['suffix']}"
         planned.append(f"{table['id']} 新建字段 {field_id}「{spec['name']}」")
         if not apply:
             continue
@@ -170,11 +192,13 @@ def main() -> int:
             table = {"id": summary["id"], "fields": payload["fields"]}
             before = len(planned)
             if is_run_table(table["fields"]):
-                add_fields(table, RUN_FIELDS, args.apply, planned)
+                add_fields(table, RUN_FIELDS, "r", args.apply, planned)
+            if is_change_table(table["fields"]):
+                add_fields(table, CHANGE_FIELDS, "d", args.apply, planned)
             accept = acceptance_field(table["fields"])
             if accept is not None:
                 extend_acceptance(accept, args.apply, planned)
-                add_fields(table, INDEP_FIELDS, args.apply, planned)
+                add_fields(table, INDEP_FIELDS, "i", args.apply, planned)
             for line in planned[before:]:
                 print(f"[{project_id}] {line}")
 
