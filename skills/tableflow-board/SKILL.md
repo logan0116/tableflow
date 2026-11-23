@@ -3,7 +3,7 @@ name: tableflow-board
 description: "用tableflow多维表格看板管理项目：查项目/表格/数据与变更记录，定义表与字段，写入需求、版本与缺陷，配置计算字段。字段口径以specs/017-bug-relation/board@3.yaml（四表：版本/独立规格需求/依赖需求/缺陷）为准。触发词：tableflow、多维表格、需求表、版本表、缺陷表、看板、依赖变更需求。"
 ---
 
-> **已弃用（2026-11-19）**：日常登记与查询请用 `tf-update`/`tf-status`；本文件仅作底层 API 参考，不再发布到 SkillHub，也不随契约升级维护。
+> **已弃用（2026-11-19，2026-11-23 更新）**：日常登记用 `tf-register`，发布就绪用 `tf-release-status`，生命周期动作用 `tf-lifecycle`；本文件仅作底层 API 参考，不再发布到 SkillHub，也不随契约升级维护。
 
 # tableflow多维表格：用Agent写接口管项目
 

@@ -20,7 +20,7 @@ description: "推进 tableflow board@4 版本第 1 节点「版本需求设计�
 
 ## 何时不用
 
-- 登记需求、开变更单 → `tf-update`。
+- 登记需求、开变更单 → `tf-register`。
 - 改验收状态、推进回归 → 人工/缺陷流程。
 - 派生用例、测试执行 → `tf-test-plan`/`tf-test-implement`。
 - 建表、改字段 → 019 实现/T1，不在技能范围。

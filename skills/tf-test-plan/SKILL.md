@@ -22,9 +22,9 @@ description: "推进 tableflow board@4 版本第 2 节点「测试设计」（�
 
 ## 何时不用
 
-- 登记需求/开变更单 → `tf-update`。
+- 登记需求/开变更单 → `tf-register`。
 - 执行用例、写通过与否 → `tf-test-implement`。
-- 同步到 MeterSphere → `ms-update`（MS 只保留历史台账身份）。
+- MS 同步已下线（032 取消），本技能不再对接 MeterSphere。
 - 建表/建字段/建计划 → 不在技能范围。
 
 ## 派生规则（与契约逐条对应）

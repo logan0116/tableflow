@@ -21,7 +21,7 @@ description: "推进 tableflow board@4 版本第 5 节点「测试」（软件�
 
 - 派生用例/纳入版本 → `tf-test-plan`。
 - 测试验收（缺陷清零/回归通过）→ `tf-test-check`。
-- 登记缺陷 → `ms-summary`/缺陷流程；技能不写 `bug`。
+- 登记缺陷 → 缺陷流程（直接写 `bug` 表）；技能不写 `bug`。
 
 ## 前置条件与检查项
 
