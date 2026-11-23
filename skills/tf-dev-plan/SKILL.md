@@ -1,15 +1,15 @@
 ---
 name: tf-dev-plan
-description: "推进 tableflow board@4 版本第 1 节点「版本需求设计」（系统工程角色）：只读校验版本范围与需求挂载（规格目录/spec.md/验收场景/变更单条款），再写 ver.版本需求设计=done 并回读。支持 --dry-run 零写入预览。触发词：tf-dev-plan、版本需求设计、版本范围、需求挂载、推进第1节点、研发计划。"
+description: "推进 tableflow board@4 版本第 1 节点「版本需求设计」（系统工程角色）：校验版本范围与需求挂载（规格目录/spec.md/验收场景/变更单条款）、按需求 039 校验规格结构下限，驱动 spec 侧五个阶段字段（constitution/specify/clarify/analyze/checklist），再写 ver.版本需求设计=done 并回读。支持 --dry-run 零写入预览。触发词：tf-dev-plan、版本需求设计、版本范围、需求挂载、推进第1节点、研发计划、规格结构、specify 状态。"
 ---
 
 # tf-dev-plan：版本范围确定了吗？
 
-一个版本要开始动工，先回答一件事：**这一版到底包含什么，需求是不是真的挂在版本上**。本技能只推进第 1 节点「版本需求设计」，不写代码、不改验收。
+一个版本要开始动工，先回答两件事：**这一版到底包含什么**，以及**每份规格是否已经具备可开工的结构**。本技能推进第 1 节点「版本需求设计」，并为 spec 侧五个阶段状态写入取值；不写代码、不改验收、不撰写规格内容。
 
 - 角色：系统工程
 - 节点：`ver.stage.plan`（字段名「版本需求设计」，四态 `todo/doing/done/failed`）
-- 表作用域：读 `版本管理`/`独立规格需求`/`依赖需求`；**只写** `版本管理`
+- 表作用域：读 `版本管理`/`独立规格需求`/`依赖需求`；写 `版本管理` 的节点，以及 `独立规格需求` 的 5 个 spec 侧阶段字段
 - 口径来源：`specs/019-test-contract/board@4.yaml`（`tables.ver.fields` 第 3 项、`rules.version_stage_serial`）
 
 ## 何时用
@@ -36,6 +36,7 @@ description: "推进 tableflow board@4 版本第 1 节点「版本需求设计�
 | 规格就绪 | 每条规格的 `规格目录` 非空、`specs/<dir>/spec.md` 存在且有 Acceptance Scenario | `failed` |
 | 变更单就绪 | 每条变更单 `条款` 非空、`关联的独立规格需求` 非空且目标存在 | `failed` |
 | 场景数漂移 | 看板 `场景数` 与实测不一致时写入 `scene_drift`（提示，不阻断） | — |
+| 结构下限（039） | 每份规格 US≥2、场景≥5、FR≥6、边界≥3 | `failed`，报出低于下限的维度 |
 
 ## 命令
 
@@ -62,7 +63,17 @@ python3 skills/tf-dev-plan/scripts/tf_dev_plan.py --version v0.7.0 --no-stage
 
 ## 写什么、怎么回读
 
-只写一个字段：
+先写 spec 侧五个阶段字段（需求 042-AR），再推进版本节点：
+
+| 字段 | 取值规则 |
+|---|---|
+| `speckit-specify状态` | 结构下限通过即 `done`（不通过则整体 `failed`） |
+| `speckit-constitution状态` | 有宪法版本或 `.specify/memory/constitution.md` → `done`，否则 `na` |
+| `speckit-clarify状态` | 有 `## Clarifications` 且无「待定/TODO/未决/TBD」→ `done`；无该章节 → `na`；否则 `doing` |
+| `speckit-analyze状态` | `na`（本项目未启用跨文档一致性分析），理由写入报告 `stage_na_reasons` |
+| `speckit-checklist状态` | `na`（本项目未启用检查清单），理由同上 |
+
+然后写版本节点：
 
 ```json
 {"target": "ver/v0.7.0", "field": "版本需求设计", "value": "done"}
@@ -99,6 +110,7 @@ python3 skills/tf-dev-plan/scripts/tf_dev_plan.py --version v0.7.0 --no-stage
 
 ## 不做
 
+- 不撰写或修改 `spec.md` 内容；规格由需求方写，本技能只校验与登记。
 - 不直接连 SQLite（`data/tableflow.db` 只属于服务端）。
 - 不建表/不建字段/不改契约；缺表缺字段直接报「项目未迁到 board@4」。
 - 不写 `indep.验收状态`，不写 `dep.回归状态`。
