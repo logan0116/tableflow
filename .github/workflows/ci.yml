@@ -11,17 +11,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: 安装依赖
-        run: pip install -e ./backend pytest httpx
+      - uses: astral-sh/setup-uv@v5
+      - name: 锁文件一致性
+        run: uv lock --check --directory backend
+      - name: 安装依赖（按锁文件）
+        run: uv sync --frozen --directory backend
       - name: pytest
         working-directory: backend
-        run: pytest -q
+        run: uv run pytest -q
 
   frontend:
-    name: 前端类型检查
+    name: 前端构建与依赖审计
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,3 +36,9 @@ jobs:
       - name: 类型检查
         working-directory: frontend
         run: npx tsc --noEmit
+      - name: 生产构建
+        working-directory: frontend
+        run: npm run build
+      - name: 依赖审计
+        working-directory: frontend
+        run: npm audit --audit-level=high
