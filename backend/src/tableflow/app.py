@@ -474,6 +474,21 @@ def agent_drop_spec_row(
                    ))
 
 
+@app.post("/api/agent/tables/{table_id}/rows/{row_id}/split")
+def agent_split_spec_row(
+    table_id: str,
+    row_id: str,
+    body: dict[str, Any] = Body(default={}),
+    identity: tuple[str | None, str | None] = Depends(caller_headers),
+    origin: str = Depends(origin_header),
+    conn: sqlite3.Connection = Depends(get_write_conn),
+):
+    return _handle(conn, identity, origin, "row.split", f"{table_id}/{row_id}", body,
+                   lambda caller: write_service.split_spec_row(
+                       conn, table_id, row_id, body, actor=caller.actor, origin=origin
+                   ))
+
+
 @app.patch("/api/agent/tables/{table_id}/rows/{row_id}")
 def agent_update_row(
     table_id: str,

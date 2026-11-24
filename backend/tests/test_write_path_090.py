@@ -48,6 +48,7 @@ BASE = {
                         ], "order": 3, "visible": 1},
                         {"id": "i-drop-reason", "name": "放弃理由", "type": "text", "options": None, "order": 4, "visible": 1},
                         {"id": "i-dropped-at", "name": "放弃时间", "type": "datetime", "options": None, "order": 5, "visible": 1},
+                        {"id": "i-split-log", "name": "拆分记录", "type": "text", "options": None, "order": 6, "visible": 1},
                     ],
                     "rows": [],
                 },
@@ -273,6 +274,56 @@ def test_drop_records_changes_and_recomputes(env):
     fields = {row["field_name"] for row in _changes(db, "t-ver", "v3")}
     assert "独立需求管理" in fields
     assert {"验收状态", "放弃理由", "放弃时间"} <= {row["field_name"] for row in _changes(db, "t-indep", "034-AR")}
+
+
+# ---------- BUG-090-07 split 原子化 ----------
+
+def test_split_creates_target_and_logs_atomically(env):
+    client, db = env
+    assert _post(client, "t-indep", "034-AR", {
+        "i-id": "034-AR", "i-clause": "原需求", "i-acceptance": "pending",
+    }).status_code == 200
+    response = client.post(
+        "/api/agent/tables/t-indep/rows/034-AR/split",
+        json={"to": "099-AR", "clauses": "US2", "at": "2026-11-24T20:30:00+08:00"},
+        headers=LEGACY,
+    )
+    assert response.status_code == 200, response.text
+    assert _get(client, "t-indep", "099-AR")["i-acceptance"] == "pending"
+    assert "099-AR" in _get(client, "t-indep", "034-AR")["i-split-log"]
+    changes = _changes(db, "t-indep", "099-AR")
+    assert any(row["field_name"] == "验收状态" and "pending" in (row["new_value"] or "") for row in changes)
+
+
+def test_split_rejects_accepted_source(env):
+    client, _ = env
+    assert _post(client, "t-indep", "035-AR", {
+        "i-id": "035-AR", "i-clause": "已验收", "i-acceptance": "accepted",
+    }).status_code == 200
+    response = client.post(
+        "/api/agent/tables/t-indep/rows/035-AR/split",
+        json={"to": "098-AR", "clauses": "US1", "at": "2026-11-24T20:30:00+08:00"},
+        headers=LEGACY,
+    )
+    assert response.status_code == 400
+    assert "已验收" in response.json()["error"]
+
+
+def test_split_rejects_existing_target(env):
+    client, _ = env
+    assert _post(client, "t-indep", "036-AR", {
+        "i-id": "036-AR", "i-clause": "原", "i-acceptance": "pending",
+    }).status_code == 200
+    assert _post(client, "t-indep", "097-AR", {
+        "i-id": "097-AR", "i-clause": "已存在", "i-acceptance": "pending",
+    }).status_code == 200
+    response = client.post(
+        "/api/agent/tables/t-indep/rows/036-AR/split",
+        json={"to": "097-AR", "clauses": "US1", "at": "2026-11-24T20:30:00+08:00"},
+        headers=LEGACY,
+    )
+    assert response.status_code == 400
+    assert "已存在" in response.json()["error"]
 
 
 # ---------- BUG-090-11 迁移脚本返回列表 ----------

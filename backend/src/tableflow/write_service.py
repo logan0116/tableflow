@@ -944,6 +944,42 @@ def drop_spec_row(
     return {"result": "success", "id": row_id, **result}
 
 
+def split_spec_row(
+    conn: sqlite3.Connection,
+    table_id: str,
+    row_id: str,
+    body: dict[str, Any],
+    *,
+    actor: str,
+    origin: str,
+) -> dict[str, Any]:
+    """原子拆分：新建承接需求 + 原需求留痕，一次事务完成（090-07）。"""
+    result = spec_lifecycle.split_spec(
+        conn,
+        table_id,
+        row_id,
+        target=body.get("to"),
+        clauses=body.get("clauses"),
+        at=body.get("at"),
+    )
+    changes = result.pop("changes", [])
+    for change in changes:
+        _record_change(
+            conn,
+            actor=actor,
+            origin=origin,
+            table_id=change["table_id"],
+            row_id=change["row_id"],
+            field_id=change["field_id"],
+            field_name=change["field_name"],
+            old_value=change["old"],
+            new_value=change["new"],
+            change_kind=change["kind"],
+        )
+    calculation.recompute_for_write(conn, table_id, actor=actor, origin=origin)
+    return {"result": "success", "id": row_id, **result}
+
+
 def create_row(
     conn: sqlite3.Connection,
     table_id: str,

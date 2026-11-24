@@ -454,6 +454,95 @@ def drop_spec(
     return {"versions": [item[1] for item in plan], "already": False, "changes": changes}
 
 
+def split_spec(
+    conn: sqlite3.Connection,
+    table_id: str,
+    row_id: str,
+    *,
+    target: Any,
+    clauses: Any,
+    at: Any,
+) -> dict[str, Any]:
+    """原子拆分：新建承接需求 + 原需求写拆分记录（034）。调用方负责事务与重算。"""
+    fields = _table_fields(conn, table_id)
+    acceptance = _acceptance_field(fields)
+    if acceptance is None:
+        raise WriteError(f"表 {table_id} 没有验收状态，不是独立需求表")
+    target_text = str(target or "").strip()
+    clauses_text = str(clauses or "").strip()
+    at_text = str(at or "").strip()
+    if not target_text:
+        raise WriteError("拆分必须给承接方编号")
+    if not clauses_text:
+        raise WriteError("拆分必须给移交条款：移交哪些条款或场景要写清楚")
+    if not at_text:
+        raise WriteError("拆分必须给时间")
+
+    row = conn.execute(
+        "SELECT data FROM row_records WHERE table_id = ? AND id = ?", (table_id, row_id)
+    ).fetchone()
+    if row is None:
+        raise WriteError(f"独立需求 {row_id} 不存在")
+    data = _loads(row["data"]) or {}
+    state = data.get(acceptance["id"])
+    if state == "accepted":
+        raise WriteError(f"{row_id} 已验收通过，范围变化请开依赖需求，不要拆分（L6）")
+    if conn.execute(
+        "SELECT 1 FROM row_records WHERE table_id = ? AND id = ?", (table_id, target_text)
+    ).fetchone():
+        raise WriteError(f"承接方 {target_text} 已存在，拆分不会复用既有行")
+
+    record_field = _by_name(fields, SPLIT_LOG_NAME)
+    old_log = data.get(record_field["id"]) if record_field is not None else None
+    line = f"{at_text} 移交 {clauses_text} -> {target_text}"
+    new_log = (str(old_log).rstrip("\n") + "\n" + line).strip() if old_log else line
+
+    target_values: dict[str, Any] = {acceptance["id"]: "pending"}
+    id_field = _by_name(fields, "编号")
+    clause_field = _by_name(fields, "条款")
+    if id_field is not None:
+        target_values[id_field["id"]] = target_text
+    if clause_field is not None:
+        target_values[clause_field["id"]] = f"承接 {row_id} 拆分移交：{clauses_text}"
+    conn.execute(
+        "INSERT INTO row_records (id, table_id, data) VALUES (?, ?, ?)",
+        (target_text, table_id, json.dumps(target_values, ensure_ascii=False)),
+    )
+
+    if record_field is not None:
+        data[record_field["id"]] = new_log
+        conn.execute(
+            "UPDATE row_records SET data = ? WHERE table_id = ? AND id = ?",
+            (json.dumps(data, ensure_ascii=False), table_id, row_id),
+        )
+
+    changes: list[dict[str, Any]] = [
+        {
+            "kind": "create",
+            "table_id": table_id,
+            "row_id": target_text,
+            "field_id": field_id,
+            "field_name": fields[field_id]["name"],
+            "old": None,
+            "new": value,
+        }
+        for field_id, value in target_values.items()
+    ]
+    if record_field is not None:
+        changes.append(
+            {
+                "kind": "update",
+                "table_id": table_id,
+                "row_id": row_id,
+                "field_id": record_field["id"],
+                "field_name": record_field["name"],
+                "old": old_log,
+                "new": new_log,
+            }
+        )
+    return {"target": target_text, "changes": changes}
+
+
 def _indep_table_of(
     conn: sqlite3.Connection, project_id: str
 ) -> tuple[str, dict[str, sqlite3.Row]] | None:

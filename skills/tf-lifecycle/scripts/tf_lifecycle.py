@@ -158,31 +158,24 @@ def do_split(args, report, client, ver, indep) -> None:
     log_line = merged_log.splitlines()[-1]
 
     report.note("plan", f"新建承接方 {target}，并在 {spec_id} 记录：{log_line}")
-    if not args.apply:
+    if not will_write(args):
         report.write(f"indep/{target}", "<create>", "承接需求", "skipped", error="dry-run：未写")
         report.write(f"indep/{spec_id}", "拆分记录", log_line, "skipped", error="dry-run：未写")
         report.finish("success")
         return
 
-    create_values = {
-        indep.fid("编号"): target,
-        indep.fid("条款"): f"承接 {spec_id} 拆分移交：{clauses}",
-    }
-    if indep.fid("验收状态", required=False):
-        create_values[indep.fid("验收状态")] = "pending"
-    created = client.write_verified("create", "indep", target, create_values, {"编号": target})
-    report.write(f"indep/{target}", "<create>", "承接需求", created["state"], created.get("http"), created.get("error"))
-    if created["state"] != "success":
-        raise SkillFailure(f"新建承接方失败：{created.get('error')}", state=created["state"])
-
-    if indep.fid("拆分记录", required=False):
-        detail = client.write_verified(
-            "update", "indep", spec_id,
-            {indep.fid("拆分记录"): merged_log}, {"拆分记录": merged_log},
+    resp = client._request(
+        "POST",
+        f"/api/agent/tables/{indep.table_id}/rows/{spec_id}/split",
+        {"to": target, "clauses": clauses, "at": now},
+    )
+    if resp.get("state") != "success":
+        raise SkillFailure(
+            f"拆分 {spec_id} 失败：{resp.get('error') or '回读不一致'}",
+            state=resp.get("state"),
         )
-        report.write(f"indep/{spec_id}", "拆分记录", log_line, detail["state"], detail.get("http"), detail.get("error"))
-        if detail["state"] != "success":
-            raise SkillFailure(f"写拆分记录失败：{detail.get('error')}", state=detail["state"])
+    report.write(f"indep/{target}", "<create>", "承接需求", "success", resp.get("http"))
+    report.write(f"indep/{spec_id}", "拆分记录", log_line, "success", resp.get("http"))
     report.note("reminder", "记得从 specs/<dir>/spec.md 移除被移交的条款，并让承接方反向指回原需求")
     report.finish("success")
 
