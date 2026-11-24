@@ -195,3 +195,76 @@ def test_stale_reuse_requires_reconfirmation(tmp_path, monkeypatch) -> None:
         )
         assert confirmed.status_code == 400, confirmed.text
         assert "S2" in confirmed.json()["error"]
+
+
+def test_038_us1_as1_report_returns_plan_evidence(env) -> None:
+    """US1-AS1：plan 为 done 时，查询证据能返回 plan.md 路径。"""
+    assert patch(env, {"i-evidence": "plan=specs/038/plan.md（回链 11 条场景）",
+                       "i-plan": "done"}).status_code == 200
+    body = env.get("/api/projects/p038/stages", params={"spec": "038-AR"}).json()
+    assert body["stages"]["plan"]["unprovable"] is False
+    assert "plan.md" in (body["stages"]["plan"].get("evidence") or "")
+
+
+def test_038_us1_as3_missing_artifact_lists_requirement(env) -> None:
+    """US1-AS3：阶段没有任何产物时，拒绝并说明该阶段要求的证据键。"""
+    resp = patch(env, {"i-plan": "done"})
+    assert resp.status_code == 400
+    assert "plan=" in resp.json()["error"], "没有指出该阶段要求的产物"
+
+
+def test_038_us2_as2_reuse_with_matching_version_is_allowed(tmp_path, monkeypatch) -> None:
+    """US2-AS2：复用上一版产物，写明来源版本且与当前宪法一致时允许。"""
+    db = tmp_path / "stage_reuse_ok.db"
+    data = project([{"id": "038-AR", "values": {"i-id": "038-AR", "i-plan": "todo",
+                                                "i-accept": "pending"}}])
+    table = data["projects"][0]["tables"][0]
+    table["fields"].append({"id": "i-cv", "name": "宪法版本", "type": "text",
+                            "options": None, "order": 6, "visible": 1})
+    table["rows"][0]["values"]["i-cv"] = "v2"
+    write_seed(db, data)
+    monkeypatch.setenv("TABLEFLOW_DB", str(db))
+    with TestClient(app) as client:
+        resp = client.patch(
+            "/api/agent/tables/e-indep/rows/038-AR",
+            json={"values": {"i-evidence": "plan=reused:.specify/memory/constitution.md@v2",
+                             "i-plan": "done"}},
+            headers=HEADERS,
+        )
+        assert resp.status_code == 200, resp.text
+
+
+def test_038_us2_as3_superseded_version_is_rejected(tmp_path, monkeypatch) -> None:
+    """US2-AS3：来源版本已被新宪法取代时拒绝，提示基线过期。"""
+    db = tmp_path / "stage_reuse_stale.db"
+    data = project([{"id": "038-AR", "values": {"i-id": "038-AR", "i-plan": "todo",
+                                                "i-accept": "pending"}}])
+    table = data["projects"][0]["tables"][0]
+    table["fields"].append({"id": "i-cv", "name": "宪法版本", "type": "text",
+                            "options": None, "order": 6, "visible": 1})
+    table["rows"][0]["values"]["i-cv"] = "v2"
+    write_seed(db, data)
+    monkeypatch.setenv("TABLEFLOW_DB", str(db))
+    with TestClient(app) as client:
+        resp = client.patch(
+            "/api/agent/tables/e-indep/rows/038-AR",
+            json={"values": {"i-evidence": "plan=reused:.specify/memory/constitution.md@v1",
+                             "i-plan": "done"}},
+            headers=HEADERS,
+        )
+        assert resp.status_code == 400, resp.text
+        assert "S2" in resp.json()["error"]
+
+
+def test_038_us3_as1_empty_stage_reports_unprovable(tmp_path, monkeypatch) -> None:
+    """US3-AS1：历史空值阶段在报告里显示「无法证明」。"""
+    db = tmp_path / "stage_unprovable.db"
+    write_seed(db, project([
+        {"id": "038-AR", "values": {"i-id": "038-AR", "i-plan": "done",
+                                    "i-accept": "pending"}},
+    ]))
+    monkeypatch.setenv("TABLEFLOW_DB", str(db))
+    with TestClient(app) as client:
+        body = client.get("/api/projects/p038/stages", params={"spec": "038-AR"}).json()
+    assert body["stages"]["plan"]["unprovable"] is True
+    assert "plan" in body["unprovable"]
