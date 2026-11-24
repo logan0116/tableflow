@@ -697,3 +697,41 @@ def test_test_plan_reuse_from_previous_version(tmp_path) -> None:
         values = _row(db, "t-ver", new_version)
         assert values["v-runs"] == [f"{new_version}--042-US1-AS1"]
         assert values["v-node-1"] == "done", "测试设计节点没有推进"
+
+
+def test_test_plan_reuse_with_case_filter(tmp_path) -> None:
+    """--reuse-from 加 --case：只复用指定用例，其余不带入本版。"""
+    src_a = f"{VERSION}--042-US1-AS1"
+    src_b = f"{VERSION}--042-US1-AS2"
+    new_version = "v0.8.6"
+
+    def ver(vid, nodes_done, runs):
+        return {"id": vid, "values": {
+            "v-version": vid, "v-status": "planned",
+            **{f"v-node-{i}": ("done" if i < nodes_done else "todo") for i in range(6)},
+            "v-indep": [], "v-dep": [], "v-runs": runs, "v-bug": [],
+        }}
+
+    data = skill_board(
+        versions=[ver(VERSION, 2, [src_a, src_b]), ver(new_version, 1, [])],
+        runs=[
+            {"id": src_a, "values": {"r-id": src_a, "r-case-no": "042-US1-AS1",
+                                     "r-case": ["042-US1-AS1"], "r-state": "done", "r-result": "fail"}},
+            {"id": src_b, "values": {"r-id": src_b, "r-case-no": "042-US1-AS2",
+                                     "r-case": ["042-US1-AS2"], "r-state": "done", "r-result": "pass"}},
+        ],
+        cases=[
+            {"id": "042-US1-AS1", "values": {"c-id": "042-US1-AS1", "c-spec": [SPEC_ID]}},
+            {"id": "042-US1-AS2", "values": {"c-id": "042-US1-AS2", "c-spec": [SPEC_ID]}},
+        ],
+    )
+    with running_board(data, tmp_path) as (base, db):
+        code, _rep, raw = run_skill(
+            "tf-test-plan",
+            ["--version", new_version, "--reuse-from", VERSION,
+             "--case", "042-US1-AS1", "--repo-root", str(REPO_ROOT), "--apply"],
+            base=base,
+        )
+        assert code == 0, f"按用例号复用失败：\n{raw[-1500:]}"
+        values = _row(db, "t-ver", new_version)
+        assert values["v-runs"] == [f"{new_version}--042-US1-AS1"], values["v-runs"]

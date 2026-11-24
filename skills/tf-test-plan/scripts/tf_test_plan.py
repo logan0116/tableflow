@@ -53,6 +53,13 @@ def build_parser():
         metavar="VERSION",
         help="修复/回归版：复用该版本已收录的用例，为本版新建执行记录（不重新派生用例）",
     )
+    parser.add_argument(
+        "--case",
+        action="append",
+        default=[],
+        metavar="CASE_ID",
+        help="配合 --reuse-from：只复用这些用例号（如 083-US2-AS1）；可重复，不传则复用全部",
+    )
     return parser
 
 
@@ -121,6 +128,20 @@ def _reuse_cases(args, report, client, ver) -> None:
             raise SkillFailure(f"源版本 {source} 的执行记录 {run_id} 找不到对应用例 {case_no}")
         case_ids.append(case_no)
     case_ids = sorted(set(case_ids))
+    if args.case:
+        wanted = list(dict.fromkeys(args.case))
+        missing = [item for item in wanted if item not in case_ids]
+        report.check(
+            "指定的用例都在源版本里",
+            not missing,
+            f"{len(wanted)} 条已确认" if not missing else f"源版本没有：{'、'.join(missing)}",
+        )
+        if missing:
+            raise SkillFailure(
+                f"源版本 {source} 没有这些用例，无法复用：{'、'.join(missing)}"
+            )
+        case_ids = sorted(set(wanted))
+        report.check("按用例号过滤", True, f"只复用 {len(case_ids)} 条：{'、'.join(case_ids)}")
 
     created = 0
     new_runs: list[str] = []
