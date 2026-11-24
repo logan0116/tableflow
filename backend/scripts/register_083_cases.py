@@ -98,9 +98,10 @@ CASES = [
 ]
 
 FAILED = {
-    "083-US1-AS1", "083-US1-AS2", "083-US2-AS1", "083-US3-AS1", "083-US3-AS3",
-    "083-US4-AS1", "083-US4-AS2", "083-US5-AS1", "083-US6-AS1", "083-US6-AS2",
-    "083-US7-AS1", "083-US9-AS2",
+    "083-US1-AS1", "083-US1-AS2", "083-US2-AS1", "083-US3-AS1", "083-US3-AS2",
+    "083-US3-AS3", "083-US3-AS4", "083-US4-AS1", "083-US4-AS2", "083-US5-AS1",
+    "083-US5-AS2", "083-US5-AS3", "083-US6-AS1", "083-US6-AS2", "083-US7-AS1",
+    "083-US8-AS1", "083-US9-AS1", "083-US9-AS2", "083-US9-AS3",
 }
 
 # 已能复现的用例 → 复现它的测试（写入执行记录证据）
@@ -117,6 +118,13 @@ EVIDENCE = {
     "083-US6-AS2": "tests/test_skill_e2e_083.py::test_s4b_dep_only_version_proceeds",
     "083-US7-AS1": "tests/test_skill_e2e_083.py::test_s5_apply_with_dry_run_writes_nothing",
     "083-US9-AS2": "tests/test_regress_083.py::test_c6_fr_under_requirements_section_counted",
+    "083-US3-AS2": "tests/test_skill_e2e_083.py::test_b4_drop_is_atomic_on_failure",
+    "083-US3-AS4": "tests/test_skill_e2e_083.py::test_b7_cleanup_works_without_run_in_scope",
+    "083-US5-AS2": "tests/test_skill_e2e_083.py::test_s2_implement_keeps_plan_task_evidence",
+    "083-US5-AS3": "tests/test_skill_e2e_083.py::test_s3_skeleton_plan_is_not_done",
+    "083-US8-AS1": "tests/test_skill_e2e_083.py::test_s6_non_semver_version_can_derive_cases",
+    "083-US9-AS1": "tests/test_regress_083.py::test_c4_reconfirm_does_not_exempt_forever",
+    "083-US9-AS3": "tests/test_regress_083.py::test_c5_one_scenario_per_test",
 }
 
 

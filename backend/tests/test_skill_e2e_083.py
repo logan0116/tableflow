@@ -57,6 +57,16 @@ REGRESS = [
     {"value": "passed", "label": "通过", "tone": "success"},
     {"value": "failed", "label": "不通过", "tone": "danger"},
 ]
+RUN_STATE = [
+    {"value": "todo", "label": "未执行", "tone": "neutral"},
+    {"value": "done", "label": "已执行", "tone": "success"},
+]
+RUN_RESULT = [
+    {"value": "pass", "label": "通过", "tone": "success"},
+    {"value": "fail", "label": "失败", "tone": "danger"},
+    {"value": "blocked", "label": "阻塞", "tone": "warning"},
+    {"value": "skip", "label": "不执行", "tone": "neutral"},
+]
 NODE_NAMES = ("版本需求设计", "测试设计", "开发", "开发验收", "测试", "测试验收")
 SPEC_STAGE_NAMES = (
     "speckit-constitution状态",
@@ -79,10 +89,11 @@ def skill_board(*, version_status: str = "planned", indep_accept: str = "pending
                 version_indep: list[str] | None = None, version_dep: list[str] | None = None,
                 version_runs: list[str] | None = None, versions: list[dict] | None = None,
                 deps: list[dict] | None = None, runs: list[dict] | None = None,
-                cases: list[dict] | None = None):
+                cases: list[dict] | None = None, version_id: str = VERSION,
+                spec_dir: str = SPEC_DIR):
     """技能可用的最小看板：表名必须与 board 契约一致（技能按名称解析）。"""
     ver_values = {
-        "v-version": VERSION,
+        "v-version": version_id,
         "v-status": version_status,
         **{f"v-node-{i}": "todo" for i in range(6)},
         "v-indep": list(version_indep if version_indep is not None else [SPEC_ID]),
@@ -107,7 +118,7 @@ def skill_board(*, version_status: str = "planned", indep_accept: str = "pending
                             _field("v-dep", "依赖需求管理", "relation", {"table_id": "t-dep"}, 10),
                             _field("v-runs", "测试用例", "relation", {"table_id": "t-run"}, 11),
                         ],
-                        "rows": versions or [{"id": VERSION, "values": ver_values}],
+                        "rows": versions or [{"id": version_id, "values": ver_values}],
                     },
                     {
                         "id": "t-indep",
@@ -123,6 +134,9 @@ def skill_board(*, version_status: str = "planned", indep_accept: str = "pending
                             *[_field(f"i-stage-{i}", name, "enum", SPEC_STAGES, i + 7)
                               for i, name in enumerate(SPEC_STAGE_NAMES)],
                             _field("i-evidence", "阶段证据", "text", None, 12),
+                            _field("i-plan", "speckit-plan状态", "enum", SPEC_STAGES, 13),
+                            _field("i-task", "speckit-task状态", "enum", SPEC_STAGES, 14),
+                            _field("i-implement", "speckit-implement状态", "enum", SPEC_STAGES, 15),
                         ],
                         "rows": [
                             {
@@ -130,12 +144,13 @@ def skill_board(*, version_status: str = "planned", indep_accept: str = "pending
                                 "values": {
                                     "i-id": SPEC_ID,
                                     "i-clause": "US1-US4",
-                                    "i-dir": SPEC_DIR,
+                                    "i-dir": spec_dir,
                                     "i-scen": 13,
                                     "i-accept": indep_accept,
                                     "i-constitution": "",
                                     "i-evidence": "",
                                     **{f"i-stage-{i}": "todo" for i in range(5)},
+                                    "i-plan": "todo", "i-task": "todo", "i-implement": "todo",
                                 },
                             }
                         ],
@@ -159,6 +174,9 @@ def skill_board(*, version_status: str = "planned", indep_accept: str = "pending
                         "fields": [
                             _field("r-id", "执行编号", "text", None, 1),
                             _field("r-case-no", "用例号", "text", None, 2),
+                            _field("r-case", "用例", "relation", {"table_id": "t-case"}, 3),
+                            _field("r-state", "执行状态", "enum", RUN_STATE, 4),
+                            _field("r-result", "执行结果", "enum", RUN_RESULT, 5),
                         ],
                         "rows": runs or [],
                     },
@@ -169,6 +187,15 @@ def skill_board(*, version_status: str = "planned", indep_accept: str = "pending
                         "fields": [
                             _field("c-id", "用例号", "text", None, 1),
                             _field("c-spec", "来源规格", "relation", {"table_id": "t-indep"}, 2),
+                            _field("c-name", "用例名", "text", None, 3),
+                            _field("c-pre", "前置条件", "text", None, 4),
+                            _field("c-steps", "操作步骤", "text", None, 5),
+                            _field("c-expect", "预期结果", "text", None, 6),
+                            _field("c-priority", "优先级", "enum", [
+                                {"value": "P0", "label": "P0", "tone": "danger"},
+                                {"value": "P1", "label": "P1", "tone": "warning"},
+                                {"value": "P2", "label": "P2", "tone": "neutral"},
+                            ], 7),
                         ],
                         "rows": cases or [],
                     },
@@ -364,3 +391,186 @@ def test_b7_cleanup_works_without_run_in_scope(tmp_path) -> None:
         )
         assert code == 0, f"cleanup 被前置检查挡住：\n{raw[-2000:]}"
         assert _row(db, "t-ver", "v0.8.4")["v-indep"] == [], "重复挂载没有被摘除"
+
+
+@pytest.mark.xfail(strict=True, reason="S3：自动生成的计划骨架（实现要点等全为“待补”）仍被判为 plan 完成")
+def test_s3_skeleton_plan_is_not_done(tmp_path) -> None:
+    """只有骨架的 plan.md 不能算完成的设计。"""
+    repo = tmp_path / "repo"
+    spec_dir = repo / "specs" / "099-dummy"
+    spec_dir.mkdir(parents=True)
+    (spec_dir / "spec.md").write_text(
+        (REPO_ROOT / "specs/042-implement-full-flow/spec.md").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    nodes = {f"v-node-{i}": ("done" if i < 2 else "todo") for i in range(6)}
+    version = {"id": VERSION, "values": {
+        "v-version": VERSION, "v-status": "planned", **nodes,
+        "v-indep": [SPEC_ID], "v-dep": [], "v-runs": [],
+    }}
+    data = skill_board(versions=[version], spec_dir="specs/099-dummy")
+    with running_board(data, tmp_path) as (base, db):
+        _code, _rep, raw = run_skill(
+            "tf-dev-implement",
+            ["--version", VERSION, "--repo-root", str(repo), "--apply", "--test-cmd", "true"],
+            base=base,
+        )
+        values = _row(db, "t-indep", SPEC_ID)
+        assert values["i-plan"] != "done", (
+            f"骨架被当成完成的设计（plan={values['i-plan']}）：\n{raw[-1200:]}"
+        )
+
+
+@pytest.mark.xfail(strict=True, reason="S6：技能侧仍用 ^v\\d+\\.\\d+\\.\\d+$ 校验版本号")
+def test_s6_non_semver_version_can_derive_cases(tmp_path) -> None:
+    """版本行 id 形如 4.0.0_001 时，测试设计技能也要能派生用例。"""
+    version_id = "4.0.0_001"
+    nodes = {f"v-node-{i}": ("done" if i < 1 else "todo") for i in range(6)}
+    version = {"id": version_id, "values": {
+        "v-version": version_id, "v-status": "planned", **nodes,
+        "v-indep": [SPEC_ID], "v-dep": [], "v-runs": [],
+    }}
+    data = skill_board(versions=[version], version_id=version_id)
+    with running_board(data, tmp_path) as (base, _db):
+        code, _rep, raw = run_skill(
+            "tf-test-plan",
+            ["--version", version_id, "--repo-root", str(REPO_ROOT), "--apply"],
+            base=base,
+        )
+        assert code == 0, f"非 semver 版本被客户端拦下：\n{raw[-1500:]}"
+
+
+@pytest.mark.xfail(strict=True, reason="S2：写 implement 证据时用缓存的旧行合并，覆盖刚写的 plan/task 证据")
+def test_s2_implement_keeps_plan_task_evidence(tmp_path) -> None:
+    """一次开发推进里写的三份阶段证据必须同时留存。"""
+    nodes = {f"v-node-{i}": ("done" if i < 2 else "todo") for i in range(6)}
+    version = {"id": VERSION, "values": {
+        "v-version": VERSION, "v-status": "planned", **nodes,
+        "v-indep": [SPEC_ID], "v-dep": [], "v-runs": [],
+    }}
+    data = skill_board(versions=[version])
+    with running_board(data, tmp_path) as (base, db):
+        code, _rep, raw = run_skill(
+            "tf-dev-implement",
+            ["--version", VERSION, "--repo-root", str(REPO_ROOT), "--apply", "--test-cmd", "true"],
+            base=base,
+        )
+        evidence = (_row(db, "t-indep", SPEC_ID) or {}).get("i-evidence") or ""
+        assert code == 0, f"开发推进未完成：\n{raw[-1500:]}"
+        for key in ("plan=", "task=", "implement="):
+            assert key in evidence, f"阶段证据缺 {key}：当前为 {evidence!r}"
+
+
+@pytest.mark.xfail(strict=True, reason="S6：场景解析只认 1. **Given**，带编号的 1. **S1.1** **Given** 被漏掉")
+def test_s6_numbered_scenario_prefix_parsed(tmp_path) -> None:
+    """场景写作 `1. **S1.1** **Given** ...` 时也要能派生用例。"""
+    repo = tmp_path / "repo"
+    spec_dir = repo / "specs" / "098-numbered"
+    spec_dir.mkdir(parents=True)
+    import re
+
+    text = (REPO_ROOT / "specs/042-implement-full-flow/spec.md").read_text(encoding="utf-8")
+    text, replaced = re.subn(r"^(\d+)\. \*\*Given\*\*", lambda m: f"{m.group(1)}. **S{m.group(1)}** **Given**",
+                             text, flags=re.M)
+    assert replaced >= 10, f"没有改造成带编号的场景（只改了 {replaced} 条）"
+    (spec_dir / "spec.md").write_text(text, encoding="utf-8")
+    nodes = {f"v-node-{i}": ("done" if i < 1 else "todo") for i in range(6)}
+    version = {"id": VERSION, "values": {
+        "v-version": VERSION, "v-status": "planned", **nodes,
+        "v-indep": [SPEC_ID], "v-dep": [], "v-runs": [],
+    }}
+    data = skill_board(versions=[version], spec_dir="specs/098-numbered")
+    with running_board(data, tmp_path) as (base, db):
+        code, _rep, raw = run_skill(
+            "tf-test-plan",
+            ["--version", VERSION, "--repo-root", str(repo), "--apply"],
+            base=base,
+        )
+        import sqlite3
+
+        conn = sqlite3.connect(db)
+        try:
+            count = conn.execute(
+                "SELECT COUNT(*) FROM row_records WHERE table_id = 't-case'"
+            ).fetchone()[0]
+        finally:
+            conn.close()
+        assert code == 0, f"带编号的场景没有被解析：\n{raw[-1500:]}"
+        assert count == 13, f"带编号的 13 条场景只派生出 {count} 条用例"
+
+
+class _FakeTable:
+    def __init__(self, rows: dict):
+        self.rows = rows
+
+    def fid(self, name, required=True):
+        return f"f-{name}"
+
+    def value(self, row_id, name, default=None):
+        return (self.rows.get(row_id) or {}).get(f"f-{name}", default)
+
+    def row_exists(self, row_id) -> bool:
+        return row_id in self.rows
+
+    def relation(self, row_id, name) -> list:
+        return list(self.value(row_id, name) or [])
+
+    def require(self, names) -> None:
+        return None
+
+
+class _FakeClient:
+    """只在内存里改行；indep 的写入固定失败，用来模拟末步失败。"""
+
+    def __init__(self, ver_rows: dict, indep_rows: dict):
+        self.ver = _FakeTable(ver_rows)
+        self.indep = _FakeTable(indep_rows)
+
+    def table(self, key, refresh=False):
+        return {"ver": self.ver, "indep": self.indep}[key]
+
+    def write_verified(self, op, table_key, row_id, values, expected):
+        if table_key == "indep":
+            return {"state": "failed", "http": 500, "error": "注入失败"}
+        self.table(table_key).rows.setdefault(row_id, {}).update(values)
+        return {"state": "success", "http": 200}
+
+
+class _FakeReport:
+    def __init__(self):
+        self.writes: list = []
+
+    def check(self, *a, **k):
+        return None
+
+    def note(self, *a, **k):
+        return None
+
+    def write(self, *a, **k):
+        self.writes.append((a, k))
+
+    def finish(self, *a, **k):
+        return None
+
+
+@pytest.mark.xfail(strict=True, reason="B4：放弃先摘版本关系再改状态，末步失败不回滚")
+def test_b4_drop_is_atomic_on_failure() -> None:
+    """最后一步失败时，前面摘掉的版本关联必须还在。"""
+    import argparse
+    import sys
+
+    sys.path.insert(0, str(SKILLS / "tf-lifecycle" / "scripts"))
+    import tf_lifecycle
+
+    ver_rows = {VERSION: {f"f-独立需求管理": [SPEC_ID]}}
+    indep_rows = {SPEC_ID: {"f-验收状态": "pending"}}
+    client = _FakeClient(ver_rows, indep_rows)
+    args = argparse.Namespace(spec=SPEC_ID, reason="083 复现用", apply=True, dry_run=False)
+    report = _FakeReport()
+
+    with pytest.raises(Exception):
+        tf_lifecycle.do_drop(args, report, client, client.ver, client.indep)
+
+    assert client.ver.rows[VERSION]["f-独立需求管理"] == [SPEC_ID], (
+        "置 dropped 失败后，版本关联已经被摘掉了（半改）"
+    )

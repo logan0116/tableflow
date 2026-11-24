@@ -375,3 +375,91 @@ def test_c6_fr_under_requirements_section_counted() -> None:
     text = (Path(__file__).resolve().parents[2] / "specs/026-ver-columns/spec.md").read_text(encoding="utf-8")
     result = analyze(text)
     assert result["counts"]["fr"] >= 6, f"FR 计数为 {result['counts']['fr']}，文本里实际有 7 条"
+
+
+# ---------- C4：复用证据的重新确认 ----------
+
+def _evidence_board() -> dict:
+    """独立需求带宪法版本与阶段证据，用于复用豁免校验。"""
+    stage_values = [
+        {"value": "todo", "label": "未开始", "tone": "neutral"},
+        {"value": "doing", "label": "进行中", "tone": "info"},
+        {"value": "done", "label": "完成", "tone": "success"},
+        {"value": "na", "label": "不适用", "tone": "neutral"},
+    ]
+    const_stages = [
+        "speckit-constitution状态", "speckit-specify状态", "speckit-clarify状态",
+        "speckit-analyze状态", "speckit-checklist状态",
+    ]
+    return {
+        "projects": [{
+            "id": "p083e",
+            "name": "083 证据",
+            "tables": [{
+                "id": "e-indep",
+                "name": "独立规格需求",
+                "order": 1,
+                "fields": [
+                    _field("e-id", "编号", "text", None, 1),
+                    _field("e-accept", "验收状态", "enum", ACCEPT, 2),
+                    _field("e-constitution", "宪法版本", "text", None, 3),
+                    _field("e-evidence", "阶段证据", "text", None, 4),
+                    *[_field(f"e-stage-{i}", name, "enum", stage_values, i + 5)
+                      for i, name in enumerate(const_stages)],
+                ],
+                "rows": [{
+                    "id": "042-AR",
+                    "values": {
+                        "e-id": "042-AR",
+                        "e-accept": "pending",
+                        "e-constitution": "",
+                        "e-evidence": "",
+                        **{f"e-stage-{i}": "todo" for i in range(5)},
+                    },
+                }],
+            }],
+        }],
+    }
+
+
+@pytest.mark.xfail(strict=True, reason="C4：一次「已重新确认」永久豁免后续宪法版本升级")
+def test_c4_reconfirm_does_not_exempt_forever(env) -> None:
+    """宪法版本从 v1 升到 v2 后，旧版本上的「已重新确认」不能继续用。"""
+    reused = "constitution=reused:.specify/memory/constitution.md@v1 已重新确认仍适用"
+    with env(_evidence_board()) as client:
+        first = client.patch(
+            "/api/agent/tables/e-indep/rows/042-AR",
+            json={"values": {"e-constitution": "v1", "e-evidence": reused,
+                             "e-stage-0": "done"}},
+            headers=HEADERS,
+        )
+        assert first.status_code == 200, first.text
+
+        second = client.patch(
+            "/api/agent/tables/e-indep/rows/042-AR",
+            json={"values": {"e-constitution": "v2", "e-evidence": reused,
+                             "e-stage-0": "done"}},
+            headers=HEADERS,
+        )
+        assert second.status_code == 400, (
+            f"宪法版本升到 v2 后仍沿用 v1 的重新确认：{second.status_code} {second.text}"
+        )
+
+
+# ---------- C5：映射不得一测多场景 ----------
+
+@pytest.mark.xfail(strict=True, reason="C5：一个测试函数被多个场景共用，映射冒充覆盖")
+def test_c5_one_scenario_per_test() -> None:
+    """每条场景必须有自己的测试，不能几个场景共用一个。"""
+    import sys
+    from collections import Counter
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from acceptance_manifest import COVERED
+
+    counts = Counter(ref for refs in COVERED.values() for ref in refs)
+    shared = {ref: n for ref, n in counts.items() if n > 1}
+    assert not shared, "以下测试承担了多个场景：" + "；".join(
+        f"{ref}（{n} 条）" for ref, n in sorted(shared.items(), key=lambda kv: -kv[1])[:5]
+    )
