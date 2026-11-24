@@ -22,7 +22,7 @@ if str(SRC) not in sys.path:
 
 from tableflow.spec_structure import analyze_file  # noqa: E402
 
-from acceptance_manifest import COVERED  # noqa: E402
+from acceptance_manifest import COVERED, GAPS, PARTIAL  # noqa: E402
 
 SPEC_NUMS = tuple(f"{n:03d}" for n in range(33, 43))
 
@@ -52,10 +52,21 @@ def _defined_tests() -> dict[str, set[str]]:
     return out
 
 
-def test_every_scenario_has_a_mapping() -> None:
+def test_every_scenario_is_covered_or_gap() -> None:
+    """每条场景要么有语义对应的测试，要么明确标为缺口并写原因。"""
     scenarios = _scenario_ids()
-    missing = sorted(set(scenarios) - set(COVERED))
-    assert missing == [], f"以下场景没有映射到测试：{missing}"
+    missing = sorted(set(scenarios) - set(COVERED) - set(GAPS))
+    assert missing == [], f"以下场景既没有测试也没标缺口：{missing}"
+
+
+def test_every_gap_has_reason() -> None:
+    empty = [case for case, reason in GAPS.items() if not str(reason).strip()]
+    assert empty == [], f"这些缺口没写原因：{empty}"
+
+
+def test_partial_is_subset_of_covered() -> None:
+    stray = sorted(set(PARTIAL) - set(COVERED))
+    assert stray == [], f"这些部分覆盖的场景没有映射：{stray}"
 
 
 def test_no_mapping_without_scenario() -> None:

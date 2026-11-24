@@ -37,6 +37,7 @@ FULL_FIELDS = [
     {"id": "d-evidence", "name": "证据", "type": "text", "options": None, "order": 6, "visible": 1},
     {"id": "d-revision", "name": "规格修订", "type": "enum", "options": REVISION, "order": 7, "visible": 1},
     {"id": "d-baselines", "name": "基线修订", "type": "text", "options": None, "order": 8, "visible": 1},
+    {"id": "d-plan", "name": "设计与任务", "type": "text", "options": None, "order": 9, "visible": 1},
 ]
 
 LEGACY_FIELDS = [
@@ -151,8 +152,8 @@ def test_legacy_table_without_fields_is_not_blocked(tmp_path, monkeypatch) -> No
         assert resp.status_code == 200, resp.text
 
 
-def test_037_us1_as2_single_scenario_change_still_needs_four_parts(env) -> None:
-    """US1-AS2：只改一条验收场景，增量说明/基线修订/受影响条款/证据仍须齐全。"""
+def test_037_us2_as1_single_scenario_change_still_needs_four_parts(env) -> None:
+    """US2-AS1：只改一条验收场景，增量说明/基线修订/受影响条款/证据仍须齐全。"""
     assert patch(env, {"d-regress": "doing"}).status_code == 200
     resp = patch(env, {**READY, "d-regress": "passed"})
     assert resp.status_code == 200, resp.text
@@ -185,10 +186,21 @@ def test_037_us1_as1_multi_spec_baselines_are_separate(env) -> None:
     assert "026-AR" in stored and "027-AR" in stored, stored
 
 
-def test_037_us4_as1_missing_affected_clause_blocks(env) -> None:
-    """US4-AS1：没有受影响条款时拒绝推进，并指出缺这一项。"""
+def test_037_us4_as2_missing_affected_clause_blocks(env) -> None:
+    """US4-AS2：没有受影响条款时拒绝推进，并指出缺这一项。"""
     assert patch(env, {"d-regress": "doing"}).status_code == 200
     resp = patch(env, {"d-regress": "passed", "d-consistency": "无冲突",
                        "d-integration": "集成通过"})
     assert resp.status_code == 400, resp.text
     assert "受影响条款" in resp.json()["error"]
+
+
+def test_037_us2_as2_reuse_records_source_version(env) -> None:
+    """US2-AS2：复用既有设计文档时，来源版本与是否仍适用要落进记录。"""
+    plan = "reused:specs/026/plan.md@v0.8.0（复用后重新确认仍适用）"
+    assert patch(env, {"d-regress": "doing"}).status_code == 200
+    resp = patch(env, {**READY, "d-plan": plan, "d-regress": "passed"})
+    assert resp.status_code == 200, resp.text
+    row = env.get("/api/tables/c-dep/rows/DEP-A").json()
+    stored = (row.get("row") or row)["values"].get("d-plan") or ""
+    assert "v0.8.0" in stored, "没有留下来源版本"

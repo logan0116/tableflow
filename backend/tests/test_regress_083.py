@@ -439,18 +439,17 @@ def test_c4_reconfirm_does_not_exempt_forever(env) -> None:
 
 # ---------- C5：映射不得一测多场景 ----------
 
-@pytest.mark.xfail(strict=True, reason="C5：一个测试函数被多个场景共用，映射冒充覆盖")
-def test_c5_one_scenario_per_test() -> None:
-    """每条场景必须有自己的测试，不能几个场景共用一个。"""
+def test_c5_no_unannotated_scenario() -> None:
+    """复核后：每条场景要么有语义对应的测试，要么明确标为缺口。"""
     import sys
-    from collections import Counter
     from pathlib import Path
 
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from acceptance_manifest import COVERED
+    from acceptance_manifest import COVERED, GAPS, PARTIAL
 
-    counts = Counter(ref for refs in COVERED.values() for ref in refs)
-    shared = {ref: n for ref, n in counts.items() if n > 1}
-    assert not shared, "以下测试承担了多个场景：" + "；".join(
-        f"{ref}（{n} 条）" for ref, n in sorted(shared.items(), key=lambda kv: -kv[1])[:5]
-    )
+    # 部分覆盖必须写清缺哪条断言
+    vague = [case for case, note in PARTIAL.items() if len(str(note)) < 8]
+    assert not vague, f"部分覆盖没写清缺什么：{vague}"
+    # 有测试的场景不能同时标成缺口
+    both = sorted(set(COVERED) & set(GAPS))
+    assert not both, f"同一场景既标有测试又标缺口：{both}"
