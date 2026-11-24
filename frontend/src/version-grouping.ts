@@ -19,6 +19,8 @@ export interface VersionGroup {
   relationFieldId?: string;
   /** group：已完成/总数 字段 id。 */
   ratioFieldId?: string;
+  /** group：单独的「已完成」计数字段 id（用例组的 ratio 不是文本，需要拼）。 */
+  doneCountFieldId?: string;
   /** group：是否完成 字段 id。 */
   statusFieldId?: string;
 }
@@ -87,6 +89,9 @@ export function versionGroups(fields: Field[]): VersionGroup[] | null {
       relationFieldId: relation.id,
       ratioFieldId: ratio.id,
       statusFieldId: status.id,
+      ...(definition.key === "ver-case"
+        ? { doneCountFieldId: findByName(fields, CASE_DONE_NAME)?.id }
+        : {}),
     });
   }
 

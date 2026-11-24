@@ -108,6 +108,7 @@ export function DataTable({
       const relationField = fieldById.get(group.relationFieldId ?? "");
       const ratioField = fieldById.get(group.ratioFieldId ?? "");
       const statusField = fieldById.get(group.statusFieldId ?? "");
+      const doneCountField = fieldById.get(group.doneCountFieldId ?? "");
       if (!relationField) {
         out.push(plain(field, index));
         return;
@@ -122,7 +123,16 @@ export function DataTable({
         cell: (context) => (
           <GroupRatioCell
             relationField={relationField}
-            ratio={ratioField ? context.row.original.values[ratioField.id] : undefined}
+            ratio={
+              ratioField
+                ? doneCountField
+                  // 用例组：已完成与总数是两个数字字段，拼成 "7/7"（v0.8.5 显示 0/0 的根因）
+                  ? `${context.row.original.values[doneCountField.id] ?? 0}/${
+                      context.row.original.values[ratioField.id] ?? 0
+                    }`
+                  : context.row.original.values[ratioField.id]
+                : undefined
+            }
             done={statusField ? context.row.original.values[statusField.id] : undefined}
             row={context.row.original}
             onOpen={onOpenRelationList}
