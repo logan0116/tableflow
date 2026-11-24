@@ -9,6 +9,7 @@ import { RelationModal } from "./components/RelationModal";
 import { RoleBar } from "./components/RoleBar";
 import { TableTabs } from "./components/TableTabs";
 import {
+  compareVersion,
   latestVersionId,
   readVersionFilter,
   writeVersionFilter,
@@ -368,7 +369,8 @@ export default function App() {
     if (tableState.status !== "ready" || !tableState.table.table.id.endsWith("-ver")) {
       return tableState.status === "ready" ? tableState.table.rows : [];
     }
-    const all = tableState.table.rows;
+    // 090-34：版本行按语义序排，避免 "v0.10.0" 的字典序排在 "v0.9.0" 前面。
+    const all = [...tableState.table.rows].sort((a, b) => compareVersion(a.id, b.id));
     if (versionFilter === "all") {
       return all;
     }
@@ -455,7 +457,9 @@ export default function App() {
                     >
                       <option value="latest">最新版本</option>
                       <option value="all">全部版本</option>
-                      {tableState.table.rows.map((row) => (
+                      {[...tableState.table.rows]
+                        .sort((a, b) => compareVersion(a.id, b.id))
+                        .map((row) => (
                         <option key={row.id} value={row.id}>
                           {row.id}
                         </option>
