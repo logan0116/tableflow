@@ -119,8 +119,11 @@ def test_not_needed_with_evidence_is_allowed(env) -> None:
     assert resp.status_code == 200, resp.text
 
 
-def test_import_of_already_passed_row_is_allowed(tmp_path, monkeypatch) -> None:
-    """历史导入：整行写回已 passed 的依赖需求不触发流程校验。"""
+def test_new_row_without_evidence_is_rejected(tmp_path, monkeypatch) -> None:
+    """新建行不再享有「历史导入」豁免：没有变更证据就不能直接是 passed。
+
+    口径变更（2026-11-24）：历史数据补不齐证据就不进看板，不为此保留旁路。
+    """
     db = tmp_path / "change_flow_import.db"
     write_seed(db, project(FULL_FIELDS, []))
     monkeypatch.setenv("TABLEFLOW_DB", str(db))
@@ -130,7 +133,8 @@ def test_import_of_already_passed_row_is_allowed(tmp_path, monkeypatch) -> None:
             json={"values": {"d-id": "DEP-OLD", "d-regress": "passed"}},
             headers=HEADERS,
         )
-        assert resp.status_code == 200, resp.text
+        assert resp.status_code == 400, resp.text
+        assert "D1" in resp.json()["error"]
 
 
 def test_legacy_table_without_fields_is_not_blocked(tmp_path, monkeypatch) -> None:

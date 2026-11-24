@@ -37,7 +37,6 @@ EVIDENCE_FIELD_NAME = "阶段证据"
 CONSTITUTION_VERSION_NAME = "宪法版本"
 REUSE_PREFIX = "reused:"
 REUSE_VERSION_RE = re.compile(r"@([^\s（）()，,；;]+)")
-CONFIRM_MARKERS = ("重新确认", "仍适用", "已确认")
 EVIDENCE_LINE_RE = re.compile(r"^\s*([a-z_]+)\s*=\s*(.+?)\s*$", re.I)
 
 
@@ -122,14 +121,13 @@ def _check_reuse(
             stale.append(f"{key}=复用了 {value}，但没写来源版本")
             continue
         reused = match.group(1).strip()
-        if reused != current and not any(mark in value for mark in CONFIRM_MARKERS):
-            stale.append(
-                f"{key}=复用 {reused}，当前宪法版本是 {current}"
-            )
+        if reused != current:
+            # 不存在「重新确认」豁免：新版本必须用当前宪法，老版本保持自己的宪法版本。
+            stale.append(f"{key}=复用 {reused}，当前宪法版本是 {current}")
     if stale:
         raise WriteError(
-            "S2：复用产物的来源版本与当前版本不一致时，必须在证据行里写明「已重新确认仍适用」；"
-            "未确认的复用不算有效证据：" + "；".join(stale)
+            "S2：复用产物的来源版本与当前宪法版本不一致；"
+            "新版本必须使用当前宪法，老版本保持其原有宪法版本，不存在重新确认豁免：" + "；".join(stale)
         )
 
 

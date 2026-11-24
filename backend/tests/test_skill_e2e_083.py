@@ -412,7 +412,6 @@ def test_b7_cleanup_works_without_run_in_scope(tmp_path) -> None:
         assert _row(db, "t-ver", "v0.8.4")["v-indep"] == [], "重复挂载没有被摘除"
 
 
-@pytest.mark.xfail(strict=True, reason="S3：自动生成的计划骨架（实现要点等全为“待补”）仍被判为 plan 完成")
 def test_s3_skeleton_plan_is_not_done(tmp_path) -> None:
     """只有骨架的 plan.md 不能算完成的设计。"""
     repo = tmp_path / "repo"
@@ -460,6 +459,18 @@ def test_s6_non_semver_version_can_derive_cases(tmp_path) -> None:
 
 def test_s2_implement_keeps_plan_task_evidence(tmp_path) -> None:
     """一次开发推进里写的三份阶段证据必须同时留存。"""
+    # 用临时仓库：真仓库的 042 plan.md 还是骨架，按新口径不能判完成。
+    repo = tmp_path / "repo"
+    spec_dir = repo / "specs" / "042-implement-full-flow"
+    spec_dir.mkdir(parents=True)
+    src = REPO_ROOT / "specs" / "042-implement-full-flow"
+    for name, clean in (
+        ("spec.md", lambda text: text),
+        ("plan.md", lambda text: text.replace("（待补）", "见实现")),
+        ("tasks.md", lambda text: text.replace("- [ ]", "- [x]")),
+    ):
+        (spec_dir / name).write_text(clean((src / name).read_text(encoding="utf-8")), encoding="utf-8")
+
     nodes = {f"v-node-{i}": ("done" if i < 2 else "todo") for i in range(6)}
     version = {"id": VERSION, "values": {
         "v-version": VERSION, "v-status": "planned", **nodes,
@@ -469,7 +480,7 @@ def test_s2_implement_keeps_plan_task_evidence(tmp_path) -> None:
     with running_board(data, tmp_path) as (base, db):
         code, _rep, raw = run_skill(
             "tf-dev-implement",
-            ["--version", VERSION, "--repo-root", str(REPO_ROOT), "--apply", "--test-cmd", "true"],
+            ["--version", VERSION, "--repo-root", str(repo), "--apply", "--test-cmd", "true"],
             base=base,
         )
         evidence = (_row(db, "t-indep", SPEC_ID) or {}).get("i-evidence") or ""

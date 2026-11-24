@@ -164,7 +164,7 @@ def test_stage_report_404_for_unknown_spec(env) -> None:
 
 
 def test_stale_reuse_requires_reconfirmation(tmp_path, monkeypatch) -> None:
-    """S2：复用的来源版本与当前宪法版本不一致时必须写明重新确认。"""
+    """S2：复用的来源版本与当前宪法版本不一致时一律拒绝，没有重新确认豁免。"""
     text = project([
         {"id": "038-AR", "values": {"i-id": "038-AR", "i-plan": "todo",
                                     "i-accept": "pending"}},
@@ -186,10 +186,12 @@ def test_stale_reuse_requires_reconfirmation(tmp_path, monkeypatch) -> None:
         assert stale.status_code == 400
         assert "S2" in stale.json()["error"]
 
+        # 口径（2026-11-24）：不存在「重新确认」豁免——新版本必须用当前宪法。
         confirmed = client.patch(
             "/api/agent/tables/e-indep/rows/038-AR",
             json={"values": {"i-evidence": "plan=reused:.specify/memory/constitution.md@v1（已重新确认仍适用）",
                              "i-plan": "done"}},
             headers=HEADERS,
         )
-        assert confirmed.status_code == 200, confirmed.text
+        assert confirmed.status_code == 400, confirmed.text
+        assert "S2" in confirmed.json()["error"]

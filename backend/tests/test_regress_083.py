@@ -165,9 +165,9 @@ def board(*, runs, version_values=None, deps=None, versions=None, project_id="p0
                         "fields": [
                             _field("d-id", "编号", "text", None, 1),
                             _field("d-regress", "回归状态", "enum", REGRESS, 2),
-                            _field("d-affected", "受影响范围", "text", None, 3),
+                            _field("d-affected", "受影响条款", "text", None, 3),
                             _field("d-consistency", "一致性检查", "text", None, 4),
-                            _field("d-integration", "集成验证", "text", None, 5),
+                            _field("d-integration", "集成验收", "text", None, 5),
                             _field("d-evidence", "证据", "text", None, 6),
                         ],
                         "rows": deps or [],
@@ -225,7 +225,6 @@ def test_b1_empty_run_list_must_not_close(env) -> None:
         assert resp.status_code == 400, f"空执行清单仍然通过了验收：{resp.status_code} {resp.text}"
 
 
-@pytest.mark.xfail(strict=True, reason="B2：新建行被当成历史导入，D1 变更流校验被整体跳过")
 def test_b2_new_dep_row_must_pass_change_flow(env) -> None:
     """普通 POST 新建一条 dep 并直接给 passed，缺变更证据，必须 400。"""
     with env(board(runs=[])) as client:
@@ -304,7 +303,6 @@ def _cross_board() -> dict:
     return {"projects": [a, b]}
 
 
-@pytest.mark.xfail(strict=True, reason="B3：版本已发布后仍可摘除交付范围，发布历史被改写")
 def test_b3_released_version_scope_must_be_frozen(env) -> None:
     """已发布版本摘掉一条独立需求，必须 400（034 FR-011：发布历史不可改）。"""
     data = board(runs=[], version_values={"v-status": "released", "v-indep": ["042-AR"]})
@@ -416,7 +414,6 @@ def _evidence_board() -> dict:
     }
 
 
-@pytest.mark.xfail(strict=True, reason="C4：一次「已重新确认」永久豁免后续宪法版本升级")
 def test_c4_reconfirm_does_not_exempt_forever(env) -> None:
     """宪法版本从 v1 升到 v2 后，旧版本上的「已重新确认」不能继续用。"""
     reused = "constitution=reused:.specify/memory/constitution.md@v1 已重新确认仍适用"

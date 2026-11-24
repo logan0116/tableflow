@@ -73,7 +73,7 @@ COVERED: dict[str, tuple[str, ...]] = {
     "037-US1-AS3": ("test_change_flow_037.py::test_missing_one_field_blocks",),
     "037-US1-AS4": ("test_change_flow_037.py::test_passed_with_full_flow_is_allowed",),
     "037-US2-AS1": ("test_change_flow_037.py::test_passed_with_full_flow_is_allowed",),
-    "037-US2-AS2": ("test_change_flow_037.py::test_import_of_already_passed_row_is_allowed",),
+    "037-US2-AS2": ("test_change_flow_037.py::test_new_row_without_evidence_is_rejected",),
     "037-US2-AS3": ("test_change_flow_037.py::test_not_needed_with_evidence_is_allowed",),
     "037-US3-AS1": ("test_delivery_033.py::test_spec_with_effective_change_reports_that_change",),
     "037-US3-AS2": ("test_delivery_033.py::test_spec_with_effective_change_reports_that_change",),

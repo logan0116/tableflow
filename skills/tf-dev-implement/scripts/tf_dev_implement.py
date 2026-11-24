@@ -358,15 +358,28 @@ def main(args, report) -> None:
             report.check(f"规格 {spec_id} plan.md", True, "已存在，沿用")
 
         if plan_path.exists():
+            text = plan_path.read_text(encoding="utf-8")
             missing = coverage_missing(plan_path, ids)
+            placeholders = text.count("（待补）")
             report.check(
                 f"规格 {spec_id} plan 回链场景",
                 not missing,
                 f"{len(ids)} 条场景全覆盖" if not missing else f"缺 {len(missing)} 条：{missing[:5]}",
             )
-            plan_ok = not missing
+            report.check(
+                f"规格 {spec_id} plan 已填写",
+                not placeholders,
+                "无占位符" if not placeholders else f"仍有 {placeholders} 处「（待补）」",
+            )
+            plan_ok = not missing and not placeholders
         else:
-            plan_ok = args.dry_run
+            # 本轮刚生成骨架：不是完成的设计，停下等补全（042：先完成计划，再确认任务）。
+            plan_ok = False
+            report.check(
+                f"规格 {spec_id} plan 已生成",
+                False,
+                "已生成骨架，补全实现要点后重跑；本轮不推进 plan 阶段",
+            )
         if plan_ok:
             stage_updates.setdefault(spec_id, {})[PLAN_FIELD] = "done"
 

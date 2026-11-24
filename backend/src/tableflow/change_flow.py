@@ -88,8 +88,8 @@ def validate_row_write(
     if regress is None:
         return
 
-    if not previous:
-        return  # 新建行：导入既有状态，不是推进
+    # 新建行与推进走同一套校验：没有旧值不等于可以跳过变更流。
+    # 历史导入如果补不齐证据，就不该进看板（用户口径：可放弃，影响面不大）。
 
     # 未迁移的项目没有这三个字段：不猜、不阻断（与 038 阶段证据同一口径）
     flow_fields = {name: _by_name(fields, name) for name in (AFFECTED_NAME, CONSISTENCY_NAME, INTEGRATION_NAME)}

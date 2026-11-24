@@ -419,6 +419,36 @@ def _check_gate(
             )
 
 
+FROZEN_SCOPE_FIELDS = ("独立需求管理", "依赖需求管理", "测试用例", "Bug管理")
+
+
+def _check_released_frozen(
+    fields: dict[str, sqlite3.Row],
+    row_id: str,
+    merged: dict[str, Any],
+    previous: dict[str, Any],
+    nodes: list[tuple[sqlite3.Row, str | None]],
+) -> None:
+    """已发布版本冻结：交付范围与六节点一律不可改（发布历史不可回写）。"""
+    by_name = {field["name"]: field for field in fields.values()}
+    status_field = by_name.get("发布状态")
+    if status_field is None or previous.get(status_field["id"]) != "released":
+        return
+    changed: list[str] = []
+    for name in FROZEN_SCOPE_FIELDS:
+        field = by_name.get(name)
+        if field is not None and merged.get(field["id"]) != previous.get(field["id"]):
+            changed.append(name)
+    for field, _key in nodes:
+        if merged.get(field["id"]) != previous.get(field["id"]):
+            changed.append(field["name"])
+    if changed:
+        raise WriteError(
+            f"L7：版本 {row_id} 已发布，交付范围与六节点不可修改：{'、'.join(changed)}；"
+            "发布历史不可回写，后续变更请开新版本"
+        )
+
+
 def validate_row_write(
     conn: sqlite3.Connection,
     fields: dict[str, sqlite3.Row],
@@ -436,5 +466,6 @@ def validate_row_write(
     nodes = stage_nodes(fields)
     if nodes is None:
         return
+    _check_released_frozen(fields, row_id, merged, previous, nodes)
     _check_serial(nodes, merged, previous)
     _check_gate(conn, fields, nodes, merged, previous, _relation_sources(conn, fields), row_id)
