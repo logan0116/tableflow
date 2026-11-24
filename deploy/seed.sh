@@ -41,12 +41,22 @@ rm -f /data/tableflow.db /data/tableflow.db-wal /data/tableflow.db-shm
 
 python - <<'PY'
 from pathlib import Path
+
+from tableflow.auth import issue_key
 from tableflow.db import connect_write, init_schema
 
-init_schema(connect_write(Path("/data/tableflow.db")))
-print("schema ready")
+path = Path("/data/tableflow.db")
+conn = connect_write(path)
+init_schema(conn)
+record, raw = issue_key(conn, "seed", note="seed 自动签发，供 load 与技能使用")
+conn.close()
+key_file = Path("/data/seed-key.txt")
+key_file.write_text(raw + "\n", encoding="utf-8")
+key_file.chmod(0o600)
+print(f"schema ready; seed key {record['id']} -> /data/seed-key.txt")
 PY
 
+export TF_API_KEY="$(cat /data/seed-key.txt)"
 export TABLEFLOW_API_BASE=http://127.0.0.1:8090
 python /app/data/load_demo_project.py
 python /app/data/load_tableflow.py

@@ -23,6 +23,8 @@ from template_board5 import build_tables  # noqa: E402
 
 BASE = os.environ.get("TABLEFLOW_API_BASE", "http://127.0.0.1:8000")
 HEADERS = {"X-Agent-Id": "agent-demo", "X-Origin": "seed"}
+if os.environ.get("TF_API_KEY"):
+    HEADERS["X-API-Key"] = os.environ["TF_API_KEY"]
 PROJECT_ID = "demo"
 
 TABLES = build_tables("fd", "")

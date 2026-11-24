@@ -1,9 +1,9 @@
-"""调用者身份与 API key（013，兼容期）。
+"""调用者身份与 API key（013 兼容期 + 090-13 强制模式）。
 
-兼容期规则：
-- 带 `X-API-Key`：按 key 识别调用者（label 即调用者身份）；key 无效或已吊销 → 401 拒写。
-- 不带 key：回退 `X-Agent-Id`，旧 skill/脚本的调用方式与写入结果都不变。
-- 两者都不带：400 拒写，错误信息保留 `X-Agent-Id` 字样（旧客户端据此提示）。
+模式由环境变量 `TABLEFLOW_AUTH_MODE` 决定：
+- `legacy`（默认，兼容期）：带 `X-API-Key` 按 key 识别；不带 key 回退 `X-Agent-Id`。
+- `enforced`（生产）：写请求必须带有效 `X-API-Key`，`X-Agent-Id` 不再被信任；
+  缺 key → 401，无效/已吊销 key → 401。读接口不鉴权（现状设计不变）。
 
 安全约束：`api_keys` 只存 SHA-256 摘要与标识，明文只在签发时返回一次；
 签发/吊销本身也落 `write_audit`（action=`key.issue` / `key.revoke`），审计可倒查。
@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import secrets
 import sqlite3
 from dataclasses import dataclass
@@ -25,6 +26,32 @@ KEY_PREFIX = "tfk_"
 KEY_ID_PREFIX = "k-"
 KEY_LABEL_MAX = 64
 NOTE_MAX = 200
+AUTH_MODE_ENV = "TABLEFLOW_AUTH_MODE"
+AUTH_MODES = ("legacy", "enforced")
+
+
+def auth_mode() -> str:
+    """鉴权模式：`legacy`（默认）或 `enforced`。
+
+    配置非法时直接抛错，避免"以为收紧了、实际还在兼容"。
+    """
+    raw = (os.environ.get(AUTH_MODE_ENV) or "").strip().lower()
+    if not raw:
+        return "legacy"
+    if raw not in AUTH_MODES:
+        raise RuntimeError(
+            f"{AUTH_MODE_ENV} 只能是 {'/'.join(AUTH_MODES)}，当前 {raw!r}"
+        )
+    return raw
+
+
+def has_active_key(conn: sqlite3.Connection) -> bool:
+    """是否至少有一把未吊销的 key；enforced 模式下无 key 时写接口全拒。"""
+    row = conn.execute(
+        "SELECT 1 FROM api_keys WHERE revoked_at IS NULL LIMIT 1"
+    ).fetchone()
+    return row is not None
+
 
 
 def _now() -> str:
@@ -167,8 +194,9 @@ def resolve_caller(
     *,
     api_key: str | None = None,
     agent_id: str | None = None,
+    allow_legacy: bool = True,
 ) -> Caller:
-    """解析调用者：key 优先；缺 key 回退 X-Agent-Id（兼容期）。"""
+    """解析调用者：key 优先；`allow_legacy=False` 时不再接受 `X-Agent-Id`。"""
     raw = (api_key or "").strip()
     if raw:
         row = conn.execute(
@@ -180,6 +208,10 @@ def resolve_caller(
         if row["revoked_at"] is not None:
             raise AuthError(f"API key 已吊销：{row['id']}")
         return Caller(actor=row["label"], key_id=row["id"], auth_mode="key")
+    if not allow_legacy:
+        raise AuthError(
+            f"已启用强制鉴权（{AUTH_MODE_ENV}=enforced）：写请求必须带 X-API-Key"
+        )
     legacy = (agent_id or "").strip()
     if legacy:
         return Caller(actor=legacy, key_id=None, auth_mode="agent-id")

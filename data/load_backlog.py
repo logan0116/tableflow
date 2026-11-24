@@ -7,12 +7,15 @@
 
 from __future__ import annotations
 
+import os
 import sys
 
 import httpx
 
 BASE = "http://127.0.0.1:8000"
 HEADERS = {"X-Agent-Id": "agent-tableflow"}
+if os.environ.get("TF_API_KEY"):
+    HEADERS["X-API-Key"] = os.environ["TF_API_KEY"]
 TABLE = "tf-indep"
 
 # (编号, 名称, 优先级说明)

@@ -11,7 +11,8 @@ COPY deploy/seed.sh /app/seed.sh
 
 ENV PYTHONPATH=/app/backend/src \
     TABLEFLOW_DB=/data/tableflow.db \
-    TABLEFLOW_STATIC_DIR=/app/frontend/dist
+    TABLEFLOW_STATIC_DIR=/app/frontend/dist \
+    TABLEFLOW_AUTH_MODE=enforced
 
 EXPOSE 8090
 

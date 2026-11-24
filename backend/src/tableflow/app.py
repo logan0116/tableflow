@@ -1,7 +1,8 @@
 """FastAPI 应用：人侧只读接口 + Agent 写接口。
 
-人侧只有 GET；Agent 写接口用 `X-API-Key` 识别调用者（013），兼容期未带 key 时
-回退 `X-Agent-Id`；可选 `X-Origin`（agent / human-request / seed）。
+人侧只有 GET；Agent 写接口用 `X-API-Key` 识别调用者（013），
+`TABLEFLOW_AUTH_MODE=legacy`（默认）时未带 key 回退 `X-Agent-Id`，
+`enforced` 时写接口必须带有效 key；可选 `X-Origin`（agent / human-request / seed）。
 行写接口带 table_id：行 id 为业务编号，复合主键 (table_id, id)。
 启动时做一次幂等补表补列（013：`api_keys` 与 `write_audit.key_id`）。
 """
@@ -56,6 +57,20 @@ def _migrate_schema() -> None:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     _migrate_schema()
+    mode = auth.auth_mode()  # 非法配置启动即失败，避免误以为已收紧
+    if mode == "enforced":
+        path = db_path()
+        conn = db.connect_write(path) if path.exists() else None
+        try:
+            if conn is not None and not auth.has_active_key(conn):
+                print(
+                    f"[tableflow] 警告：{auth.AUTH_MODE_ENV}=enforced 但没有任何有效 "
+                    "API key，写接口将全部 401；先用 scripts/tf_keys.py issue 签发一把",
+                    file=sys.stderr,
+                )
+        finally:
+            if conn is not None:
+                conn.close()
     yield
 
 
@@ -124,6 +139,14 @@ def _unavailable() -> Any:
 @app.get("/api/health")
 def health(conn: sqlite3.Connection = Depends(get_conn)):
     conn.execute("SELECT 1").fetchone()
+    if auth.auth_mode() == "enforced" and not auth.has_active_key(conn):
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "degraded",
+                "reason": f"{auth.AUTH_MODE_ENV}=enforced 但没有有效 API key，写接口已全部拒绝",
+            },
+        )
     return {"status": "ok"}
 
 
@@ -266,7 +289,12 @@ def _handle(
     operation,
 ) -> Any:
     try:
-        caller = auth.resolve_caller(conn, api_key=identity[1], agent_id=identity[0])
+        caller = auth.resolve_caller(
+            conn,
+            api_key=identity[1],
+            agent_id=identity[0],
+            allow_legacy=auth.auth_mode() != "enforced",
+        )
     except auth.AuthError as exc:
         return _reject(
             conn, identity=identity, origin=origin, action=action, target=target,

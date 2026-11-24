@@ -47,6 +47,7 @@ ssh "${SSH_OPTS[@]}" "$HOST" "for i in \$(seq 1 30); do curl -sf -o /dev/null ht
 if [ "$SEED" = "1" ]; then
   echo "== 3/4 重建数据（--seed，seed.sh 内部会先备份旧库）"
   ssh "${SSH_OPTS[@]}" "$HOST" "docker exec tableflow sh /app/seed.sh"
+  echo 'seed key 位于容器 /data/seed-key.txt；技能侧：export TF_API_KEY=$(docker exec tableflow cat /data/seed-key.txt)'
 else
   echo "== 3/4 跳过数据初始化（默认不动数据；需要重建请加 --seed）"
 fi
