@@ -106,7 +106,7 @@ def analyze(text: str) -> dict[str, Any]:
                 malformed.append(lineno)
                 continue
 
-        if section == "functional_requirements" and FR_RE.match(line):
+        if section in ("functional_requirements", "requirements") and FR_RE.match(line):
             fr_ids.append(f"FR-{FR_RE.match(line).group(1)}")
             continue
         if section == "edge_cases" and BULLET_RE.match(line):

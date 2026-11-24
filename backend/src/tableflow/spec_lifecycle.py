@@ -86,9 +86,21 @@ def _by_name(fields: dict[str, sqlite3.Row], name: str) -> sqlite3.Row | None:
     return next((field for field in fields.values() if field["name"] == name), None)
 
 
-def _version_tables(conn: sqlite3.Connection) -> list[tuple[str, dict[str, sqlite3.Row]]]:
+def _project_of(conn: sqlite3.Connection, table_id: str) -> str | None:
+    row = conn.execute("SELECT project_id FROM tables WHERE id = ?", (table_id,)).fetchone()
+    return row["project_id"] if row else None
+
+
+def _version_tables(
+    conn: sqlite3.Connection, project_id: str | None = None
+) -> list[tuple[str, dict[str, sqlite3.Row]]]:
+    """版本表清单；给定项目时只看该项目——跨项目同编号需求不得互相干扰。"""
     out: list[tuple[str, dict[str, sqlite3.Row]]] = []
-    for row in conn.execute("SELECT id FROM tables").fetchall():
+    if project_id:
+        rows = conn.execute("SELECT id FROM tables WHERE project_id = ?", (project_id,)).fetchall()
+    else:
+        rows = conn.execute("SELECT id FROM tables").fetchall()
+    for row in rows:
         table_id = row["id"]
         fields = _table_fields(conn, table_id)
         if version_stage.stage_nodes(fields) is not None:
@@ -96,10 +108,12 @@ def _version_tables(conn: sqlite3.Connection) -> list[tuple[str, dict[str, sqlit
     return out
 
 
-def _versions_holding(conn: sqlite3.Connection, spec_id: str) -> list[str]:
-    """该独立需求当前被哪些版本持有。"""
+def _versions_holding(
+    conn: sqlite3.Connection, spec_id: str, project_id: str | None = None
+) -> list[str]:
+    """该独立需求当前被哪些版本持有（限定本项目）。"""
     holders: list[str] = []
-    for version_table_id, version_fields in _version_tables(conn):
+    for version_table_id, version_fields in _version_tables(conn, project_id):
         relation = next(
             (
                 field
@@ -124,6 +138,7 @@ def _versions_holding(conn: sqlite3.Connection, spec_id: str) -> list[str]:
 
 def _validate_indep(
     conn: sqlite3.Connection,
+    table_id: str,
     fields: dict[str, sqlite3.Row],
     row_id: str,
     merged: dict[str, Any],
@@ -154,7 +169,7 @@ def _validate_indep(
                 f"L2：放弃独立需求 {row_id} 必须同时给出{'、'.join(missing)}；"
                 "放弃要留下理由与时间，不能只改状态"
             )
-        holders = _versions_holding(conn, row_id)
+        holders = _versions_holding(conn, row_id, _project_of(conn, table_id))
         if holders:
             raise WriteError(
                 f"L3：放弃独立需求 {row_id} 前必须先摘除它与版本的关联：仍在 {'、'.join(holders)} 中"
@@ -292,7 +307,7 @@ def validate_row_write(
 ) -> None:
     """写侧校验入口。失败抛 WriteError，整请求零写入。"""
     if _acceptance_field(fields) is not None:
-        _validate_indep(conn, fields, row_id, merged, previous)
+        _validate_indep(conn, table_id, fields, row_id, merged, previous)
         return
     if version_stage.stage_nodes(fields) is not None:
         _validate_version(conn, fields, row_id, merged, previous)

@@ -131,7 +131,9 @@ def is_run_table(fields: list[dict]) -> bool:
     return frozenset(RUN_STATE_VALUES) in domains and frozenset(RUN_RESULT_VALUES) in domains
 
 
-def add_fields(table: dict, specs: list[dict], letter: str, apply: bool, planned: list[str]) -> None:
+def add_fields(table: dict, specs: list[dict], letter: str, apply: bool, planned: list[str]) -> list[str]:
+    """返回失败项；调用方负责计数与退出码（失败不能只拼进字符串）。"""
+    failures: list[str] = []
     existing = {field["name"] for field in table["fields"]}
     prefix = table["id"].split("-", 1)[0]
     for spec in specs:
@@ -150,9 +152,12 @@ def add_fields(table: dict, specs: list[dict], letter: str, apply: bool, planned
         planned[-1] += f" -> {state}"
         if not state.startswith("ok"):
             failures.append(planned[-1])
+    return failures
 
 
-def extend_acceptance(field: dict, apply: bool, planned: list[str]) -> None:
+def extend_acceptance(field: dict, apply: bool, planned: list[str]) -> list[str]:
+    """返回失败项；枚举扩展失败同样算失败。"""
+    failures: list[str] = []
     values = enum_values(field) or set()
     if "dropped" in values:
         return
@@ -166,6 +171,9 @@ def extend_acceptance(field: dict, apply: bool, planned: list[str]) -> None:
     result = call("PATCH", f"/api/agent/fields/{field['id']}", {"options": items})
     state = "ok" if result.get("http") in (200, 201) else f"FAILED {result.get('error') or ''}"
     planned[-1] += f" -> {state}"
+    if not state.startswith("ok"):
+        failures.append(planned[-1])
+    return failures
 
 
 def main() -> int:
@@ -196,13 +204,13 @@ def main() -> int:
             table = {"id": summary["id"], "fields": payload["fields"]}
             before = len(planned)
             if is_run_table(table["fields"]):
-                add_fields(table, RUN_FIELDS, "r", args.apply, planned)
+                failures.extend(add_fields(table, RUN_FIELDS, "r", args.apply, planned))
             if is_change_table(table["fields"]):
-                add_fields(table, CHANGE_FIELDS, "d", args.apply, planned)
+                failures.extend(add_fields(table, CHANGE_FIELDS, "d", args.apply, planned))
             accept = acceptance_field(table["fields"])
             if accept is not None:
-                extend_acceptance(accept, args.apply, planned)
-                add_fields(table, INDEP_FIELDS, "i", args.apply, planned)
+                failures.extend(extend_acceptance(accept, args.apply, planned))
+                failures.extend(add_fields(table, INDEP_FIELDS, "i", args.apply, planned))
             for line in planned[before:]:
                 print(f"[{project_id}] {line}")
 

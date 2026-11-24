@@ -314,7 +314,6 @@ def test_b3_released_version_scope_must_be_frozen(env) -> None:
         assert "已发布" in resp.json()["error"]
 
 
-@pytest.mark.xfail(strict=True, reason="B5：查持有版本时扫全库，另一项目同编号需求导致误拒")
 def test_b5_other_project_same_id_must_not_block_drop(env) -> None:
     """本项目没有任何版本持有 042-AR，另一项目有，放弃本项目这条应当成功。"""
     with env(_cross_board()) as client:
@@ -329,7 +328,6 @@ def test_b5_other_project_same_id_must_not_block_drop(env) -> None:
 
 # ---------- B6：迁移失败处理 ----------
 
-@pytest.mark.xfail(strict=True, reason="B6：add_fields 引用未定义的 failures，失败即 NameError")
 def test_b6_migration_reports_field_failure(monkeypatch) -> None:
     """新建字段失败时必须把失败项交回调用方，而不是抛 NameError。"""
     import sys
@@ -351,7 +349,6 @@ def test_b6_migration_reports_field_failure(monkeypatch) -> None:
 
 # ---------- C3/C6：契约与结构分析 ----------
 
-@pytest.mark.xfail(strict=True, reason="C3：board@5 的验收枚举没有 dropped")
 def test_c3_board5_acceptance_declares_dropped() -> None:
     """契约声明支持放弃，验收状态枚举就必须含 dropped。"""
     from pathlib import Path
@@ -363,7 +360,6 @@ def test_c3_board5_acceptance_declares_dropped() -> None:
     assert "dropped" in block, f"board@5 的验收枚举缺 dropped：\n{block}"
 
 
-@pytest.mark.xfail(strict=True, reason="C6：FR 只统计 Functional Requirements 章节，Requirements 下的 FR 被漏掉")
 def test_c6_fr_under_requirements_section_counted() -> None:
     """026 把 FR 直接写在 Requirements 下，分析器必须计入。"""
     from pathlib import Path

@@ -482,6 +482,7 @@ tables:
       - pending
       - accepted
       - rejected
+      - dropped
       required: true
       note: 规格完成的唯一判据；implement=done 才允许置 accepted
     - key: spec.owner

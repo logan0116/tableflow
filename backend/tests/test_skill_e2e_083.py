@@ -326,7 +326,6 @@ def _row(db: Path, table_id: str, row_id: str) -> dict:
     return json.loads(row[0]) if row else {}
 
 
-@pytest.mark.xfail(strict=True, reason="S5：写路径只看 args.apply，忽略 args.dry_run")
 def test_s5_apply_with_dry_run_writes_nothing(tmp_path) -> None:
     """`--apply --dry-run` 按契约只能只读：库里的版本范围与验收状态都不得变化。"""
     with running_board(skill_board(), tmp_path) as (base, db):

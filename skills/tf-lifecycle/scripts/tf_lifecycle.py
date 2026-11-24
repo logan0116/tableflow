@@ -90,6 +90,11 @@ def supports_cleanup(client) -> bool:
     return run_table.fid("放行标记", required=False) is not None
 
 
+def will_write(args) -> bool:
+    """写模式只算一次：``--dry-run`` 优先于 ``--apply``（任务契约，见 Report 初始化）。"""
+    return bool(getattr(args, "apply", False)) and not bool(getattr(args, "dry_run", False))
+
+
 def do_drop(args, report, client, ver, indep) -> None:
     spec_id = args.spec
     if not spec_id or not indep.row_exists(spec_id):
@@ -105,7 +110,7 @@ def do_drop(args, report, client, ver, indep) -> None:
         current = ver.relation(version_id, "独立需求管理") or []
         remaining = [item for item in current if item != spec_id]
         report.check(f"从 {version_id} 摘除", True, f"{current} -> {remaining}")
-        if not args.apply:
+        if not will_write(args):
             report.write(f"ver/{version_id}", "独立需求管理", remaining, "skipped", error="dry-run：未写")
             continue
         detail = client.write_verified(
@@ -124,7 +129,7 @@ def do_drop(args, report, client, ver, indep) -> None:
     if indep.fid("放弃时间", required=False):
         values[indep.fid("放弃时间")] = now
     report.note("plan", f"{spec_id} -> dropped，理由与时间写入")
-    if not args.apply:
+    if not will_write(args):
         report.write(f"indep/{spec_id}", "验收状态", "dropped", "skipped", error="dry-run：未写")
         report.finish("success")
         return
@@ -218,7 +223,7 @@ def do_cleanup(args, report, client, ver) -> None:
         current = ver.relation(version_id, "独立需求管理") or []
         remaining = [item for item in current if item not in removed]
         report.check(f"{version_id} 摘除", True, f"{removed}")
-        if not args.apply:
+        if not will_write(args):
             report.write(f"ver/{version_id}", "独立需求管理", remaining, "skipped", error="dry-run：未写")
             continue
         detail = client.write_verified(
