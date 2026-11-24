@@ -195,6 +195,7 @@ def skill_board(*, version_status: str = "planned", indep_accept: str = "pending
                         "order": 6,
                         "fields": [
                             _field("b-id", "编号", "text", None, 1),
+                            _field("b-title", "标题", "text", None, 2),
                             _field("b-status", "状态", "enum", [
                                 {"value": "open", "label": "待修", "tone": "danger"},
                                 {"value": "fixing", "label": "修复中", "tone": "info"},
@@ -580,3 +581,95 @@ def test_b4_skill_drop_uses_atomic_api(tmp_path) -> None:
         assert code == 0, f"drop 未完成：\n{raw[-1500:]}"
         assert _row(db, "t-ver", VERSION)["v-indep"] == []
         assert _row(db, "t-indep", SPEC_ID)["i-accept"] == "dropped"
+
+
+def _rows(db: Path, table_id: str) -> dict[str, dict]:
+    import sqlite3
+
+    conn = sqlite3.connect(db)
+    try:
+        rows = conn.execute(
+            "SELECT id, data FROM row_records WHERE table_id = ?", (table_id,)
+        ).fetchall()
+    finally:
+        conn.close()
+    return {row[0]: json.loads(row[1]) for row in rows}
+
+
+def _rejected_board(tmp_path: Path, *, run_result: str = "fail"):
+    run_id = f"{VERSION}--042-US1-AS1"
+    nodes = {f"v-node-{i}": ("done" if i < 5 else "todo") for i in range(6)}
+    version = {"id": VERSION, "values": {
+        "v-version": VERSION, "v-status": "planned", **nodes,
+        "v-indep": [SPEC_ID], "v-dep": [], "v-runs": [run_id], "v-bug": [],
+    }}
+    data = skill_board(
+        versions=[version],
+        runs=[{"id": run_id, "values": {
+            "r-id": run_id, "r-case-no": "042-US1-AS1", "r-case": ["042-US1-AS1"],
+            "r-state": "done", "r-result": run_result,
+        }}],
+    )
+    return data
+
+
+def test_044_registers_defect_on_rejection(tmp_path) -> None:
+    """US1-AS1：验收不通过时自动登记一条缺陷并挂到版本。"""
+    with running_board(_rejected_board(tmp_path), tmp_path) as (base, db):
+        code, _rep, raw = run_skill(
+            "tf-test-check", ["--version", VERSION, "--repo-root", str(REPO_ROOT), "--apply"],
+            base=base,
+        )
+        assert code != 0, f"有失败执行记录却通过了验收：\n{raw[-1200:]}"
+        bugs = _rows(db, "t-bug")
+        assert len(bugs) == 1, f"应只建一条汇总缺陷，实际 {len(bugs)} 条"
+        (bug_id, values), = bugs.items()
+        assert "执行结果未通过" in values["b-title"]
+        assert _row(db, "t-ver", VERSION)["v-bug"] == [bug_id]
+
+
+def test_044_rerun_does_not_duplicate(tmp_path) -> None:
+    """US2-AS2：连续两次判定不通过，缺陷总数不变。"""
+    data = _rejected_board(tmp_path)
+    with running_board(data, tmp_path) as (base, db):
+        for _ in range(2):
+            run_skill("tf-test-check", ["--version", VERSION, "--repo-root", str(REPO_ROOT), "--apply"],
+                      base=base)
+        bugs = _rows(db, "t-bug")
+        assert len(bugs) == 1, f"重复登记了：{len(bugs)} 条"
+
+
+def test_044_closed_defect_creates_new_one(tmp_path) -> None:
+    """US2-AS3：已有缺陷 closed 后再次不通过，应新建而不是复用历史。"""
+    import sqlite3
+
+    data = _rejected_board(tmp_path)
+    with running_board(data, tmp_path) as (base, db):
+        run_skill("tf-test-check", ["--version", VERSION, "--repo-root", str(REPO_ROOT), "--apply"],
+                  base=base)
+        bug_id = next(iter(_rows(db, "t-bug")))
+        conn = sqlite3.connect(db)
+        try:
+            values = _rows(db, "t-bug")[bug_id]
+            values["b-status"] = "closed"
+            conn.execute(
+                "UPDATE row_records SET data = ? WHERE table_id = 't-bug' AND id = ?",
+                (json.dumps(values, ensure_ascii=False), bug_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        run_skill("tf-test-check", ["--version", VERSION, "--repo-root", str(REPO_ROOT), "--apply"],
+                  base=base)
+        assert len(_rows(db, "t-bug")) == 2, "已关闭的缺陷被复用了"
+
+
+def test_044_passing_acceptance_registers_nothing(tmp_path) -> None:
+    """判定通过时不建缺陷。"""
+    with running_board(_rejected_board(tmp_path, run_result="pass"), tmp_path) as (base, db):
+        code, _rep, raw = run_skill(
+            "tf-test-check", ["--version", VERSION, "--repo-root", str(REPO_ROOT), "--apply"],
+            base=base,
+        )
+        assert code == 0, raw[-800:]
+        assert _rows(db, "t-bug") == {}

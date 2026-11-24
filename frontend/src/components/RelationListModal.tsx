@@ -26,6 +26,7 @@ function resolveColumns(field: Field, fields: Field[]) {
   return {
     display: options?.display_field ? byId.get(options.display_field) ?? null : null,
     status: options?.status_field ? byId.get(options.status_field) ?? null : null,
+    result: options?.result_field ? byId.get(options.result_field) ?? null : null,
   };
 }
 
@@ -96,8 +97,9 @@ export function RelationListModal({ field, tableId, rowIds, onPick, onClose }: R
           <div className="state">读取关联表失败：{state.message}</div>
         ) : (
           (() => {
-            const { display, status } = resolveColumns(field, state.fields);
+            const { display, status, result } = resolveColumns(field, state.fields);
             const isEnumStatus = status?.type === "enum";
+            const isEnumResult = result?.type === "enum";
             return (
               <table className="relation-table">
                 <thead>
@@ -105,6 +107,7 @@ export function RelationListModal({ field, tableId, rowIds, onPick, onClose }: R
                     <th>编号</th>
                     {display ? <th>{display.name}</th> : null}
                     {status ? <th>{status.name}</th> : null}
+                    {result ? <th>{result.name}</th> : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -116,6 +119,11 @@ export function RelationListModal({ field, tableId, rowIds, onPick, onClose }: R
                     const statusOption =
                       status && isEnumStatus && statusValue != null
                         ? enumItems(status).find((item) => item.value === statusValue) ?? null
+                        : null;
+                    const resultValue = row && result ? row.values[result.id] : null;
+                    const resultOption =
+                      result && isEnumResult && resultValue != null
+                        ? enumItems(result).find((item) => item.value === resultValue) ?? null
                         : null;
 
                     return (
@@ -142,6 +150,22 @@ export function RelationListModal({ field, tableId, rowIds, onPick, onClose }: R
                             ) : row && statusValue != null ? (
                               displayText(status, statusValue)
                             ) : null}
+                          </td>
+                        ) : null}
+                        {result ? (
+                          <td>
+                            {row && resultValue != null && resultValue !== "" ? (
+                              isEnumResult ? (
+                                <EnumTag
+                                  option={resultOption}
+                                  fallback={displayText(result, resultValue)}
+                                />
+                              ) : (
+                                displayText(result, resultValue)
+                              )
+                            ) : (
+                              "—"
+                            )}
                           </td>
                         ) : null}
                       </tr>

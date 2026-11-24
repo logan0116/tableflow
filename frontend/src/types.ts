@@ -44,6 +44,8 @@ export interface RelationOptions {
   display_field?: string;
   /** 关联条目列表里用作「状态」列的字段 id（目标表字段）。缺失时不显示状态列。 */
   status_field?: string;
+  /** 关联条目列表里用作「结果」列的字段 id（目标表字段）。缺失时不显示结果列（043）。 */
+  result_field?: string;
   constraints?: FieldConstraints;
 }
 

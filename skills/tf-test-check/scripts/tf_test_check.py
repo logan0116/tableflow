@@ -56,6 +56,122 @@ def build_parser():
     )
 
 
+def _merge_evidence(existing: object, items: list[str]) -> str:
+    """证据按行存编号：保留已有，并入新项，去重且保持首次出现顺序。"""
+    lines: list[str] = []
+    if isinstance(existing, str):
+        lines = [line.strip() for line in existing.splitlines() if line.strip()]
+    for item in items:
+        if item not in lines:
+            lines.append(item)
+    return "\n".join(lines)
+
+
+def _register_defects(
+    client,
+    ver,
+    version: str,
+    categories: list[tuple[str, list[str]]],
+    report,
+    dry_run: bool,
+) -> list[str]:
+    """按「版本 + 类别」汇总登记缺陷；返回本次新建的缺陷编号。
+
+    去重：同版本同类别已有未关闭缺陷时只并入证据；已 closed 则新建。
+    未关闭缺陷本身不再登记——它们已经是缺陷。
+    """
+    if not categories:
+        return []
+    bug = client.table("bug")
+    bug.require(["编号", "标题", "状态", "证据"])
+    existing = ver.relation(version, "Bug管理")
+    states = {bug_id: bug.value(bug_id, "状态") for bug_id in existing}
+    titles = {bug_id: str(bug.value(bug_id, "标题", default="") or "") for bug_id in existing}
+    created: list[str] = []
+
+    for label, items in categories:
+        prefix = f"[{version}] {label}"
+        target = next(
+            (
+                bug_id for bug_id in existing
+                if titles.get(bug_id, "").startswith(prefix)
+                and states.get(bug_id) != "closed"
+            ),
+            None,
+        )
+        if target is not None:
+            merged = _merge_evidence(bug.value(target, "证据", default=""), items)
+            if merged == (bug.value(target, "证据", default="") or ""):
+                report.check(f"缺陷 {target} 证据", True, "无新增项，跳过")
+                continue
+            report.check(f"缺陷 {target} 证据", True, f"并入 {len(items)} 项")
+            if dry_run:
+                report.write(f"bug/{target}", "证据", f"{len(items)} 项", "skipped", error="dry-run：未写")
+                continue
+            detail = client.write_verified(
+                "update", "bug", target, {bug.fid("证据"): merged}, {"证据": merged}
+            )
+            report.write(f"bug/{target}", "证据", f"{len(items)} 项",
+                         detail["state"], detail.get("http"), detail.get("error"))
+            if detail["state"] != "success":
+                raise SkillFailure(
+                    f"更新缺陷 {target} 证据失败：{detail.get('error') or '回读不一致'}",
+                    state=detail["state"],
+                )
+            continue
+
+        # 新建：编号按版本内序号生成，撞到已存在就往后顺延
+        index = 1
+        while f"BUG-{version}-{index:02d}" in existing or bug.row_exists(f"BUG-{version}-{index:02d}"):
+            index += 1
+        bug_id = f"BUG-{version}-{index:02d}"
+        evidence = _merge_evidence("", items)
+        values = {
+            bug.fid("编号"): bug_id,
+            bug.fid("标题"): prefix,
+            bug.fid("状态"): "open",
+            bug.fid("证据"): evidence,
+        }
+        if bug.fid("发现版本号", required=False):
+            values[bug.fid("发现版本号")] = version
+        if bug.fid("剩余事项", required=False):
+            values[bug.fid("剩余事项")] = f"{label}：{len(items)} 项待处理"
+        report.check(f"登记缺陷 {bug_id}", True, f"{label} {len(items)} 项")
+        if dry_run:
+            report.write(f"bug/{bug_id}", "<create>", label, "skipped", error="dry-run：未写")
+            created.append(bug_id)
+            continue
+        detail = client.write_verified(
+            "create", "bug", bug_id, values,
+            {"编号": bug_id, "标题": prefix, "状态": "open"},
+        )
+        report.write(f"bug/{bug_id}", "<create>", label,
+                     detail["state"], detail.get("http"), detail.get("error"))
+        if detail["state"] != "success":
+            raise SkillFailure(
+                f"登记缺陷 {bug_id} 失败：{detail.get('error') or '回读不一致'}",
+                state=detail["state"],
+            )
+        created.append(bug_id)
+
+    merged_ids = sorted(set(existing) | set(created))
+    if merged_ids != sorted(existing):
+        report.check("缺陷挂到版本", True, f"{len(existing)} → {len(merged_ids)} 条")
+        if not dry_run:
+            detail = client.write_verified(
+                "update", "ver", version,
+                {ver.fid("Bug管理"): merged_ids}, {"Bug管理": merged_ids},
+            )
+            report.write(f"ver/{version}", "Bug管理", f"{len(merged_ids)} 条",
+                         detail["state"], detail.get("http"), detail.get("error"))
+            if detail["state"] != "success":
+                raise SkillFailure(
+                    f"把缺陷挂到版本失败：{detail.get('error') or '回读不一致'}",
+                    state=detail["state"],
+                )
+    return created
+
+
 def main(args, report) -> None:
     report.note("role", "软件测试")
     report.note("node", NODE)
@@ -171,6 +287,16 @@ def main(args, report) -> None:
     if open_bugs:
         blockers.append(f"缺陷未关闭：{open_bugs}")
     if blockers:
+        # 044：判定不通过时按「版本 + 类别」汇总登记缺陷（未关闭缺陷不重复登记）。
+        categories: list[tuple[str, list[str]]] = []
+        if not_passed_runs:
+            categories.append(("执行结果未通过", list(not_passed_runs)))
+        if failed_changes:
+            categories.append(("变更回归未通过", list(failed_changes)))
+        created = _register_defects(client, ver, args.version, categories, report, args.dry_run)
+        if created:
+            report.note("defects_created", created)
+
         # 判定不通过就落 failed：todo 表示「还没验收」，failed 才是「验收没过」。
         # 停在 todo 会让看板分不清两者（BUG-083-20）。
         if not args.dry_run:

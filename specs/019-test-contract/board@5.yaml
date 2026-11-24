@@ -33,7 +33,7 @@ conventions:
   table_kind: '表级元数据 kind：board 进表导航，detail 不进导航但仍可经接口读取与被 relation 弹层展示。run 表为 detail，其余五表为 board。该标记落在 tables 表的新字段上，属实现范围。'
   run_two_step_write: '把一个用例纳入某版本是两步：先 POST run 行（带 case 与 result=todo），再 PATCH 版本行的 runs 数组追加该 run 行 id。第二步失败会留下"记录存在但版本看不到"的悬空行，客户端必须回读版本行确认；不得只说第一步成功就报完成。'
   run_one_per_version_case: 同一版本内同一用例只允许一条执行记录；重跑就地更新该行的结果/证据/时间/执行人，不新建行。
-  display_of_run: '执行清单弹窗复用关系弹层：第一列为 run 行 id，第二列由 relation 的 display_field 指定（run.case_no 用例号文本），第三列由 status_field 指定（run.state，即是否执行）。通过与否点进明细看 run.result。'
+  display_of_run: '执行清单弹窗复用关系弹层：第一列为 run 行 id，第二列 display_field（run.case_no 用例号），第三列 status_field（run.state 是否执行），第四列 result_field（run.result 通过与否）。结果为空显示占位符，未配置 result_field 时不渲染该列（043）。'
 status_definitions:
   stage:
     field: spec.stage.*
@@ -326,6 +326,9 @@ tables:
       name: 测试用例
       type: relation
       target: run
+      display_field: run.case_no
+      status_field: run.state
+      result_field: run.result
       note: 本版纳入的用例与执行结果；弹层入口。关联动作即建执行记录行，见 conventions.run_two_step_write
     - key: ver.case_total
       name: 用例总数
