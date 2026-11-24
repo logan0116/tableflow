@@ -142,6 +142,8 @@ def main(args, report) -> None:
         if not indep.row_exists(spec_id):
             raise SkillFailure(f"版本关联的规格「{spec_id}」在独立规格需求表中不存在")
         path = spec_file(repo_root, indep, spec_id)
+        # 证据行要写的相对路径取自实际读到的文件，不另起一套推导（038）。
+        spec_rel = path.parent.relative_to(repo_root).as_posix()
         stories = parse_spec(path)
         count = scenario_count(stories)
         report.check(

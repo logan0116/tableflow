@@ -300,7 +300,6 @@ def run_skill(name: str, args: list[str], *, base: str, timeout: float = 120.0):
     return proc.returncode, report, raw
 
 
-@pytest.mark.xfail(strict=True, reason="S1：spec_rel 未定义，结构检查通过后 NameError")
 def test_s1_dev_plan_runs_on_real_spec(tmp_path) -> None:
     """用结构合格的 042 规格推进第一个节点，应当成功。"""
     with running_board(skill_board(), tmp_path) as (base, _db):
