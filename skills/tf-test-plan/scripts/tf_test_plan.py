@@ -48,6 +48,11 @@ def build_parser():
         metavar="SPEC_ID",
         help="只派生这些规格（如 019-AR）；默认版本内全部规格。可重复。",
     )
+    parser.add_argument(
+        "--reuse-from",
+        metavar="VERSION",
+        help="修复/回归版：复用该版本已收录的用例，为本版新建执行记录（不重新派生用例）",
+    )
     return parser
 
 
@@ -96,6 +101,83 @@ def split_scope(wanted: list[str], version_specs: list[str]) -> tuple[list[str],
     return in_scope, out_of_scope
 
 
+def _reuse_cases(args, report, client, ver) -> None:
+    """把源版本收录的用例复制到本版：新建 ``<本版>--<用例号>`` 的执行记录。"""
+    source = args.reuse_from
+    source_runs = ver.relation(source, "测试用例")
+    report.check("源版本有用例", bool(source_runs), f"{source}：{len(source_runs)} 条")
+    if not source_runs:
+        raise SkillFailure(f"源版本 {source} 没有收录任何用例，无法复用")
+
+    case_table = client.table("case")
+    case_table.require(list(CASE_FIELDS))
+    run_table = client.table("run")
+    run_table.require(list(RUN_FIELDS))
+
+    case_ids: list[str] = []
+    for run_id in source_runs:
+        case_no = str(run_id).split("--", 1)[1] if "--" in str(run_id) else str(run_id)
+        if not case_table.row_exists(case_no):
+            raise SkillFailure(f"源版本 {source} 的执行记录 {run_id} 找不到对应用例 {case_no}")
+        case_ids.append(case_no)
+    case_ids = sorted(set(case_ids))
+
+    created = 0
+    new_runs: list[str] = []
+    for case_no in case_ids:
+        run_id = f"{args.version}--{case_no}"
+        new_runs.append(run_id)
+        if run_table.row_exists(run_id):
+            report.check(f"执行记录 {run_id}", True, "已存在，跳过")
+            continue
+        created += 1
+        values = {
+            run_table.fid("执行编号"): run_id,
+            run_table.fid("用例号"): case_no,
+            run_table.fid("用例"): [case_no],
+            run_table.fid("执行状态"): "todo",
+        }
+        expected = {"执行编号": run_id, "用例号": case_no, "执行状态": "todo"}
+        if args.dry_run:
+            report.write(f"run/{run_id}", "<create>", case_no, "skipped", error="dry-run：未写")
+            continue
+        detail = client.write_verified("create", "run", run_id, values, expected)
+        report.write(f"run/{run_id}", "<create>", case_no, detail["state"],
+                     detail.get("http"), detail.get("error"))
+        if detail["state"] != "success":
+            raise SkillFailure(
+                f"创建执行记录 {run_id} 失败：{detail.get('error') or '回读不一致'}",
+                state=detail["state"],
+            )
+
+    current = ver.relation(args.version, "测试用例")
+    merged = sorted(set(current) | set(new_runs))
+    report.count(reused_cases=len(case_ids), created_runs=created)
+    if merged != list(current):
+        report.check("纳入本版", True, f"{len(current)} → {len(merged)} 条")
+        if not args.dry_run:
+            detail = client.write_verified(
+                "update", "ver", args.version,
+                {ver.fid("测试用例"): merged}, {"测试用例": merged},
+            )
+            report.write(f"ver/{args.version}", "测试用例", f"{len(merged)} 条",
+                         detail["state"], detail.get("http"), detail.get("error"))
+            if detail["state"] != "success":
+                raise SkillFailure(
+                    f"更新版本用例清单失败：{detail.get('error') or '回读不一致'}",
+                    state=detail["state"],
+                )
+    else:
+        report.check("纳入本版", True, "清单已包含全部用例，跳过")
+
+    advance_node(
+        client, ver, args.version, NODE, report,
+        dry_run=args.dry_run, no_stage=args.no_stage,
+    )
+    readback_nodes(client.table("ver", refresh=True), args.version, report)
+    report.finish("success")
+
+
 def main(args, report) -> None:
     report.note("role", "软件测试")
     report.note("node", NODE)
@@ -111,6 +193,10 @@ def main(args, report) -> None:
     version_specs = ver.relation(args.version, "独立需求管理")
     wanted = list(dict.fromkeys(args.spec)) or list(version_specs)
     report.check("用例来源已确定", bool(wanted), f"{len(wanted)} 份：{'、'.join(wanted) or '无'}")
+    if not wanted and args.reuse_from:
+        # 修复/回归版没有新规格：复用的是既有用例，只为本版新建执行记录。
+        _reuse_cases(args, report, client, ver)
+        return
     if not wanted:
         raise SkillFailure("本版既未关联独立需求，也未用 --spec 指定来源，无处派生用例")
 

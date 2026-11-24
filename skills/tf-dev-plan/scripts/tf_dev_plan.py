@@ -25,7 +25,7 @@ from _tf_common import (
     SkillFailure,
 )
 
-ALLOWED = ("ver", "indep", "dep")
+ALLOWED = ("ver", "indep", "dep", "bug")
 NODE = "版本需求设计"
 
 # 需求 042-AR：spec 侧五个阶段字段由本节点驱动
@@ -119,14 +119,53 @@ def main(args, report) -> None:
 
     specs = ver.relation(args.version, "独立需求管理")
     changes = ver.relation(args.version, "依赖需求管理")
-    report.count(specs=len(specs), changes=len(changes))
+    bugs = ver.relation(args.version, "Bug管理")
+    runs = ver.relation(args.version, "测试用例")
+    report.count(specs=len(specs), changes=len(changes), bugs=len(bugs), runs=len(runs))
     report.check(
         "版本范围已确定",
-        bool(specs or changes),
-        f"规格 {len(specs)} 条 / 变更单 {len(changes)} 条",
+        bool(specs or changes or bugs or runs),
+        f"规格 {len(specs)} 条 / 变更单 {len(changes)} 条 / 缺陷 {len(bugs)} 条 / 用例 {len(runs)} 条",
     )
+    if not (specs or changes or bugs or runs):
+        raise SkillFailure(
+            "本版未挂任何需求、变更单、缺陷或用例，版本范围未确定，不能推进「版本需求设计」"
+        )
+
+    # 035/034：修复版与回归版没有新规格，范围由缺陷或已收录用例界定。
     if not (specs or changes):
-        raise SkillFailure("本版未挂任何需求或变更单，版本范围未确定，不能推进「版本需求设计」")
+        if bugs:
+            bug_table = client.table("bug")
+            bug_table.require(["编号", "状态", "证据"])
+            no_evidence = [
+                bug_id for bug_id in bugs
+                if not str(bug_table.value(bug_id, "证据", default="") or "").strip()
+            ]
+            report.check(
+                "本版缺陷有复现证据",
+                not no_evidence,
+                f"{len(bugs)} 条均有证据"
+                if not no_evidence
+                else f"缺证据：{'、'.join(no_evidence)}",
+            )
+            if no_evidence:
+                raise SkillFailure(
+                    "缺陷没有复现证据，范围无法确认："
+                    + "、".join(no_evidence)
+                    + "；先补证据（复现测试或现象记录）"
+                )
+        report.check(
+            "修复/回归版范围",
+            True,
+            f"缺陷 {len(bugs)} 条 / 用例 {len(runs)} 条，无新规格交付",
+        )
+        advance_node(
+            client, ver, args.version, NODE, report,
+            dry_run=args.dry_run, no_stage=args.no_stage,
+        )
+        readback_nodes(client.table("ver", refresh=True), args.version, report)
+        report.finish("success")
+        return
 
     indep = client.table("indep")
     dep = client.table("dep")

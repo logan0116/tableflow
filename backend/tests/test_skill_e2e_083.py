@@ -349,7 +349,6 @@ def test_s5_apply_with_dry_run_writes_nothing(tmp_path) -> None:
         assert code == 0, raw[-1500:]
 
 
-@pytest.mark.xfail(strict=True, reason="S4：需求设计节点要求版本必须挂独立需求或变更单，纯回归版本被拒")
 def test_s4_regression_only_version_proceeds(tmp_path) -> None:
     """版本不挂任何需求、只收录版本外用例（035 解耦），应当能推进需求设计。"""
     run_id = "v0.8.3--042-US1-AS1"
@@ -666,3 +665,36 @@ def test_s4d_open_defect_blocks_dev_node(tmp_path) -> None:
         )
         assert code != 0, f"缺陷仍是 open 却收口了开发节点：\n{raw[-1000:]}"
         assert _row(db, "t-ver", VERSION)["v-node-2"] == "todo"
+
+
+def test_test_plan_reuse_from_previous_version(tmp_path) -> None:
+    """修复版复用上一版用例：只为本版新建执行记录，不重新派生。"""
+    src_run = f"{VERSION}--042-US1-AS1"
+    new_version = "v0.8.4"
+
+    def ver(vid, nodes_done, runs):
+        return {"id": vid, "values": {
+            "v-version": vid, "v-status": "planned",
+            **{f"v-node-{i}": ("done" if i < nodes_done else "todo") for i in range(6)},
+            "v-indep": [], "v-dep": [], "v-runs": runs, "v-bug": [],
+        }}
+
+    data = skill_board(
+        versions=[ver(VERSION, 2, [src_run]), ver(new_version, 1, [])],
+        runs=[{"id": src_run, "values": {
+            "r-id": src_run, "r-case-no": "042-US1-AS1",
+            "r-case": ["042-US1-AS1"], "r-state": "done", "r-result": "fail",
+        }}],
+        cases=[{"id": "042-US1-AS1", "values": {"c-id": "042-US1-AS1", "c-spec": [SPEC_ID]}}],
+    )
+    with running_board(data, tmp_path) as (base, db):
+        code, _rep, raw = run_skill(
+            "tf-test-plan",
+            ["--version", new_version, "--reuse-from", VERSION,
+             "--repo-root", str(REPO_ROOT), "--apply"],
+            base=base,
+        )
+        assert code == 0, f"复用用例失败：\n{raw[-1500:]}"
+        values = _row(db, "t-ver", new_version)
+        assert values["v-runs"] == [f"{new_version}--042-US1-AS1"]
+        assert values["v-node-1"] == "done", "测试设计节点没有推进"
