@@ -54,10 +54,6 @@ def main(args, report) -> None:
         raise SkillFailure("--case 与 --all-pending 只能二选一，避免执行范围歧义")
     if not args.case and not args.all_pending:
         raise SkillFailure("必须指定 --case <用例号> 或 --all-pending")
-    if not args.result:
-        raise SkillFailure("必须指定 --result（pass/fail/blocked/skip）")
-    if args.result == "pass" and not args.evidence:
-        raise SkillFailure("执行结果 pass 必须提供 --evidence（截图/日志/提交号）")
 
     client = make_client(args, ALLOWED)
     require_run_version(args.version)
@@ -69,7 +65,30 @@ def main(args, report) -> None:
     version_runs = ver.relation(args.version, "测试用例")
     report.check("版本已纳入用例", bool(version_runs), f"{len(version_runs)} 条执行记录")
     if not version_runs:
-        raise SkillFailure(f"版本 {args.version} 未纳入任何用例，测试节点无对象")
+        fix_only = bool(
+            ver.relation(args.version, "Bug管理")
+            or ver.relation(args.version, "依赖需求管理")
+        )
+        if not fix_only:
+            raise SkillFailure(f"版本 {args.version} 未纳入任何用例，测试节点无对象")
+        report.note("fix_only", "纯缺陷/回归版本：无执行用例，测试节点按空集收口")
+        advance_node(
+            client,
+            ver,
+            args.version,
+            NODE,
+            report,
+            dry_run=args.dry_run,
+            no_stage=args.no_stage,
+        )
+        readback_nodes(client.table("ver", refresh=True), args.version, report)
+        report.finish("success")
+        return
+
+    if not args.result:
+        raise SkillFailure("必须指定 --result（pass/fail/blocked/skip）")
+    if args.result == "pass" and not args.evidence:
+        raise SkillFailure("执行结果 pass 必须提供 --evidence（截图/日志/提交号）")
 
     run_table = client.table("run")
     run_table.require(["执行编号", "用例号", "用例", "执行状态", "执行结果", "证据", "执行时间", "执行人", "备注"])

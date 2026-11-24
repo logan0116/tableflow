@@ -213,13 +213,38 @@ def main(args, report) -> None:
 
     version_specs = ver.relation(args.version, "独立需求管理")
     wanted = list(dict.fromkeys(args.spec)) or list(version_specs)
-    report.check("用例来源已确定", bool(wanted), f"{len(wanted)} 份：{'、'.join(wanted) or '无'}")
+    # 纯缺陷/回归版本没有新规格：没有用例可派生，测试设计按空集收口。
+    fix_only = not wanted and bool(
+        ver.relation(args.version, "Bug管理")
+        or ver.relation(args.version, "依赖需求管理")
+        or ver.relation(args.version, "测试用例")
+    )
+    report.check(
+        "用例来源已确定",
+        bool(wanted) or fix_only,
+        f"{len(wanted)} 份：{'、'.join(wanted) or '无'}"
+        + ("；纯缺陷/回归版本，无新用例可派生" if fix_only else ""),
+    )
     if not wanted and args.reuse_from:
         # 修复/回归版没有新规格：复用的是既有用例，只为本版新建执行记录。
         _reuse_cases(args, report, client, ver)
         return
     if not wanted:
-        raise SkillFailure("本版既未关联独立需求，也未用 --spec 指定来源，无处派生用例")
+        if not fix_only:
+            raise SkillFailure("本版既未关联独立需求，也未用 --spec 指定来源，无处派生用例")
+        report.note("fix_only", "纯缺陷/回归版本：无独立需求，测试设计无需派生用例")
+        advance_node(
+            client,
+            ver,
+            args.version,
+            NODE,
+            report,
+            dry_run=args.dry_run,
+            no_stage=args.no_stage,
+        )
+        readback_nodes(client.table("ver", refresh=True), args.version, report)
+        report.finish("success")
+        return
 
     # 035：交付范围与测试范围解耦——用例来源可以不属于本版交付
     _in_scope, out_of_scope = split_scope(wanted, version_specs)
