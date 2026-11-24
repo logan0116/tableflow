@@ -80,6 +80,9 @@ BUGS = [
     ("BUG-083-19", "验收映射一测多场景，覆盖被高估", "critical", "040-AR",
      "tests/test_regress_083.py::test_c5_one_scenario_per_test（83 个测试承担 121 场景）",
      "按场景逐条写行为测试，映射自检校验语义对应"),
+    ("BUG-083-20", "测试验收不通过时节点不落 failed，停在未开始", "critical", "036-AR",
+     "tests/test_skill_e2e_083.py::test_s7_rejected_acceptance_must_mark_failed（验收拒绝后节点为 todo）",
+     "判定不通过时写 failed 并附未通过项，否则看板分不清“没做”与“没过”"),
 ]
 
 

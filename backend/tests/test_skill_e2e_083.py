@@ -90,7 +90,8 @@ def skill_board(*, version_status: str = "planned", indep_accept: str = "pending
                 version_runs: list[str] | None = None, versions: list[dict] | None = None,
                 deps: list[dict] | None = None, runs: list[dict] | None = None,
                 cases: list[dict] | None = None, version_id: str = VERSION,
-                spec_dir: str = SPEC_DIR):
+                spec_dir: str = SPEC_DIR, bugs: list[dict] | None = None,
+                version_bugs: list[str] | None = None):
     """技能可用的最小看板：表名必须与 board 契约一致（技能按名称解析）。"""
     ver_values = {
         "v-version": version_id,
@@ -99,6 +100,7 @@ def skill_board(*, version_status: str = "planned", indep_accept: str = "pending
         "v-indep": list(version_indep if version_indep is not None else [SPEC_ID]),
         "v-dep": list(version_dep or []),
         "v-runs": list(version_runs or []),
+        "v-bug": list(version_bugs or []),
     }
     return {
         "projects": [
@@ -117,6 +119,7 @@ def skill_board(*, version_status: str = "planned", indep_accept: str = "pending
                             _field("v-indep", "独立需求管理", "relation", {"table_id": "t-indep"}, 9),
                             _field("v-dep", "依赖需求管理", "relation", {"table_id": "t-dep"}, 10),
                             _field("v-runs", "测试用例", "relation", {"table_id": "t-run"}, 11),
+                            _field("v-bug", "Bug管理", "relation", {"table_id": "t-bug"}, 12),
                         ],
                         "rows": versions or [{"id": version_id, "values": ver_values}],
                     },
@@ -179,6 +182,23 @@ def skill_board(*, version_status: str = "planned", indep_accept: str = "pending
                             _field("r-result", "执行结果", "enum", RUN_RESULT, 5),
                         ],
                         "rows": runs or [],
+                    },
+                    {
+                        "id": "t-bug",
+                        "name": "缺陷",
+                        "order": 6,
+                        "fields": [
+                            _field("b-id", "编号", "text", None, 1),
+                            _field("b-status", "状态", "enum", [
+                                {"value": "open", "label": "待修", "tone": "danger"},
+                                {"value": "fixing", "label": "修复中", "tone": "info"},
+                                {"value": "verifying", "label": "已修待验", "tone": "info"},
+                                {"value": "closed", "label": "已关闭", "tone": "success"},
+                            ], 2),
+                            _field("b-evidence", "证据", "text", None, 3),
+                            _field("b-rest", "剩余事项", "text", None, 4),
+                        ],
+                        "rows": bugs or [],
                     },
                     {
                         "id": "t-case",
@@ -574,3 +594,31 @@ def test_b4_drop_is_atomic_on_failure() -> None:
     assert client.ver.rows[VERSION]["f-独立需求管理"] == [SPEC_ID], (
         "置 dropped 失败后，版本关联已经被摘掉了（半改）"
     )
+
+
+@pytest.mark.xfail(strict=True, reason="S7：测试验收判定不通过时只抛错退出，不把节点落成 failed")
+def test_s7_rejected_acceptance_must_mark_failed(tmp_path) -> None:
+    """跑了验收且结论不通过，节点必须是 failed，不能停在 todo。"""
+    run_id = f"{VERSION}--042-US1-AS1"
+    nodes = {f"v-node-{i}": ("done" if i < 5 else "todo") for i in range(6)}
+    version = {"id": VERSION, "values": {
+        "v-version": VERSION, "v-status": "planned", **nodes,
+        "v-indep": [SPEC_ID], "v-dep": [], "v-runs": [run_id], "v-bug": [],
+    }}
+    data = skill_board(
+        versions=[version],
+        runs=[{"id": run_id, "values": {
+            "r-id": run_id, "r-case-no": "042-US1-AS1",
+            "r-case": ["042-US1-AS1"], "r-state": "done", "r-result": "fail",
+        }}],
+    )
+    with running_board(data, tmp_path) as (base, db):
+        code, _rep, raw = run_skill(
+            "tf-test-check", ["--version", VERSION, "--repo-root", str(REPO_ROOT), "--apply"],
+            base=base,
+        )
+        values = _row(db, "t-ver", VERSION)
+        assert code != 0, f"有失败执行记录却通过了验收：\n{raw[-1200:]}"
+        assert values["v-node-5"] == "failed", (
+            f"验收不通过但节点停在 {values['v-node-5']!r}，无法区分“没做”与“没过”"
+        )

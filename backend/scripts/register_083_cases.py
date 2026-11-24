@@ -95,13 +95,17 @@ CASES = [
     ("083-US9-AS3", "每条场景必须映射到能验证其结论的测试", "040-AR",
      "取一条验收场景，", "查它与测试的映射，",
      "指向验证该 Then 的行为测试，而不是任意存在的测试", "P1", ""),
+    ("083-US10-AS1", "测试验收判定不通过时必须落 failed", "036-AR",
+     "版本前五节点完成、存在失败执行记录，", "执行测试验收判定，",
+     "节点落 failed 并列出未通过项，而不是停在 todo", "P1",
+     "tests/test_skill_e2e_083.py::test_s7_rejected_acceptance_must_mark_failed"),
 ]
 
 FAILED = {
     "083-US1-AS1", "083-US1-AS2", "083-US2-AS1", "083-US3-AS1", "083-US3-AS2",
     "083-US3-AS3", "083-US3-AS4", "083-US4-AS1", "083-US4-AS2", "083-US5-AS1",
     "083-US5-AS2", "083-US5-AS3", "083-US6-AS1", "083-US6-AS2", "083-US7-AS1",
-    "083-US8-AS1", "083-US9-AS1", "083-US9-AS2", "083-US9-AS3",
+    "083-US8-AS1", "083-US9-AS1", "083-US9-AS2", "083-US9-AS3", "083-US10-AS1",
 }
 
 # 已能复现的用例 → 复现它的测试（写入执行记录证据）
@@ -125,6 +129,7 @@ EVIDENCE = {
     "083-US8-AS1": "tests/test_skill_e2e_083.py::test_s6_non_semver_version_can_derive_cases",
     "083-US9-AS1": "tests/test_regress_083.py::test_c4_reconfirm_does_not_exempt_forever",
     "083-US9-AS3": "tests/test_regress_083.py::test_c5_one_scenario_per_test",
+    "083-US10-AS1": "tests/test_skill_e2e_083.py::test_s7_rejected_acceptance_must_mark_failed",
 }
 
 
