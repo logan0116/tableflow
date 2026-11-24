@@ -545,6 +545,11 @@ def delete_table(conn: sqlite3.Connection, table_id: str) -> str:
     if references:
         names = "、".join(f"{ref['table_id']}.{ref['name']}" for ref in references)
         raise WriteError(f"表格仍被 relation 字段引用，请先删除：{names}")
+    fields = _fields_map(conn, table_id)
+    if run_protocol.is_run_table(fields) and conn.execute(
+        "SELECT 1 FROM row_records WHERE table_id = ? LIMIT 1", (table_id,)
+    ).fetchone():
+        raise WriteError("执行记录表是验收证据，非空时不可整表删除")
     calculation.delete_values_for_table(conn, table_id)
     # 保留 business_changes：删表不擦审计（090-16）。
     conn.execute("DELETE FROM row_records WHERE table_id = ?", (table_id,))
@@ -1155,6 +1160,11 @@ def delete_row(
     fields = _fields_map(conn, table_id)
     old_values = _loads(row["data"]) or {}
     _reject_delete_of_released_version(fields, row_id, old_values)
+    if run_protocol.is_run_table(fields):
+        raise WriteError(
+            "执行记录是验收证据，不可物理删除；重跑请 PATCH 状态/结果，"
+            "移除用例请改版本清单并说明（036：不得通过删除用例绕过失败项）"
+        )
     for field_id, old_value in old_values.items():
         if _is_empty(old_value) or field_id not in fields:
             continue

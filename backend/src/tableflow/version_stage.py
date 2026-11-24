@@ -229,18 +229,36 @@ def _fetch_values(
     return {row["id"]: _loads(row["data"]) or {} for row in rows}
 
 
-def _unsatisfied(
+def _completion_ids(
     conn: sqlite3.Connection,
     table_id: str,
     relation_field: sqlite3.Row,
+    merged: dict[str, Any],
+    version_id: str,
+) -> list[str]:
+    """节点闸门的判定对象：提交的 relation ∪ 本版实际持有的执行行（090-01/02）。
+
+    执行状态与执行结果必须针对同一组记录：只判提交清单时，把一条 todo 记录从
+    `ver.runs` 摘掉就能免检。
+    """
+    values = merged.get(relation_field["id"])
+    ids = [str(item) for item in values] if isinstance(values, list) else []
+    fields = _table_fields(conn, table_id)
+    if fields and run_protocol.is_run_table(fields):
+        ids = sorted(set(ids) | set(_owned_run_ids(conn, table_id, version_id)))
+    return ids
+
+
+def _unsatisfied(
+    conn: sqlite3.Connection,
+    table_id: str,
+    ids: list[str],
     completion_field: sqlite3.Row,
     expected: str,
-    values: dict[str, Any],
 ) -> list[str]:
-    ids = values.get(relation_field["id"])
-    if not isinstance(ids, list) or not ids:
+    if not ids:
         return []  # 空集为真（board@4 empty_set）
-    rows = _fetch_values(conn, table_id, [str(item) for item in ids])
+    rows = _fetch_values(conn, table_id, ids)
     problems: list[str] = []
     for row_id in ids:
         data = rows.get(str(row_id))
@@ -397,9 +415,8 @@ def _check_gate(
             if source is None:
                 continue  # 依赖来源认不出：不猜，由 019 门禁保证字段存在
             relation_field, target_id, completion = source
-            problems = _unsatisfied(
-                conn, target_id, relation_field, completion, expected, merged
-            )
+            ids = _completion_ids(conn, target_id, relation_field, merged, row_id)
+            problems = _unsatisfied(conn, target_id, ids, completion, expected)
             if problems:
                 detail = "、".join(problems)
                 raise WriteError(
@@ -435,6 +452,9 @@ def _check_released_frozen(
     if status_field is None or previous.get(status_field["id"]) != "released":
         return
     changed: list[str] = []
+    if status_field is not None and merged.get(status_field["id"]) != previous.get(status_field["id"]):
+        # 发布状态本身也在冻结范围内：released→planned 之后再改历史，是绕过冻结的入口。
+        changed.append("发布状态")
     for name in FROZEN_SCOPE_FIELDS:
         field = by_name.get(name)
         if field is not None and merged.get(field["id"]) != previous.get(field["id"]):

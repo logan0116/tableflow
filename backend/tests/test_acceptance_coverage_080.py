@@ -69,6 +69,27 @@ def test_partial_is_subset_of_covered() -> None:
     assert stray == [], f"这些部分覆盖的场景没有映射：{stray}"
 
 
+def test_no_duplicate_keys_in_coverage() -> None:
+    """COVERED 是 dict 字面量：重复键会被后值静默覆盖（090-10 的 039-US3-AS2）。"""
+    source = (TESTS / "acceptance_manifest.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            name, value = node.target.id, node.value
+        elif isinstance(node, ast.Assign):
+            names = [target.id for target in node.targets if isinstance(target, ast.Name)]
+            name, value = (names[0] if names else None), node.value
+        else:
+            continue
+        if name != "COVERED" or not isinstance(value, ast.Dict):
+            continue
+        keys = [key.value for key in value.keys if isinstance(key, ast.Constant)]
+        duplicates = sorted({key for key in keys if keys.count(key) > 1})
+        assert duplicates == [], f"COVERED 有重复键：{duplicates}"
+        return
+    raise AssertionError("acceptance_manifest 里没有找到 COVERED")
+
+
 def test_no_mapping_without_scenario() -> None:
     scenarios = _scenario_ids()
     extra = sorted(set(COVERED) - set(scenarios))

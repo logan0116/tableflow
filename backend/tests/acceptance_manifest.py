@@ -75,7 +75,6 @@ COVERED: dict[str, tuple[str, ...]] = {
     "037-US3-AS2": ("test_delivery_033.py::test_spec_with_effective_change_reports_that_change",),
     "037-US3-AS3": ("test_per_spec_revision_037.py::test_affected_clauses_decide_which_spec_gets_revision",),
     "037-US4-AS2": ("test_change_flow_037.py::test_037_us4_as2_missing_affected_clause_blocks",),
-    "039-US3-AS2": ("test_stage_evidence_038.py::test_historical_done_without_evidence_is_not_rewritten",),
     # ---------- 038 阶段产物与证据强制 ----------
     "038-US1-AS1": ("test_stage_evidence_038.py::test_038_us1_as1_report_returns_plan_evidence",),
     "038-US1-AS2": ("test_skill_e2e_083.py::test_s3_skeleton_plan_is_not_done",),
@@ -88,12 +87,11 @@ COVERED: dict[str, tuple[str, ...]] = {
     # ---------- 039 规格结构完整性 ----------
     "039-US1-AS1": ("test_spec_structure_039.py::test_missing_functional_requirements_is_flagged",),
     "039-US1-AS2": ("test_spec_structure_039.py::test_good_spec_passes_all_gates",),
-    "039-US1-AS3": ("test_spec_structure_039.py::test_traceability_absent_without_references",),
     "039-US2-AS1": ("test_spec_structure_039.py::test_below_floor_reports_each_dimension",),
     "039-US2-AS2": ("test_spec_structure_039.py::test_good_spec_passes_all_gates",),
     "039-US2-AS3": ("test_spec_structure_039.py::test_missing_edge_cases_is_flagged",),
     "039-US3-AS1": ("test_spec_structure_039.py::test_scenario_without_when_is_malformed_not_counted",),
-    "039-US3-AS2": ("test_spec_structure_039.py::test_missing_functional_requirements_is_flagged",),
+    "039-US3-AS2": ("test_board_rules_033.py::test_c1_rejects_same_spec_in_second_version",),
     # ---------- 040 看板规则固化 ----------
     "040-US1-AS1": ("test_board_rules_033.py::test_040_us1_as1_direct_api_write_is_rejected",),
     "040-US1-AS2": ("test_spec_lifecycle_034.py::test_drop_requires_reason_and_time",),
@@ -124,7 +122,7 @@ COVERED: dict[str, tuple[str, ...]] = {
     "042-US1-AS4": ("test_dev_implement_042.py::test_tasks_block_implement_until_checked",),
     "042-US2-AS1": ("test_dev_plan_042.py::test_structure_numbers_counts_only_named_sections",),
     "042-US2-AS2": ("test_dev_plan_042.py::test_structure_floor_reports_each_short_dimension",),
-    "042-US2-AS4": ("test_delivery_033.py::test_spec_without_changes_reports_initial_revision",),
+    "042-US2-AS4": ("test_skill_e2e_083.py::test_s6_non_semver_version_can_derive_cases",),
     "042-US3-AS2": ("test_stage_evidence_038.py::test_evidence_written_first_then_status",),
     "042-US3-AS3": ("test_dev_plan_042.py::test_stage_fields_cover_five_spec_side_stages",),
     "042-US4-AS1": ("test_dev_implement_042.py::test_tasks_block_implement_until_checked",),
@@ -148,6 +146,7 @@ GAPS = {
     "040-US3-AS2": "文档条目与反例测试必须同时提交：流程要求，无自动判据",
     "042-US2-AS3": "写入宪法版本号与未修改标记：技能未写该标记",
     "042-US3-AS1": "八个阶段字段各指向确定节点：没有字段级用例",
+    "039-US1-AS3": "场景数远多于功能需求时提示比例异常：没有该提示实现",
 }
 
 # 断言只覆盖场景 Then 的一部分：映射仍有效，但覆盖不完整。
@@ -155,6 +154,9 @@ PARTIAL = {
     "034-US4-AS4": "已断言必须先摘除，未断言历史结论不被改写",
     "038-US4-AS1": "已断言任务未勾选阻断，未断言规格齐备不自动置 done",
     "039-US3-AS1": "已断言畸形场景被计数，未断言逐份列出缺失项与建议",
+    "039-US3-AS2": "已断言已验收规格不能重复挂载（间接走依赖需求），未断言补齐结构本身作为依赖需求执行",
     "041-US1-AS4": "已断言强制分类生效，未断言发请求前失败",
     "042-US4-AS2": "已断言任务未勾选阻断，未断言列出未完成规格编号",
+    "042-US2-AS4": "已验证按场景派生用例，未直接断言第 2 节点链路",
+    "037-US2-AS1": "已断言受影响条款/一致性/集成三项，未断言基线修订与验证证据；实现只校验三项",
 }
