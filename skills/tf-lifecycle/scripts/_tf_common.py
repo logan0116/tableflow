@@ -43,13 +43,16 @@ NODE_FIELDS = ["版本需求设计", "测试设计", "开发", "开发验收", "
 
 RUN_STATE_VALUES = {"todo", "done"}
 RUN_RESULT_VALUES = {"pass", "fail", "blocked", "skip"}
-RUN_VERSION_RE = re.compile(r"^v\d+\.\d+\.\d+$")
+# 版本号取版本行 id 本身（demo-cnc 用 4.0.0_001、demo-cloud 用 20261107-01-v1.1.132.13006）；
+# 只禁止分隔符 -- 以免与「<版本号>--<用例号>」的拼接产生歧义。
+RUN_VERSION_RE = re.compile(r"^(?!.*--)\S+$")
 
 STORY_RE = re.compile(
     r"^### User Story (\d+) - (.+?)(?:\s*\(Priority:\s*([A-Za-z0-9]+)\))?\s*$"
 )
 SCENARIO_RE = re.compile(
-    r"^(\d+)\.\s+\*\*Given\*\*\s*(.+?)\s*\*\*When\*\*\s*(.+?)\s*\*\*Then\*\*\s*(.+?)\s*$"
+    # 允许场景行带自己的编号前缀：`1. **S1.1** **Given** ...`（部分项目这么写）。
+    r"^(\d+)\.\s+(?:\*\*S[0-9.]+\*\*\s+)?\*\*Given\*\*\s*(.+?)\s*\*\*When\*\*\s*(.+?)\s*\*\*Then\*\*\s*(.+?)\s*$"
 )
 
 
@@ -530,11 +533,11 @@ def require_version(
 
 
 def require_run_version(version: str) -> None:
-    """执行记录行 id 是 <版本号>--<用例号>，版本号必须形如 v<主>.<次>.<修>。"""
+    """执行记录行 id 是 <版本号>--<用例号>，版本号即版本行 id，不假设具体形状。"""
     if not RUN_VERSION_RE.match(version or ""):
         raise SkillFailure(
-            f"版本行 id「{version}」不是 v<主>.<次>.<修> 形式；"
-            "无法构造执行记录 id（<版本号>--<用例号>）"
+            f"版本行 id「{version}」不能用作执行记录前缀；"
+            "版本号取版本行 id 本身，且不得包含 --"
         )
 
 

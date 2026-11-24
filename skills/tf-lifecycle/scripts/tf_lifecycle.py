@@ -32,7 +32,7 @@ from _tf_common import (
     readback_nodes,
 )
 
-ALLOWED = ("ver", "indep")
+ALLOWED = ("ver", "indep", "run")
 ACTIONS = ("drop", "split", "cleanup")
 SEMVER_RE = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)$")
 

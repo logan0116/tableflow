@@ -501,6 +501,8 @@ def main(args, report) -> None:
         raise SkillFailure(f"单测未通过，不能置 implement 完成：`{command}`")
 
     if evidence_fid:
+        # 重读整表：plan/task 证据刚写进去，缓存里的旧行会把它们覆盖掉（BUG-083-11）。
+        indep = client.table("indep", refresh=True)
         implement_entries = {
             spec_id: merge_evidence(
                 indep.value(spec_id, EVIDENCE_FIELD, default=None),

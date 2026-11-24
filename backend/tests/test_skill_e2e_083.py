@@ -180,6 +180,10 @@ def skill_board(*, version_status: str = "planned", indep_accept: str = "pending
                             _field("r-case", "用例", "relation", {"table_id": "t-case"}, 3),
                             _field("r-state", "执行状态", "enum", RUN_STATE, 4),
                             _field("r-result", "执行结果", "enum", RUN_RESULT, 5),
+                            _field("r-waived", "放行标记", "enum", [
+                                {"value": "none", "label": "未放行", "tone": "neutral"},
+                                {"value": "waived", "label": "已放行", "tone": "warning"},
+                            ], 6),
                         ],
                         "rows": runs or [],
                     },
@@ -389,7 +393,6 @@ def test_s4b_dep_only_version_proceeds(tmp_path) -> None:
         assert code == 0, f"只有依赖需求的版本被拒：\n{raw[-2000:]}"
 
 
-@pytest.mark.xfail(strict=True, reason="B7：cleanup 前置检查去读不在作用域内的 run 表，恒为 False")
 def test_b7_cleanup_works_without_run_in_scope(tmp_path) -> None:
     """同一需求挂在两个版本时，cleanup 应当能真正执行去重。"""
     def ver(vid):
@@ -437,7 +440,6 @@ def test_s3_skeleton_plan_is_not_done(tmp_path) -> None:
         )
 
 
-@pytest.mark.xfail(strict=True, reason="S6：技能侧仍用 ^v\\d+\\.\\d+\\.\\d+$ 校验版本号")
 def test_s6_non_semver_version_can_derive_cases(tmp_path) -> None:
     """版本行 id 形如 4.0.0_001 时，测试设计技能也要能派生用例。"""
     version_id = "4.0.0_001"
@@ -456,7 +458,6 @@ def test_s6_non_semver_version_can_derive_cases(tmp_path) -> None:
         assert code == 0, f"非 semver 版本被客户端拦下：\n{raw[-1500:]}"
 
 
-@pytest.mark.xfail(strict=True, reason="S2：写 implement 证据时用缓存的旧行合并，覆盖刚写的 plan/task 证据")
 def test_s2_implement_keeps_plan_task_evidence(tmp_path) -> None:
     """一次开发推进里写的三份阶段证据必须同时留存。"""
     nodes = {f"v-node-{i}": ("done" if i < 2 else "todo") for i in range(6)}
@@ -477,7 +478,6 @@ def test_s2_implement_keeps_plan_task_evidence(tmp_path) -> None:
             assert key in evidence, f"阶段证据缺 {key}：当前为 {evidence!r}"
 
 
-@pytest.mark.xfail(strict=True, reason="S6：场景解析只认 1. **Given**，带编号的 1. **S1.1** **Given** 被漏掉")
 def test_s6_numbered_scenario_prefix_parsed(tmp_path) -> None:
     """场景写作 `1. **S1.1** **Given** ...` 时也要能派生用例。"""
     repo = tmp_path / "repo"
