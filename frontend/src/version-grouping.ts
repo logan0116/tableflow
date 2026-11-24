@@ -3,8 +3,9 @@ import type { Field } from "./types";
 /**
  * 版本表的界面合并分组（026）。
  *
- * 只按字段名识别，不硬编码项目前缀；任一组的字段不齐时整表不合并，
- * 退回 board@4 的原始列（宁可多列，不要半合并）。
+ * 字段按 id 语义后缀识别（如 `-v-indep`、`-stage-plan`），后缀认不出时才回退字段名；
+ * 后端改字段显示名不会让进度灯与关联列静默降级。任一组的字段不齐时整表不合并，
+ * 退回原始列（宁可多列，不要半合并）。
  */
 export type VersionGroupKind = "lights" | "group";
 
@@ -25,21 +26,66 @@ export interface VersionGroup {
   statusFieldId?: string;
 }
 
-const LIGHTS = ["版本需求设计", "测试设计", "开发", "开发验收", "测试", "测试验收"];
-const LIGHTS_SUM = "六节点是否全部完成";
+const LIGHTS: Array<{ suffix: string; name: string }> = [
+  { suffix: "-stage-plan", name: "版本需求设计" },
+  { suffix: "-stage-test-design", name: "测试设计" },
+  { suffix: "-stage-dev", name: "开发" },
+  { suffix: "-stage-dev-accept", name: "开发验收" },
+  { suffix: "-stage-test", name: "测试" },
+  { suffix: "-stage-test-accept", name: "测试验收" },
+];
+const LIGHTS_SUM = { suffix: "-stage-done", name: "六节点是否全部完成" };
 
-const GROUPS: Array<{ key: string; header: string; names: [string, string, string] }> = [
-  { key: "ver-indep", header: "独立需求", names: ["独立需求管理", "独立需求已完成/总数", "独立需求是否完成"] },
-  { key: "ver-dep", header: "依赖需求", names: ["依赖需求管理", "依赖需求已完成/总数", "依赖需求是否完成"] },
-  { key: "ver-case", header: "测试", names: ["测试用例", "用例总数", "用例是否完成"] },
-  { key: "ver-bug", header: "Bug", names: ["Bug管理", "Bug已修复/总数", "Bug是否清空"] },
+const GROUPS: Array<{
+  key: string;
+  header: string;
+  fields: Array<{ suffix: string; name: string }>;
+  done?: { suffix: string; name: string };
+}> = [
+  {
+    key: "ver-indep",
+    header: "独立需求",
+    fields: [
+      { suffix: "-v-indep", name: "独立需求管理" },
+      { suffix: "-v-spec-ratio", name: "独立需求已完成/总数" },
+      { suffix: "-v-spec-done", name: "独立需求是否完成" },
+    ],
+  },
+  {
+    key: "ver-dep",
+    header: "依赖需求",
+    fields: [
+      { suffix: "-v-dep", name: "依赖需求管理" },
+      { suffix: "-v-change-ratio", name: "依赖需求已完成/总数" },
+      { suffix: "-v-change-done", name: "依赖需求是否完成" },
+    ],
+  },
+  {
+    key: "ver-case",
+    header: "测试",
+    fields: [
+      { suffix: "-v-runs", name: "测试用例" },
+      { suffix: "-v-case-total", name: "用例总数" },
+      { suffix: "-v-case-done", name: "用例是否完成" },
+    ],
+    done: { suffix: "-v-case-done-count", name: "已完成用例数" },
+  },
+  {
+    key: "ver-bug",
+    header: "Bug",
+    fields: [
+      { suffix: "-v-bug", name: "Bug管理" },
+      { suffix: "-v-bug-ratio", name: "Bug已修复/总数" },
+      { suffix: "-v-bug-clear", name: "Bug是否清空" },
+    ],
+  },
 ];
 
-/** 用例组的「已完成」不是 ratio 文本，而是单独的计数字段。 */
-const CASE_DONE_NAME = "已完成用例数";
-
-function findByName(fields: Field[], name: string): Field | undefined {
-  return fields.find((field) => field.name === name);
+function findField(fields: Field[], suffix: string, name: string): Field | undefined {
+  return (
+    fields.find((field) => field.id.endsWith(suffix)) ??
+    fields.find((field) => field.name === name)
+  );
 }
 
 /**
@@ -48,11 +94,11 @@ function findByName(fields: Field[], name: string): Field | undefined {
  * 只有六节点齐全且至少一组三列齐全才合并，避免把普通表误伤。
  */
 export function versionGroups(fields: Field[]): VersionGroup[] | null {
-  const stages = LIGHTS.map((name) => findByName(fields, name));
+  const stages = LIGHTS.map((item) => findField(fields, item.suffix, item.name));
   if (stages.some((field) => !field)) {
     return null;
   }
-  const sum = findByName(fields, LIGHTS_SUM);
+  const sum = findField(fields, LIGHTS_SUM.suffix, LIGHTS_SUM.name);
   if (!sum) {
     return null;
   }
@@ -68,15 +114,16 @@ export function versionGroups(fields: Field[]): VersionGroup[] | null {
   ];
 
   for (const definition of GROUPS) {
-    const relation = findByName(fields, definition.names[0]);
-    const ratio = findByName(fields, definition.names[1]);
-    const status = findByName(fields, definition.names[2]);
+    const [relationDef, ratioDef, statusDef] = definition.fields;
+    const relation = findField(fields, relationDef.suffix, relationDef.name);
+    const ratio = findField(fields, ratioDef.suffix, ratioDef.name);
+    const status = findField(fields, statusDef.suffix, statusDef.name);
     if (!relation || !ratio || !status) {
       continue;
     }
     const ids = [relation.id, ratio.id, status.id];
-    if (definition.key === "ver-case") {
-      const done = findByName(fields, CASE_DONE_NAME);
+    if (definition.done) {
+      const done = findField(fields, definition.done.suffix, definition.done.name);
       if (done) {
         ids.push(done.id);
       }
@@ -89,8 +136,14 @@ export function versionGroups(fields: Field[]): VersionGroup[] | null {
       relationFieldId: relation.id,
       ratioFieldId: ratio.id,
       statusFieldId: status.id,
-      ...(definition.key === "ver-case"
-        ? { doneCountFieldId: findByName(fields, CASE_DONE_NAME)?.id }
+      ...(definition.done
+        ? {
+            doneCountFieldId: findField(
+              fields,
+              definition.done.suffix,
+              definition.done.name,
+            )?.id,
+          }
         : {}),
     });
   }

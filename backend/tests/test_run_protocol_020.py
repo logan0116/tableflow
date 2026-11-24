@@ -517,15 +517,17 @@ def test_case_no_fallback_by_field_name(env):
     assert _rows(db, "t-run-odd") == {}
 
 
-def test_run_id_uses_version_row_id_not_hardcoded_semver(env):
-    """版本行 id 不是 v<主>.<次>.<修>（如 4.0.0_001）时，执行记录 id 仍按 <版本号>--<用例号>。"""
+def test_run_id_requires_semver_version_on_create(env):
+    """新建执行记录时版本号必须是 v<主>.<次>.<修>；历史非 semver 行仍可读。"""
     client, db = env
-    run_id = "4.0.0_001--008-US1-AS1"
-    resp = _create_run(client, run_id)
+    rejected = _create_run(client, "4.0.0_001--008-US1-AS1")
+    assert rejected.status_code == 400, rejected.text
+    assert "v<主>.<次>.<修>" in rejected.json()["error"]
+    assert "4.0.0_001--008-US1-AS1" not in _rows(db, "t-run")
 
-    assert resp.status_code == 200, resp.text
-    assert resp.json() == {"result": "success", "id": run_id}
-    assert run_id in _rows(db, "t-run")
+    accepted = _create_run(client, "v0.10.5--008-US1-AS1")
+    assert accepted.status_code == 200, accepted.text
+    assert "v0.10.5--008-US1-AS1" in _rows(db, "t-run")
 
 
 def test_run_list_foreign_check_applies_to_non_semver_version(env):

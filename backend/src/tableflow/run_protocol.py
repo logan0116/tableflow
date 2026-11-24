@@ -42,9 +42,11 @@ RUN_STATE_VALUES = frozenset({"todo", "done"})
 RUN_RESULT_VALUES = frozenset({"pass", "fail", "blocked", "skip"})
 # 用例号字段的兜底识别：迁移脚本若没沿用 `-case_no` 后缀，至少认契约里的名称。
 RUN_CASE_NO_FIELD_NAME = "用例号"
-# 执行记录行 id：<版本号>--<用例号>。版本号取版本行 id 本身（不假设 v<主>.<次>.<修>：
-# demo-cnc 用 4.0.0_001、demo 用 7.0.1），用例号即场景号（008-US1-AS1）。
+# 执行记录行 id：<版本号>--<用例号>。新建时版本号必须匹配 v<主>.<次>.<修>（020 FR-001）；
+# RUN_ID_RE 仍按广义形状匹配，用于读取/编辑历史非 semver 行（如 4.0.0_001--...），
+# 不因形状把存量数据锁死。用例号即场景号（008-US1-AS1）。
 RUN_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}--[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+RUN_VERSION_SEMVER_RE = re.compile(r"^v\d+\.\d+\.\d+$")
 
 
 def _loads(raw: Any) -> Any:
@@ -167,8 +169,14 @@ def _check_case_no(row_id: str, values: dict[str, Any], fields: dict[str, sqlite
 def _check_run_row_id(row_id: str, values: dict[str, Any], fields: dict[str, sqlite3.Row]) -> None:
     if not RUN_ID_RE.match(row_id):
         raise WriteError(
-            "执行记录行 id 必须是「<版本号>--<用例号>」（版本号取版本行 id，如 4.0.0_001--008-US1-AS1）："
+            "执行记录行 id 必须是「<版本号>--<用例号>」（版本号取版本行 id，如 v0.10.5--008-US1-AS1）："
             f"{row_id!r}"
+        )
+    version = row_id.split("--", 1)[0]
+    if not RUN_VERSION_SEMVER_RE.match(version):
+        raise WriteError(
+            "执行记录行 id 的版本号必须是 v<主>.<次>.<修>（020 FR-001）："
+            f"{version!r}；历史非 semver 行可继续读写，但不能新建"
         )
     _check_case_no(row_id, values, fields)
 

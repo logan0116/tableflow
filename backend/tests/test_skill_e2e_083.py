@@ -442,8 +442,22 @@ def test_s3_skeleton_plan_is_not_done(tmp_path) -> None:
         )
 
 
-def test_s6_non_semver_version_can_derive_cases(tmp_path) -> None:
-    """版本行 id 形如 4.0.0_001 时，测试设计技能也要能派生用例。"""
+def test_s6_semver_version_derives_cases(tmp_path) -> None:
+    """042-US2-AS4：spec 已产出时，测试设计能按验收场景派生用例。"""
+    data = skill_board()
+    data["projects"][0]["tables"][0]["rows"][0]["values"]["v-node-0"] = "done"
+    with running_board(data, tmp_path) as (base, _db):
+        code, report, raw = run_skill(
+            "tf-test-plan",
+            ["--version", VERSION, "--repo-root", str(REPO_ROOT), "--apply"],
+            base=base,
+        )
+        assert code == 0, raw[-1500:]
+        assert report and report.get("counts", {}).get("created_cases", 0) > 0
+
+
+def test_s6_non_semver_version_is_rejected(tmp_path) -> None:
+    """090-12：非 semver 版本号（如 4.0.0_001）在技能侧被明确拒绝，不再静默派生。"""
     version_id = "4.0.0_001"
     nodes = {f"v-node-{i}": ("done" if i < 1 else "todo") for i in range(6)}
     version = {"id": version_id, "values": {
@@ -457,7 +471,8 @@ def test_s6_non_semver_version_can_derive_cases(tmp_path) -> None:
             ["--version", version_id, "--repo-root", str(REPO_ROOT), "--apply"],
             base=base,
         )
-        assert code == 0, f"非 semver 版本被客户端拦下：\n{raw[-1500:]}"
+        assert code != 0, raw[-1500:]
+        assert "v<主>.<次>.<修>" in raw
 
 
 def test_s2_implement_keeps_plan_task_evidence(tmp_path) -> None:

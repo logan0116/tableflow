@@ -32,6 +32,10 @@ done
 # 远端命令里拼接的路径/端口先转义，避免 .env 里的值被当成 shell 语法执行。
 QDEST=$(printf %q "$DEST")
 QPORT=$(printf %q "$PORT")
+# 镜像 tag 由 git tag 驱动（单一真源）；无 tag 时回退当前版本号。
+VERSION="${TABLEFLOW_VERSION:-$(git describe --tags --abbrev=0 2>/dev/null || echo v0.10.5)}"
+VERSION="${VERSION#v}"
+QVERSION=$(printf %q "$VERSION")
 
 health() {
   ssh "${SSH_OPTS[@]}" "$HOST" \
@@ -48,7 +52,7 @@ rsync -az --delete \
   ./ "$HOST:$DEST/"
 
 echo "== 2/4 构建并启动"
-ssh "${SSH_OPTS[@]}" "$HOST" "cd ${QDEST} && docker compose -f deploy/docker-compose.yml up -d --build"
+ssh "${SSH_OPTS[@]}" "$HOST" "cd ${QDEST} && TABLEFLOW_VERSION=${QVERSION} docker compose -f deploy/docker-compose.yml up -d --build"
 
 echo "== 2.5/4 等待服务就绪"
 code="000"

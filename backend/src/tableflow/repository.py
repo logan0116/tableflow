@@ -130,7 +130,13 @@ def _merge_computed(
     return values, (meta or None)
 
 
-def get_table(conn: sqlite3.Connection, table_id: str) -> TableOut | None:
+def get_table(
+    conn: sqlite3.Connection,
+    table_id: str,
+    *,
+    limit: int | None = None,
+    offset: int = 0,
+) -> TableOut | None:
     row = conn.execute(
         """
         SELECT t.id, t.name, t."order" AS order_, t.kind,
@@ -148,10 +154,12 @@ def get_table(conn: sqlite3.Connection, table_id: str) -> TableOut | None:
     computed_fields = [field for field in fields if field.type == "computed"]
     computed_rows = _computed_rows(conn, table_id, [field.id for field in computed_fields])
 
-    rows = conn.execute(
-        "SELECT id, data FROM row_records WHERE table_id = ? ORDER BY id ASC",
-        (table_id,),
-    ).fetchall()
+    sql = "SELECT id, data FROM row_records WHERE table_id = ? ORDER BY id ASC"
+    params: list[object] = [table_id]
+    if limit is not None:
+        sql += " LIMIT ? OFFSET ?"
+        params.extend([int(limit), int(offset)])
+    rows = conn.execute(sql, params).fetchall()
 
     output_rows = []
     for r in rows:

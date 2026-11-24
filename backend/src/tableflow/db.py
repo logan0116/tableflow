@@ -128,6 +128,12 @@ SELECT
     new_value   AS new_value,
     occurred_at AS created_at
 FROM business_changes;
+
+-- 090-30：读表与变更追溯的常用查询路径补索引（append-only 审计表会持续增长）
+CREATE INDEX IF NOT EXISTS idx_changes_table_row ON business_changes(table_id, row_id);
+CREATE INDEX IF NOT EXISTS idx_changes_time ON business_changes(occurred_at);
+CREATE INDEX IF NOT EXISTS idx_computed_table_row ON computed_values(table_id, row_id);
+CREATE INDEX IF NOT EXISTS idx_computed_field ON computed_values(field_id);
 """
 
 

@@ -50,7 +50,7 @@ export interface RelationOptions {
 }
 
 export interface ComputedOptions {
-  kind?: "count" | "percent" | "sum" | "rollup" | "and";
+  kind?: "count" | "percent" | "sum" | "rollup" | "and" | "ratio";
   allow_override?: boolean;
   constraints?: FieldConstraints;
 }

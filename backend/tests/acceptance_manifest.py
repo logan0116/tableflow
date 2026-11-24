@@ -122,7 +122,7 @@ COVERED: dict[str, tuple[str, ...]] = {
     "042-US1-AS4": ("test_dev_implement_042.py::test_tasks_block_implement_until_checked",),
     "042-US2-AS1": ("test_dev_plan_042.py::test_structure_numbers_counts_only_named_sections",),
     "042-US2-AS2": ("test_dev_plan_042.py::test_structure_floor_reports_each_short_dimension",),
-    "042-US2-AS4": ("test_skill_e2e_083.py::test_s6_non_semver_version_can_derive_cases",),
+    "042-US2-AS4": ("test_skill_e2e_083.py::test_s6_semver_version_derives_cases",),
     "042-US3-AS2": ("test_stage_evidence_038.py::test_evidence_written_first_then_status",),
     "042-US3-AS3": ("test_dev_plan_042.py::test_stage_fields_cover_five_spec_side_stages",),
     "042-US4-AS1": ("test_dev_implement_042.py::test_tasks_block_implement_until_checked",),

@@ -45,7 +45,7 @@ RUN_STATE_VALUES = {"todo", "done"}
 RUN_RESULT_VALUES = {"pass", "fail", "blocked", "skip"}
 # 版本号取版本行 id 本身（demo-cnc 用 4.0.0_001、demo-cloud 用 20261107-01-v1.1.132.13006）；
 # 只禁止分隔符 -- 以免与「<版本号>--<用例号>」的拼接产生歧义。
-RUN_VERSION_RE = re.compile(r"^(?!.*--)\S+$")
+RUN_VERSION_RE = re.compile(r"^v\d+\.\d+\.\d+$")
 
 STORY_RE = re.compile(
     r"^### User Story (\d+) - (.+?)(?:\s*\(Priority:\s*([A-Za-z0-9]+)\))?\s*$"
@@ -533,11 +533,11 @@ def require_version(
 
 
 def require_run_version(version: str) -> None:
-    """执行记录行 id 是 <版本号>--<用例号>，版本号即版本行 id，不假设具体形状。"""
+    """执行记录行 id 是 <版本号>--<用例号>；版本号必须是 v<主>.<次>.<修>（020 FR-001）。"""
     if not RUN_VERSION_RE.match(version or ""):
         raise SkillFailure(
             f"版本行 id「{version}」不能用作执行记录前缀；"
-            "版本号取版本行 id 本身，且不得包含 --"
+            "版本号必须是 v<主>.<次>.<修>（如 v0.10.5）"
         )
 
 

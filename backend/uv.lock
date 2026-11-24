@@ -516,7 +516,7 @@ wheels = [
 
 [[package]]
 name = "tableflow"
-version = "0.5.1"
+version = "0.10.5"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },

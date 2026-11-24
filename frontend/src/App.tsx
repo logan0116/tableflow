@@ -283,10 +283,12 @@ export default function App() {
     bug: Set<string>;
     case: Set<string>;
   } | null>(null);
+  const [versionScopeError, setVersionScopeError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!versionTableId || versionFilter === "all") {
       setVersionScope(null);
+      setVersionScopeError(null);
       return;
     }
     let cancelled = false;
@@ -298,23 +300,31 @@ export default function App() {
             ? latestVersionId(ver.rows.map((row) => row.id))
             : versionFilter;
         const row = ver.rows.find((item) => item.id === resolved);
-        if (!row || cancelled) {
-          setVersionScope(null);
+        if (!row) {
+          if (!cancelled) {
+            setVersionScope({
+              indep: new Set(),
+              dep: new Set(),
+              bug: new Set(),
+              case: new Set(),
+            });
+            setVersionScopeError(resolved ? `找不到版本 ${resolved}` : "没有可用的版本行");
+          }
           return;
         }
-        const byName = (name: string): string[] => {
-          const field = ver.fields.find((item) => item.name === name);
+        const bySuffix = (suffix: string): string[] => {
+          const field = ver.fields.find((item) => item.id.endsWith(suffix));
           const value = field ? row.values[field.id] : undefined;
           return Array.isArray(value) ? value.map(String) : [];
         };
-        const indep = new Set(byName("独立需求管理"));
-        const dep = new Set(byName("依赖需求管理"));
-        const bug = new Set(byName("Bug管理"));
-        const runIds = byName("测试用例");
+        const indep = new Set(bySuffix("-v-indep"));
+        const dep = new Set(bySuffix("-v-dep"));
+        const bug = new Set(bySuffix("-v-bug"));
+        const runIds = bySuffix("-v-runs");
         const caseIds = new Set<string>();
         if (runIds.length > 0 && runTableId) {
           const runs = await fetchTable(runTableId);
-          const caseField = runs.fields.find((item) => item.name === "用例");
+          const caseField = runs.fields.find((item) => item.id.endsWith("-r-case"));
           if (caseField) {
             const wanted = new Set(runIds);
             for (const run of runs.rows) {
@@ -332,10 +342,19 @@ export default function App() {
         }
         if (!cancelled) {
           setVersionScope({ indep, dep, bug, case: caseIds });
+          setVersionScopeError(null);
         }
-      } catch {
+      } catch (error) {
         if (!cancelled) {
-          setVersionScope(null);
+          setVersionScope({
+            indep: new Set(),
+            dep: new Set(),
+            bug: new Set(),
+            case: new Set(),
+          });
+          setVersionScopeError(
+            error instanceof Error ? `版本筛选失败：${error.message}` : "版本筛选失败",
+          );
         }
       }
     })();
@@ -357,8 +376,7 @@ export default function App() {
       const latest = latestVersionId(all.map((row) => row.id));
       return latest ? all.filter((row) => row.id === latest) : all;
     }
-    const hit = all.filter((row) => row.id === versionFilter);
-    return hit.length > 0 ? hit : all.filter((row) => row.id === latestVersionId(all.map((r) => r.id)));
+    return all.filter((row) => row.id === versionFilter);
   }, [tableState, versionFilter]);
 
   /** 030：非版本表按所选版本的关联集合过滤；「全部版本」不过滤。 */
@@ -420,6 +438,8 @@ export default function App() {
               <EmptyState kind="error" message={tableState.message} onRetry={refreshAll} />
             ) : tableState.table.fields.length === 0 ? (
               <EmptyState kind="no-fields" />
+            ) : versionScopeError && !tableState.table.table.id.endsWith("-ver") ? (
+              <EmptyState kind="error" message={versionScopeError} onRetry={refreshAll} />
             ) : (
               <>
                 {tableState.table.table.id.endsWith("-ver") ? (

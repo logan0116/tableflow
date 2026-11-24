@@ -1,110 +1,57 @@
-# TableFlow 多维表格看板（v0）
+# TableFlow
 
-局域网内的多维表格看板：项目 → 多张表格 → 字段与数据行；同一项目内的表格可用 relation 字段相互关联，关联格显示目标行 id，点击弹出只读明细。人只读，Agent 通过写接口定义表/字段/数据并写入，每次写入落审计。
+局域网内的研发治理看板。人只读，Agent 通过 `/api/agent` 写：定义表与字段、登记需求与版本、推进六节点、执行用例、登记缺陷。
 
-规格与设计见 `specs/001-readonly-dashboard/`：`spec.md`、`plan.md`、`data-model.md`、`contracts/api.md`、`contracts/agent-api.md`、`quickstart.md`。
+- 六张表：版本、独立规格需求、依赖变更需求、测试用例、用例执行情况、缺陷
+- 版本六节点：版本需求设计 → 测试设计 → 开发 → 开发验收 → 测试 → 测试验收（串行推进，不可跳过）
+- 写接口按 `X-API-Key` 鉴权（容器默认 `enforced`）；每次写入落 `write_audit`，字段级变化另记 `business_changes`
+- SQLite（WAL）；后端 FastAPI，前端 React + Vite
+
+契约以 `specs/019-test-contract/board@5.yaml` 为准；`specs/001-readonly-dashboard/contracts/api.md` 是 v0 只读看板的历史文档，已标 SUPERSEDED。
 
 ## 目录
 
 ```text
-backend/    FastAPI + SQLite（WAL）：人侧读接口 + /api/agent 写接口
-frontend/   React + Vite + TypeScript + TanStack Table（headless，原生 DOM 渲染）
+backend/    FastAPI + SQLite：人侧 GET + /api/agent 写接口
+frontend/   React + Vite + TypeScript
 data/       样例数据与运行期库（*.db 不入库）
-specs/      规格、计划、任务与验收产物
+specs/      规格与契约（001–044）
+skills/     Agent 技能：tf-dev-plan / tf-test-plan / tf-dev-implement / tf-dev-check /
+            tf-test-implement / tf-test-check / tf-register / tf-lifecycle /
+            tf-release-status / tableflow-board
+deploy/     部署脚本、compose、seed、容器入口
 ```
 
-## 安装
+## 本地开发
 
 ```bash
 cd backend && uv sync
 cd ../frontend && npm install
 ```
 
-## 初始化样例数据
+- 后端测试：`cd backend && uv run pytest -q`
+- 前端构建：`cd frontend && npm run build`
+- 本地实例默认 `TABLEFLOW_AUTH_MODE=legacy`（未带 key 时回退 `X-Agent-Id`）；容器默认 `enforced`
+
+## 部署
 
 ```bash
-cd backend
-uv run python scripts/seed_data.py --seed ../data/seed.example.json
+bash deploy/deploy.sh          # 只更新代码，不动数据
+bash deploy/deploy.sh --seed   # 重建数据（seed 会先在线备份旧库）
 ```
 
-样例为 2 个项目、3 张表格、11 个字段、17 行；其中「产线改造」项目的「任务」表通过 relation 字段关联到「人员」表。脚本为**全量替换**：重复执行会覆盖手工改动。
+脚本把仓库同步到 `deploy/.env` 里的 `HOST`，用 `docker compose` 重建镜像；镜像 tag 由 git tag 驱动。容器以非 root（UID 10001）运行，带 HEALTHCHECK。
 
-规模数据（用于 20 项目 / 每项目 10 表 / 单表 500 行验收）：
+### API Key
+
+容器 `enforced` 模式下写请求必须带有效 key：
 
 ```bash
-uv run python scripts/seed_data.py --projects 20 --tables 10 --rows 500
+cd backend && uv run python scripts/tf_keys.py issue --label <name>
 ```
 
-## 启动
+`--seed` 会自动签发一把 seed key 到容器 `/data/seed-key.txt`。技能侧通过 `TF_API_KEY` 环境变量携带。
 
-```bash
-# 终端 1：后端（8000）
-cd backend && uv run uvicorn tableflow.app:app --port 8000
+## 版本
 
-# 终端 2：前端（5173，/api 代理到 8000）
-cd frontend && npm run dev
-```
-
-打开 `http://localhost:5173`。
-
-## 接口
-
-### 人侧（只读，全部 GET）
-
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| GET | `/api/health` | 探活 |
-| GET | `/api/projects` | 项目列表 |
-| GET | `/api/projects/{id}/tables` | 项目下的表格，按 order 升序 |
-| GET | `/api/tables/{id}/table` | 字段（visible=1）+ 数据行 |
-| GET | `/api/tables/{id}/rows/{row_id}` | 单行明细（关联弹层用） |
-
-### Agent 侧（写入，需请求头 `X-Agent-Id`）
-
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| POST | `/api/agent/projects/{id}/tables` | 建表 |
-| PATCH / DELETE | `/api/agent/tables/{id}` | 改名 / 删除（级联字段与行） |
-| POST | `/api/agent/tables/{id}/fields` | 加字段（text/number/datetime/enum/relation） |
-| PATCH / DELETE | `/api/agent/fields/{id}` | 改字段 / 删字段 |
-| POST | `/api/agent/tables/{id}/rows/{row_id}` | 写行（行 id 在路径里，即业务编号） |
-| PATCH / DELETE | `/api/agent/tables/{id}/rows/{row_id}` | 改行（合并 values）/ 删行 |
-
-响应统一为 `{"result": "success" | "failed" | "unknown", ...}`；校验失败 400 且不落库，提交结果无法确认时返回 503 + `unknown`。每次调用（成功或失败）都写一条 `write_audit`。
-
-## 验收
-
-按 `specs/001-readonly-dashboard/quickstart.md` 的 V1–V8 执行。性能三项需在 Chrome DevTools 里测：
-
-- 首屏：14 行首次可见 ≤ 500ms
-- 滚动：`--disable-gpu` 下连续滚动 5 秒，平均 ≥ 50fps 且无 > 50ms 长任务
-- 关联弹层：点击到明细显示 ≤ 300ms
-
-界面视觉打磨（005）的验收脚本：
-
-```bash
-python3 scripts/contrast_check.py                 # 结构色对比度，退出码非 0 即不达标
-python3 scripts/perf_check.py http://127.0.0.1:5173/ --rows 14   # 首屏与滚动（headless Chrome）
-```
-
-结果与口径见 `specs/005-ui-visual/quickstart.md`。
-
-## 约束
-
-宪法 `.specify/memory/constitution.md`（v7.0.0）是硬约束：
-
-- 人侧只有 GET；Agent 写接口必须带契约、审计、三态
-- 无读缓存：接口 `no-store`，前端不持久化业务数据
-- 列由数据驱动：增删列只改 `fields` 表
-- 表格 DOM 渲染：禁 canvas、禁自研虚拟滚动、禁重型表格库
-
-## 常见问题
-
-- **`uv run` 在沙箱里报 `Read-only file system`**：uv 需要写 `~/.cache/uv`；普通终端不受影响，沙箱内可用 `backend/.venv/bin/python`。
-- **只读连接打不开库**：WAL 下只读连接需要能访问 `-wal` / `-shm`；先跑完样例写入再启动服务。
-- **旧库升级**：数据模型从"项目=表"改为"项目→表"，旧库不可复用，删除 `data/tableflow.db*` 后重新 seed。
-- **端口占用**：改后端 `--port` 时同步改 `frontend/vite.config.ts` 的代理目标。
-
-## 许可
-
-MIT，见 [LICENSE](./LICENSE)。
+当前 `v0.10.5`。版本号单一源在 `backend/src/tableflow/__init__.py`；前端 `package.json` 由 CI 校验一致；镜像 tag 由 git tag 驱动。

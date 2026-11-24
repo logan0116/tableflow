@@ -9,9 +9,12 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import sqlite3
 import sys
+import time
+import uuid
 from collections.abc import Iterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -20,6 +23,7 @@ from typing import Any
 from fastapi import Body, Depends, FastAPI, Header, Query, Request
 from fastapi.responses import JSONResponse
 
+from . import __version__
 from . import (
     auth,
     board_rules,
@@ -33,6 +37,16 @@ from . import (
 )
 from .config import db_path
 from .schemas import ChangesOut, ProjectsOut, RowDetailOut, TableOut
+
+logger = logging.getLogger("tableflow")
+if not logger.handlers:
+    _handler = logging.StreamHandler(sys.stderr)
+    _handler.setFormatter(
+        logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
+    )
+    logger.addHandler(_handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
 
 
 def _migrate_schema() -> None:
@@ -74,19 +88,44 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title="TableFlow", version="0.3.0", lifespan=lifespan)
+app = FastAPI(title="TableFlow", version=__version__, lifespan=lifespan)
 
 
 @app.middleware("http")
 async def add_no_store(request: Request, call_next):
+    # 090-30：每个请求带 request id 与耗时，排障时能按 rid 串起日志。
+    request_id = request.headers.get("X-Request-Id") or uuid.uuid4().hex[:12]
+    started = time.perf_counter()
     response = await call_next(request)
+    elapsed_ms = (time.perf_counter() - started) * 1000
     response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Request-Id"] = request_id
+    logger.info(
+        "%s %s -> %s %.1fms rid=%s",
+        request.method,
+        request.url.path,
+        response.status_code,
+        elapsed_ms,
+        request_id,
+    )
     return response
 
 
 @app.exception_handler(sqlite3.Error)
 async def handle_db_error(request: Request, exc: sqlite3.Error):
-    return JSONResponse(status_code=503, content={"detail": "数据存储不可用"})
+    logger.exception("数据库错误：%s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=503, content={"result": "unknown", "error": "数据存储不可用"}
+    )
+
+
+@app.exception_handler(Exception)
+async def handle_unexpected_error(request: Request, exc: Exception):
+    # 兜底：未预期异常返回统一信封，堆栈只进日志，不回显给调用方。
+    logger.exception("未预期错误：%s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500, content={"result": "failed", "error": "服务内部错误"}
+    )
 
 
 def get_conn() -> Iterator[sqlite3.Connection]:
@@ -224,8 +263,13 @@ def get_spec_stages(
 
 
 @app.get("/api/tables/{table_id}/table", response_model=TableOut)
-def get_table(table_id: str, conn: sqlite3.Connection = Depends(get_conn)):
-    table = repository.get_table(conn, table_id)
+def get_table(
+    table_id: str,
+    limit: int | None = Query(default=None, ge=1, le=5000),
+    offset: int = Query(default=0, ge=0),
+    conn: sqlite3.Connection = Depends(get_conn),
+):
+    table = repository.get_table(conn, table_id, limit=limit, offset=offset)
     if table is None:
         return JSONResponse(status_code=404, content={"detail": "表格不存在"})
     return table

@@ -36,6 +36,7 @@ v0.7.0（025）：
 from __future__ import annotations
 
 import json
+import logging
 import math
 import re
 import sqlite3
@@ -53,6 +54,8 @@ from . import (
     version_stage,
 )
 from .errors import WriteError
+
+logger = logging.getLogger("tableflow")
 
 TZ = timezone(timedelta(hours=8))
 FIELD_TYPES = {"text", "number", "datetime", "enum", "relation", "computed"}
@@ -175,18 +178,23 @@ def run_write(
         raise
     except sqlite3.Error as exc:
         conn.rollback()
+        # 090-30：数据库错误原文只进日志，不回显给调用方。
+        logger.exception("写失败（数据库）：action=%s target=%s", action, target)
         _audit_row(
-            conn, agent_id, origin, action, target, payload, "failed", f"数据库错误：{exc}", key_id=key_id
+            conn, agent_id, origin, action, target, payload, "failed",
+            "数据库错误（详情见服务日志）", key_id=key_id,
         )
         _commit_quietly(conn)
-        raise WriteError(f"数据库错误：{exc}") from exc
+        raise WriteError("数据库错误（详情见服务日志）") from exc
     except Exception as exc:  # noqa: BLE001 - 兜底，保证审计
         conn.rollback()
+        logger.exception("写失败（未预期）：action=%s target=%s", action, target)
         _audit_row(
-            conn, agent_id, origin, action, target, payload, "failed", f"未预期错误：{exc}", key_id=key_id
+            conn, agent_id, origin, action, target, payload, "failed",
+            "未预期错误（详情见服务日志）", key_id=key_id,
         )
         _commit_quietly(conn)
-        raise WriteError(f"未预期错误：{exc}") from exc
+        raise WriteError("未预期错误（详情见服务日志）") from exc
     try:
         conn.commit()
     except sqlite3.Error as exc:

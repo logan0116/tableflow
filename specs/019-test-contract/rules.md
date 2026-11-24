@@ -128,8 +128,8 @@
 
 ### S2 复用产物的来源版本必须有效
 
-- **含义**：复用既有产物时，来源版本与当前宪法版本不一致的，必须在证据行写明「已重新确认仍适用」。
-- **判定式**：`evidence[k].startswith('reused:') ⇒ @<version> == 宪法版本 ∨ 行内包含重新确认标记`
+- **含义**：复用既有产物时，证据必须写明来源版本，且来源版本必须等于当前宪法版本；不存在重新确认豁免。
+- **判定式**：`evidence[k].startswith('reused:') ⇒ @<version> == 宪法版本`
 - **实现位置**：`stage_evidence._check_reuse`
-- **反例**：宪法版本已升到 v2，证据仍写 reused:.specify/memory/constitution.md@v1 且没有确认说明
+- **反例**：宪法版本已升到 v2，证据仍写 reused:.specify/memory/constitution.md@v1
 - **执行方**：engine
