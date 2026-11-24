@@ -17,6 +17,7 @@ from _tf_common import (
     advance_node,
     base_parser,
     derive_cases,
+    derive_cases,
     ensure_prior_nodes,
     entry,
     make_client,
@@ -108,10 +109,17 @@ def split_scope(wanted: list[str], version_specs: list[str]) -> tuple[list[str],
     return in_scope, out_of_scope
 
 
-def _reuse_cases(args, report, client, ver) -> None:
+def _reuse_cases(args, report, client, ver, repo_root, indep) -> None:
     """把源版本收录的用例复制到本版：新建 ``<本版>--<用例号>`` 的执行记录。"""
     source = args.reuse_from
     source_runs = ver.relation(source, "测试用例")
+    # 090-20：复用用例必须来自源版本关联规格的验收场景
+    source_specs = ver.relation(source, "独立需求管理")
+    allowed: set[str] = set()
+    for spec_id in source_specs:
+        path = spec_file(repo_root, indep, spec_id)
+        for case in derive_cases(spec_id, path):
+            allowed.add(str(case["id"]))
     report.check("源版本有用例", bool(source_runs), f"{source}：{len(source_runs)} 条")
     if not source_runs:
         raise SkillFailure(f"源版本 {source} 没有收录任何用例，无法复用")
@@ -140,6 +148,18 @@ def _reuse_cases(args, report, client, ver) -> None:
             raise SkillFailure(
                 f"源版本 {source} 没有这些用例，无法复用：{'、'.join(missing)}"
             )
+        if allowed:
+            outside = [item for item in wanted if item not in allowed]
+            report.check(
+                "指定用例属于源版本规格场景",
+                not outside,
+                f"{len(wanted)} 条已确认" if not outside else f"不属于：{'、'.join(outside)}",
+            )
+            if outside:
+                raise SkillFailure(
+                    f"以下用例不属于源版本 {source} 的规格场景，不能复用："
+                    + "、".join(outside)
+                )
         case_ids = sorted(set(wanted))
         report.check("按用例号过滤", True, f"只复用 {len(case_ids)} 条：{'、'.join(case_ids)}")
 
@@ -206,6 +226,7 @@ def main(args, report) -> None:
     repo_root = resolve_repo_root(args.repo_root)
 
     ver = client.table("ver")
+    indep = client.table("indep")
     ver.require(["版本号", "发布状态", NODE, "独立需求管理", "测试用例"])
     require_version(ver, args.version, report)
     require_run_version(args.version)
@@ -213,6 +234,11 @@ def main(args, report) -> None:
 
     version_specs = ver.relation(args.version, "独立需求管理")
     wanted = list(dict.fromkeys(args.spec)) or list(version_specs)
+    if args.reuse_from and wanted:
+        raise SkillFailure(
+            "--reuse-from 只用于无独立需求的修复/回归版本；本版有独立需求或已用 --spec "
+            "指定来源，复用范围会被忽略，拒绝按另一范围执行"
+        )
     # 纯缺陷/回归版本没有新规格：没有用例可派生，测试设计按空集收口。
     fix_only = not wanted and bool(
         ver.relation(args.version, "Bug管理")
@@ -227,7 +253,7 @@ def main(args, report) -> None:
     )
     if not wanted and args.reuse_from:
         # 修复/回归版没有新规格：复用的是既有用例，只为本版新建执行记录。
-        _reuse_cases(args, report, client, ver)
+        _reuse_cases(args, report, client, ver, repo_root, indep)
         return
     if not wanted:
         if not fix_only:

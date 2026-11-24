@@ -110,8 +110,6 @@ def _check_reuse(
     if version_field is None:
         return
     current = str(merged.get(version_field["id"]) or "").strip()
-    if not current:
-        return
     stale: list[str] = []
     for key, value in evidence.items():
         if not value.startswith(REUSE_PREFIX):
@@ -119,6 +117,9 @@ def _check_reuse(
         match = REUSE_VERSION_RE.search(value)
         if match is None:
             stale.append(f"{key}=复用了 {value}，但没写来源版本")
+            continue
+        if not current:
+            # 当前版本没写宪法：不能就此豁免"复用必须写来源版本"；无基准时只校验格式。
             continue
         reused = match.group(1).strip()
         if reused != current:

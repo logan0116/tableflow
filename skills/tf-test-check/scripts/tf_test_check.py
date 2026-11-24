@@ -298,8 +298,8 @@ def main(args, report) -> None:
             report.note("defects_created", created)
 
         # 判定不通过就落 failed：todo 表示「还没验收」，failed 才是「验收没过」。
-        # 停在 todo 会让看板分不清两者（BUG-083-20）。
-        if not args.dry_run:
+        # 停在 todo 会让看板分不清两者（BUG-083-20）；--no-stage 时只判定不写节点。
+        if not args.dry_run and not args.no_stage:
             field = ver.fid(NODE)
             detail = client.write_verified(
                 "update", "ver", args.version, {field: "failed"}, {NODE: "failed"}

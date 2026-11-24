@@ -58,29 +58,38 @@ def merge_evidence(existing: object, updates: dict[str, str]) -> str:
     return "\n".join(lines[key] for key in sorted(lines))
 FR_RE = re.compile(r"^\s*[-*]\s+\*\*FR-\d+", re.I)
 BULLET_RE = re.compile(r"^\s*[-*]\s+\S")
+FR_SECTION_TITLES = ("functional requirements", "功能需求", "需求")
+EDGE_SECTION_TITLES = ("edge cases", "边界情况", "边界")
 
 
 def structure_numbers(path: Path) -> dict:
-    """统计规格的结构条数：功能需求与边界情况。"""
+    """统计规格的结构条数：功能需求与边界情况。
+
+    章节名兼容中英文（本仓 001–013 用中文标题）；段名认不出或段内计 0 时，
+    功能需求按 ``FR-\\d+`` 条目直接计数，避免"有内容但判定 0"。
+    """
+    lines = path.read_text(encoding="utf-8").splitlines()
     fr = edge = 0
     section_level = None   # 当前计数的章节级别：None=不在计数章节
     section = None
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in lines:
         match = HEADING_RE.match(line)
         if match:
             level, title = len(match.group(1)), match.group(2).strip()
             if section_level is not None and level <= section_level:
                 section_level, section = None, None
             low = title.lower()
-            if low.startswith("functional requirements"):
+            if any(low.startswith(item) for item in FR_SECTION_TITLES):
                 section, section_level = "fr", level
-            elif low.startswith("edge cases"):
+            elif any(low.startswith(item) for item in EDGE_SECTION_TITLES):
                 section, section_level = "edge", level
             continue
         if section == "fr" and FR_RE.match(line):
             fr += 1
         elif section == "edge" and BULLET_RE.match(line):
             edge += 1
+    if fr == 0:
+        fr = sum(1 for line in lines if FR_RE.match(line))
     return {"fr": fr, "edge": edge}
 
 

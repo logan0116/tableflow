@@ -57,6 +57,21 @@ def test_structure_numbers_counts_only_named_sections(tmp_path: Path) -> None:
     assert skill.structure_numbers(path) == {"fr": 6, "edge": 3}
 
 
+def test_structure_numbers_accepts_chinese_sections(tmp_path: Path) -> None:
+    text = "## 功能需求\n\n- **FR-001**: 甲\n- **FR-002**: 乙\n\n## 边界情况\n\n- 一\n- 二\n"
+    assert skill.structure_numbers(write(tmp_path, text)) == {"fr": 2, "edge": 2}
+
+
+def test_structure_numbers_falls_back_to_fr_items(tmp_path: Path) -> None:
+    text = "## 需求溯源\n\n- **FR-001**: 甲\n- **FR-002**: 乙\n"
+    assert skill.structure_numbers(write(tmp_path, text))["fr"] == 2
+
+
+def test_structure_numbers_fallback_without_named_section(tmp_path: Path) -> None:
+    text = "## Background\n\n- **FR-001**: 甲\n"
+    assert skill.structure_numbers(write(tmp_path, text))["fr"] == 1
+
+
 def test_structure_numbers_stops_at_same_level_heading(tmp_path: Path) -> None:
     text = GOOD + "\n## Success Criteria\n\n- **SC-001**: 不算功能需求\n- 也不算边界\n"
     path = write(tmp_path, text)

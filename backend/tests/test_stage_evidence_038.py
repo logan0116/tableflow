@@ -197,6 +197,27 @@ def test_stale_reuse_requires_reconfirmation(tmp_path, monkeypatch) -> None:
         assert "S2" in confirmed.json()["error"]
 
 
+def test_empty_constitution_still_requires_reuse_source_version(tmp_path, monkeypatch) -> None:
+    """090-08：当前宪法为空时，缺少来源 @版本 的 reused 证据仍须拒绝。"""
+    db = tmp_path / "stage_reuse_no_cv.db"
+    data = project([{"id": "038-AR", "values": {"i-id": "038-AR", "i-plan": "todo",
+                                                "i-accept": "pending"}}])
+    table = data["projects"][0]["tables"][0]
+    table["fields"].append({"id": "i-cv", "name": "宪法版本", "type": "text",
+                            "options": None, "order": 6, "visible": 1})
+    write_seed(db, data)
+    monkeypatch.setenv("TABLEFLOW_DB", str(db))
+    with TestClient(app) as client:
+        resp = client.patch(
+            "/api/agent/tables/e-indep/rows/038-AR",
+            json={"values": {"i-evidence": "plan=reused:.specify/memory/constitution.md",
+                             "i-plan": "done"}},
+            headers=HEADERS,
+        )
+        assert resp.status_code == 400, resp.text
+        assert "没写来源版本" in resp.json()["error"]
+
+
 def test_038_us1_as1_report_returns_plan_evidence(env) -> None:
     """US1-AS1：plan 为 done 时，查询证据能返回 plan.md 路径。"""
     assert patch(env, {"i-evidence": "plan=specs/038/plan.md（回链 11 条场景）",

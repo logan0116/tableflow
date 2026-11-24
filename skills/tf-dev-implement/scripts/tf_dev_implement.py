@@ -232,20 +232,23 @@ def run_tests(repo_root: Path, cmd: str | None, timeout: int) -> tuple[bool, str
     return proc.returncode == 0, command, tail
 
 
-def _close_fix_version(args, report, client, ver, repo_root, bug_ids, dep_ids) -> None:
-    """缺陷修复/变更版本没有独立需求时的开发收口。
+def _close_fix_version(
+    args, report, client, ver, repo_root, bug_ids, dep_ids, run_ids
+) -> None:
+    """缺陷修复/变更/纯回归版本没有独立需求时的开发收口。
 
-    判据：本版缺陷全部脱离 open（fixing/verifying/closed），且单测通过——
-    "修好了"由机器可验证的两件事支撑：状态真的动了、单测真的过了。
+    判据：本版缺陷全部脱离 open（fixing/verifying/closed），或本版已有执行记录
+    （纯回归版本），且单测通过——"修好了"由机器可验证的两件事支撑：状态真的动了、
+    单测真的过了。
     """
     report.check(
-        "版本已关联缺陷或变更单",
-        bool(bug_ids or dep_ids),
-        f"缺陷 {len(bug_ids)} 条 / 变更单 {len(dep_ids)} 条",
+        "版本已关联缺陷、变更单或既有用例",
+        bool(bug_ids or dep_ids or run_ids),
+        f"缺陷 {len(bug_ids)} 条 / 变更单 {len(dep_ids)} 条 / 执行记录 {len(run_ids)} 条",
     )
-    if not (bug_ids or dep_ids):
+    if not (bug_ids or dep_ids or run_ids):
         raise SkillFailure(
-            "版本未关联任何独立规格需求、缺陷或变更单，没有可推进的开发工作"
+            "版本未关联任何独立规格需求、缺陷、变更单或既有用例，没有可推进的开发工作"
         )
 
     if bug_ids:
@@ -305,12 +308,15 @@ def main(args, report) -> None:
     wanted = list(dict.fromkeys(args.spec)) or list(version_specs)
     version_bugs = ver.relation(args.version, "Bug管理")
     version_deps = ver.relation(args.version, "依赖需求管理")
+    version_runs = ver.relation(args.version, "测试用例")
     # FR-010：单份（或部分）规格完成不得代替版本完成，子集模式下只写各规格状态、不推进版本节点
     full_scope = set(wanted) == set(version_specs)
     report.check("版本已关联规格", bool(wanted), f"{len(wanted)} 份：{'、'.join(wanted) or '无'}")
     if not wanted:
         # 没有独立需求时，本版是缺陷修复/变更版本：修 bug 本身就是开发工作（034/037）。
-        _close_fix_version(args, report, client, ver, repo_root, version_bugs, version_deps)
+        _close_fix_version(
+            args, report, client, ver, repo_root, version_bugs, version_deps, version_runs
+        )
         return
     for spec_id in wanted:
         attached = spec_id in version_specs
