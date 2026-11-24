@@ -1,6 +1,6 @@
 ---
 name: tf-dev-implement
-description: "推进 tableflow board@4 版本第 3 节点「开发」（软件开发角色）：驱动 speckit 实现侧全流程 plan → tasks → implement——按 spec.md 场景生成并校验 plan.md 与 tasks.md，要求任务全部勾选且单测通过，然后写 indep 的 speckit-plan/task/implement 状态与 ver.开发=done 并回读。支持 --plan-only、--force-plan、--force-tasks、--test-cmd、--dry-run、--spec、--no-stage。触发词：tf-dev-implement、开发完成、第3节点、实现状态、任务清单、开发节点、生成计划、生成任务。"
+description: "推进 tableflow board@5 版本第 3 节点「开发」（软件开发角色）：驱动 speckit 实现侧全流程 plan → tasks → implement——按 spec.md 场景生成并校验 plan.md 与 tasks.md，要求任务全部勾选且单测通过，然后写 indep 的 speckit-plan/task/implement 状态与 ver.开发=done 并回读。支持 --plan-only、--force-plan、--force-tasks、--test-cmd、--dry-run、--spec、--no-stage；版本没有独立需求时按缺陷/变更单收口。触发词：tf-dev-implement、开发完成、第3节点、实现状态、任务清单、开发节点、生成计划、生成任务。"
 ---
 
 # tf-dev-implement：开发做完了吗？
@@ -11,7 +11,7 @@ description: "推进 tableflow board@4 版本第 3 节点「开发」（软件�
 - 节点：`ver.stage.dev`（字段名「开发」）
 - 表作用域：读/写 `版本管理`/`独立规格需求`；不碰 `dep`/`case`/`run`/`bug`
 - 本地作用域：读 `specs/<dir>/spec.md`；写 `specs/<dir>/plan.md`、`specs/<dir>/tasks.md`
-- 口径来源：需求 042-AR、board@4 `rules.version_stage_serial`
+- 口径来源：需求 042-AR、board@5 `rules.version_stage_serial`
 
 ## 三个阶段
 
@@ -24,6 +24,10 @@ description: "推进 tableflow board@4 版本第 3 节点「开发」（软件�
 `plan.md`/`tasks.md` 是**生成物**：不存在就生成骨架（`（待补）` 占位），已存在则沿用并只做校验——人工补充内容不会被覆盖。要重生成必须显式 `--force-plan`/`--force-tasks`。
 
 生成后的骨架必须由开发填写实现要点并逐条勾选，本技能不代填、不代勾。
+
+**骨架不算完成**：本轮刚生成的 `plan.md`、或仍有「（待补）」占位的 `plan.md`，都判 `plan` 未完成并停下——补全后重跑。这条保证「先完成计划，再确认任务」不被跳过。
+
+**缺陷修复版**：版本没有独立需求时（如修复版），本技能按缺陷收口——判据是「本版缺陷全部脱离 `open`（fixing/verifying/closed）」+ 单测通过；缺陷仍是 `open` 就拒绝，因为状态没动过就没有修复证据。
 
 ## 何时用
 
@@ -43,7 +47,8 @@ description: "推进 tableflow board@4 版本第 3 节点「开发」（软件�
 |---|---|---|
 | 版本 | 存在且 `planned` | `failed`，零写入 |
 | 前序节点 | `版本需求设计`、`测试设计` 均 `done` | `failed`，指出缺哪个 |
-| 规格挂载 | `--spec` 指定的规格在 `ver.独立需求管理` 中 | `failed` |
+| 工作项 | 版本关联独立需求、缺陷或变更单至少一项 | `failed`，指出缺什么 |
+| 缺陷修复版 | 无独立需求时：本版缺陷全部脱离 `open`，且单测通过 | `failed`，列出仍待修的缺陷 |
 | 规格真源 | `specs/<dir>/spec.md` 存在且有 Acceptance Scenario | `failed` |
 | plan 回链 | `plan.md` 含该规格全部场景号 | `failed`，列出缺失场景号 |
 | tasks 回链 | `tasks.md` 含该规格全部场景号 | `failed` |
@@ -147,7 +152,7 @@ python3 skills/tf-dev-implement/scripts/tf_dev_implement.py --version v0.8.0 \
 | 空 `tasks.md` | `- [x]` 为零视为未完成；空清单不是「全部完成」 |
 | 用单测以外的证据 | 单测是 implement 的唯一机器可验证证据；文档类豁免要写在 `plan.md` 的验证方式里 |
 | 只跑一份规格就推进版本 | 子集模式按 FR-010 不推进节点；版本完成要求全部规格 |
-| 直接连数据库 | 只走 HTTP；缺表/缺字段报「项目未迁到 board@4」 |
+| 直接连数据库 | 只走 HTTP；缺表/缺字段报「项目未迁到 board@5」 |
 | 打印凭据 | 严禁打印 `TF_API_KEY`/请求头 |
 
 ## 不做

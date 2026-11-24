@@ -1,6 +1,6 @@
 ---
 name: tf-test-implement
-description: "推进 tableflow board@4 版本第 5 节点「测试」（软件测试角色）：把指定用例在目标版本的 run 行写成执行状态=done、执行结果 pass/fail/blocked/skip、证据/时间/执行人，全部执行后写 ver.测试=done 并回读。重跑就地更新，不新建；pass 必须带证据。触发词：tf-test-implement、测试执行、第5节点、跑用例、执行结果、run.state、测试节点。"
+description: "推进 tableflow board@5 版本第 5 节点「测试」（软件测试角色）：把指定用例在目标版本的 run 行写成执行状态=done、执行结果 pass/fail/blocked/skip、证据/时间/执行人，全部执行后写 ver.测试=done 并回读。重跑就地更新，不新建；pass 必须带证据。触发词：tf-test-implement、测试执行、第5节点、跑用例、执行结果、run.state、测试节点。"
 ---
 
 # tf-test-implement：用例跑完了吗？
@@ -105,7 +105,7 @@ python3 skills/tf-test-implement/scripts/tf_test_implement.py \
 | 同一版本重复建执行记录 | 行 id 固定；重跑就地更新 |
 | 把 `fail` 当节点不推进 | 节点只看 `state`；`fail` 不阻止「测试」节点，但会进缺陷流程 |
 | `pass` 不带证据 | 技能拒绝；证据是后续复核的唯一凭据 |
-| 直接连数据库 | 只走 HTTP；缺表/缺字段报「项目未迁到 board@4」 |
+| 直接连数据库 | 只走 HTTP；缺表/缺字段报「项目未迁到 board@5」 |
 | 打印凭据 | 严禁打印 `TF_API_KEY`/请求头 |
 
 ## 不做

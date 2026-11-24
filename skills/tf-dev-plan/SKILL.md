@@ -1,6 +1,6 @@
 ---
 name: tf-dev-plan
-description: "推进 tableflow board@4 版本第 1 节点「版本需求设计」（系统工程角色）：校验版本范围与需求挂载（规格目录/spec.md/验收场景/变更单条款）、按需求 039 校验规格结构下限，驱动 spec 侧五个阶段字段（constitution/specify/clarify/analyze/checklist），再写 ver.版本需求设计=done 并回读。支持 --dry-run 零写入预览。触发词：tf-dev-plan、版本需求设计、版本范围、需求挂载、推进第1节点、研发计划、规格结构、specify 状态。"
+description: "推进 tableflow board@5 版本第 1 节点「版本需求设计」（系统工程角色）：校验版本范围与需求挂载（规格目录/spec.md/验收场景/变更单条款）、按需求 039 校验规格结构下限，驱动 spec 侧五个阶段字段（constitution/specify/clarify/analyze/checklist），再写 ver.版本需求设计=done 并回读。支持 --dry-run 零写入预览。触发词：tf-dev-plan、版本需求设计、版本范围、需求挂载、推进第1节点、研发计划、规格结构、specify 状态。"
 ---
 
 # tf-dev-plan：版本范围确定了吗？
@@ -10,7 +10,7 @@ description: "推进 tableflow board@4 版本第 1 节点「版本需求设计�
 - 角色：系统工程
 - 节点：`ver.stage.plan`（字段名「版本需求设计」，四态 `todo/doing/done/failed`）
 - 表作用域：读 `版本管理`/`独立规格需求`/`依赖需求`；写 `版本管理` 的节点，以及 `独立规格需求` 的 5 个 spec 侧阶段字段
-- 口径来源：`specs/019-test-contract/board@4.yaml`（`tables.ver.fields` 第 3 项、`rules.version_stage_serial`）
+- 口径来源：`specs/019-test-contract/board@5.yaml`（`tables.ver.fields` 第 3 项、`rules.version_stage_serial`）
 
 ## 何时用
 
@@ -32,7 +32,8 @@ description: "推进 tableflow board@4 版本第 1 节点「版本需求设计�
 | 版本存在 | `版本号` 行 id 命中 | `failed`，零写入 |
 | 发布状态 | `planned` | `failed`（不动 released/dropped 版本） |
 | 前序节点 | 第 1 节点无前序 | — |
-| 版本范围 | `独立需求管理` 或 `依赖需求管理` 至少一条 | `failed`，零写入 |
+| 版本范围 | `独立需求管理` / `依赖需求管理` / `Bug管理` / `测试用例` 至少一项非空 | `failed`，零写入 |
+| 修复/回归版 | 无新规格时，本版缺陷必须都有复现证据 | `failed`，列出缺证据的缺陷 |
 | 规格就绪 | 每条规格的 `规格目录` 非空、`specs/<dir>/spec.md` 存在且有 Acceptance Scenario | `failed` |
 | 变更单就绪 | 每条变更单 `条款` 非空、`关联的独立规格需求` 非空且目标存在 | `failed` |
 | 场景数漂移 | 看板 `场景数` 与实测不一致时写入 `scene_drift`（提示，不阻断） | — |
@@ -60,6 +61,11 @@ python3 skills/tf-dev-plan/scripts/tf_dev_plan.py --version v0.7.0 --no-stage
 > `--apply` 是写模式的显式别名（不传也写）；`--dry-run` 优先于 `--apply`。
 
 退出码：`0` = `result=success`；`1` = `failed`；`2` = `unknown`。
+
+## 修复版与回归版
+
+没有新规格交付的版本（修复版、纯回归版）不再被拒：范围由 `Bug管理` 或已收录的 `测试用例` 界定。
+有缺陷时先校验每条缺陷都有复现证据（`证据` 字段非空），缺证据直接 `failed`——没有复现就不能算「范围已确定」。
 
 ## 写什么、怎么回读
 
@@ -112,6 +118,6 @@ python3 skills/tf-dev-plan/scripts/tf_dev_plan.py --version v0.7.0 --no-stage
 
 - 不撰写或修改 `spec.md` 内容；规格由需求方写，本技能只校验与登记。
 - 不直接连 SQLite（`data/tableflow.db` 只属于服务端）。
-- 不建表/不建字段/不改契约；缺表缺字段直接报「项目未迁到 board@4」。
+- 不建表/不建字段/不改契约；缺表缺字段直接报「项目未迁到 board@5」。
 - 不写 `indep.验收状态`，不写 `dep.回归状态`。
 - 不推进第 2-6 节点（各有对应技能）。

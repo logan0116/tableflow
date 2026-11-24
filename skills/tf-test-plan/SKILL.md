@@ -1,6 +1,6 @@
 ---
 name: tf-test-plan
-description: "推进 tableflow board@4 版本第 2 节点「测试设计」（软件测试角色）：把 specs/<dir>/spec.md 的 Acceptance Scenario 按场景号幂等派生为 case 行，再为每条用例建 run 行（<版本号>--<用例号>，state=todo）并追加到 ver.runs，最后写 ver.测试设计=done 并回读。重复运行第二次新建 0 条；源场景消失只报告不静默删；不建测试计划。触发词：tf-test-plan、测试设计、派生用例、场景转用例、纳入版本、第2节点、用例幂等。"
+description: "推进 tableflow board@5 版本第 2 节点「测试设计」（软件测试角色）：把 specs/<dir>/spec.md 的 Acceptance Scenario 按场景号幂等派生为 case 行，再为每条用例建 run 行（<版本号>--<用例号>，state=todo）并追加到 ver.runs，最后写 ver.测试设计=done 并回读。重复运行第二次新建 0 条；源场景消失只报告不静默删；不建测试计划。触发词：tf-test-plan、测试设计、派生用例、场景转用例、纳入版本、第2节点、用例幂等。"
 ---
 
 # tf-test-plan：把规格场景变成版本可执行的用例
@@ -10,7 +10,7 @@ description: "推进 tableflow board@4 版本第 2 节点「测试设计」（�
 - 角色：软件测试
 - 节点：`ver.stage.test_design`（字段名「测试设计」）
 - 表作用域：读 `版本管理`/`独立规格需求`/`测试用例`/`用例执行情况`；写 `测试用例`/`用例执行情况`/`版本管理`
-- 口径来源：`specs/019-test-contract/board@4.yaml` 的 `rules.case_projection`、`conventions.run_two_step_write`、`rules.run_one_per_version_case`
+- 口径来源：`specs/019-test-contract/board@5.yaml` 的 `rules.case_projection`、`conventions.run_two_step_write`、`rules.run_one_per_version_case`
 - **不建测试计划**：board@4 没有 `plan` 表；版本的执行范围就是 `ver.runs`
 
 ## 何时用
@@ -43,6 +43,8 @@ description: "推进 tableflow board@4 版本第 2 节点「测试设计」（�
 | 空集语义 | 本版没纳入用例时 `用例总数=0`、`已完成=0`、`用例是否完成=真`，由计算字段承担 |
 | 交付范围与测试范围分离（035） | 来源规格不在 `ver.独立需求管理` 时照常派生，报告列进 `out_of_scope_specs`；来源能力未验收时列进 `unaccepted_specs`，均不阻断 |
 | 纯回归版本 | 本版交付范围为空、只用 `--spec` 指定来源时照常执行；但两者都为空则 `failed`（无处派生） |
+| 修复版复用既有用例 | `--reuse-from <版本>`：把源版本收录的用例复制成本版的执行记录（`<本版>--<用例号>`），不重新派生 `case` |
+| 精确复用 | `--reuse-from` 可配 `--case <用例号>`（可重复）只复用指定用例；指定的用例不在源版本时 `failed`，不静默跳过 |
 
 ## 命令
 
@@ -59,11 +61,17 @@ python3 skills/tf-test-plan/scripts/tf_test_plan.py --version v0.7.0 --spec 019-
 
 # 版本内全部规格；只做用例不推进节点
 python3 skills/tf-test-plan/scripts/tf_test_plan.py --version v0.7.0 --no-stage
+
+# 修复版：复用上一版的用例，只挑与本版缺陷相关的几条
+python3 skills/tf-test-plan/scripts/tf_test_plan.py --version v0.8.5 \
+  --reuse-from v0.8.3 --case 083-US2-AS1 --case 083-US3-AS1 --apply
 ```
 
 > `--apply` 是写模式的显式别名（不传也写）；`--dry-run` 优先于 `--apply`。
 
 `--spec` 可重复；不传则处理 `ver.独立需求管理` 的全部规格。传入的规格必须已挂在版本上，否则 `failed`（防止用例进错版本）。
+
+`--reuse-from` 用于修复/回归版：本版没有新规格时，从源版本复制用例的执行记录。它与 `--spec` 互斥——给了 `--reuse-from` 就不再派生。
 
 ## 写与回读
 
@@ -130,5 +138,5 @@ PY
 
 - 不建表、不建字段、不建测试计划。
 - 不执行用例、不写 `run.result`。
-- 不直接连数据库；缺表/缺字段直接报「项目未迁到 board@4」。
+- 不直接连数据库；缺表/缺字段直接报「项目未迁到 board@5」。
 - 不修改 `indep.验收状态` 或 `bug.status`。

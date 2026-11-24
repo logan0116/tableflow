@@ -1,16 +1,16 @@
 ---
 name: tf-test-check
-description: "推进 tableflow board@4 版本第 6 节点「测试验收」（软件测试角色）：客户端复算本版用例是否全部执行、Bug 管理是否全部 closed、变更单回归是否全部 passed，三条同时成立才写 ver.测试验收=done 并回读六节点与 stage_done。只读缺陷/变更状态，不代写通过。触发词：tf-test-check、测试验收、第6节点、缺陷清零、回归通过、发布闸门、gate。"
+description: "推进 tableflow board@5 版本第 6 节点「测试验收」（软件测试角色）：客户端复算本版用例是否全部执行、Bug 管理是否全部 closed、变更单回归是否全部 passed，三条同时成立才写 ver.测试验收=done 并回读六节点与 stage_done。只读缺陷/变更状态，不代写通过。触发词：tf-test-check、测试验收、第6节点、缺陷清零、回归通过、发布闸门、gate。"
 ---
 
 # tf-test-check：这版能验收了吗？
 
-第 6 节点「测试验收」同时要求三件事：本版用例全执行、本版 Bug 管理全 `closed`、本版变更单全 `passed`。本技能只在客户端按 board@4 规则**复算**这三条，全真才推进节点；看板计算字段只作对照。
+第 6 节点「测试验收」同时要求三件事：本版用例全执行、本版 Bug 管理全 `closed`、本版变更单全 `passed`。本技能只在客户端按 board@5 规则**复算**这三条，全真才推进节点；看板计算字段只作对照。
 
 - 角色：软件测试
 - 节点：`ver.stage.test_accept`（字段名「测试验收」）
 - 表作用域：读 `版本管理`/`用例执行情况`/`依赖需求`/`缺陷`；**只写** `版本管理`
-- 口径来源：board@4 `rules.case_done`、`rules.bug_done`、`rules.change_done`、`rules.version_stage_gate_consistency`、`rules.empty_set`
+- 口径来源：board@5 `rules.case_done`、`rules.bug_done`、`rules.change_done`、`rules.version_stage_gate_consistency`、`rules.empty_set`
 
 ## 何时用
 
@@ -53,6 +53,12 @@ python3 skills/tf-test-check/scripts/tf_test_check.py --version v0.7.0 --apply  
 ```
 
 > `--apply` 是写模式的显式别名（不传也写）；`--dry-run` 优先于 `--apply`。
+
+## 判定不通过时写什么
+
+四项闸门（用例全部执行、缺陷全部 closed、变更回归全部 passed、执行结果 pass 或有效放行）任一不满足，
+先把 `测试验收` 写成 `failed`，再以 `failed` 退出——`todo` 表示「还没验收」，`failed` 才是「验收没过」，
+两者必须能区分。`--dry-run` 不写。
 
 ## 写与回读
 
