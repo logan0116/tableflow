@@ -96,6 +96,7 @@ def will_write(args) -> bool:
 
 
 def do_drop(args, report, client, ver, indep) -> None:
+    """放弃独立需求：走后端原子动作，一次请求完成摘关系与置 dropped。"""
     spec_id = args.spec
     if not spec_id or not indep.row_exists(spec_id):
         raise SkillFailure("drop 需要一个存在的 --spec")
@@ -106,40 +107,30 @@ def do_drop(args, report, client, ver, indep) -> None:
 
     holding = holders(ver, spec_id)
     report.note("holders", holding)
-    for version_id in holding:
-        current = ver.relation(version_id, "独立需求管理") or []
-        remaining = [item for item in current if item != spec_id]
-        report.check(f"从 {version_id} 摘除", True, f"{current} -> {remaining}")
-        if not will_write(args):
-            report.write(f"ver/{version_id}", "独立需求管理", remaining, "skipped", error="dry-run：未写")
-            continue
-        detail = client.write_verified(
-            "update", "ver", version_id,
-            {ver.fid("独立需求管理"): remaining},
-            {"独立需求管理": remaining},
-        )
-        report.write(f"ver/{version_id}", "独立需求管理", remaining, detail["state"], detail.get("http"), detail.get("error"))
-        if detail["state"] != "success":
-            raise SkillFailure(f"摘除 {version_id} 失败：{detail.get('error')}", state=detail["state"])
+    report.check("持有版本", True, f"{len(holding)} 个：{'、'.join(holding) or '无'}")
 
     now = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
-    values = {indep.fid("验收状态"): "dropped"}
-    if indep.fid("放弃理由", required=False):
-        values[indep.fid("放弃理由")] = args.reason
-    if indep.fid("放弃时间", required=False):
-        values[indep.fid("放弃时间")] = now
-    report.note("plan", f"{spec_id} -> dropped，理由与时间写入")
     if not will_write(args):
         report.write(f"indep/{spec_id}", "验收状态", "dropped", "skipped", error="dry-run：未写")
         report.finish("success")
         return
-    detail = client.write_verified(
-        "update", "indep", spec_id, values,
-        {"验收状态": "dropped"},
+
+    resp = client._request(
+        "POST",
+        f"/api/agent/tables/{indep.table_id}/rows/{spec_id}/drop",
+        {"reason": args.reason, "at": now},
     )
-    report.write(f"indep/{spec_id}", "验收状态", "dropped", detail["state"], detail.get("http"), detail.get("error"))
-    if detail["state"] != "success":
-        raise SkillFailure(f"置 dropped 失败：{detail.get('error')}", state=detail["state"])
+    if resp.get("state") != "success":
+        raise SkillFailure(
+            f"放弃 {spec_id} 失败：{resp.get('error') or '回读不一致'}",
+            state=resp.get("state"),
+        )
+    detached = (resp.get("payload") or {}).get("versions") or []
+    report.write(
+        f"indep/{spec_id}", "验收状态", "dropped", "success", resp.get("http"),
+        error=None,
+    )
+    report.note("detached_versions", detached)
     report.finish("success")
 
 

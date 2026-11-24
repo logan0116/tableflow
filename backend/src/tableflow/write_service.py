@@ -867,6 +867,22 @@ def _changes_for_create(
         )
 
 
+def drop_spec_row(
+    conn: sqlite3.Connection,
+    table_id: str,
+    row_id: str,
+    body: dict[str, Any],
+    *,
+    actor: str,
+    origin: str,
+) -> dict[str, Any]:
+    """原子放弃独立需求：一次请求完成摘关系与置 dropped（034 原子性）。"""
+    result = spec_lifecycle.drop_spec(
+        conn, table_id, row_id, reason=body.get("reason"), at=body.get("at")
+    )
+    return {"result": "success", "id": row_id, **result}
+
+
 def create_row(
     conn: sqlite3.Connection,
     table_id: str,

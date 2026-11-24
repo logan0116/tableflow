@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
 from typing import Any
@@ -321,6 +322,93 @@ SPLIT_LINE_RE = re.compile(r"^(\S+)\s+移交\s+(.+?)\s*->\s*(\S+)\s*$")
 SPLIT_LOG_NAME = "拆分记录"
 ABANDON_REASON_NAME = "放弃理由"
 ABANDONED_AT_NAME = "放弃时间"
+
+
+def drop_spec(
+    conn: sqlite3.Connection,
+    table_id: str,
+    row_id: str,
+    *,
+    reason: Any,
+    at: Any,
+) -> dict[str, Any]:
+    """原子放弃：摘除本项目所有未发布版本的关系，再把需求置 dropped。
+
+    在调用方的事务内执行——任一步失败，调用方回滚，版本关系与验收状态都不变。
+    已发布版本仍持有时拒绝：发布历史不可回写。
+    """
+    fields = _table_fields(conn, table_id)
+    acceptance = _acceptance_field(fields)
+    if acceptance is None:
+        raise WriteError(f"表 {table_id} 没有验收状态，不是独立需求表")
+    row = conn.execute(
+        "SELECT data FROM row_records WHERE table_id = ? AND id = ?", (table_id, row_id)
+    ).fetchone()
+    if row is None:
+        raise WriteError(f"独立需求 {row_id} 不存在")
+    data = _loads(row["data"]) or {}
+    if data.get(acceptance["id"]) == "dropped":
+        return {"versions": [], "already": True}
+
+    reason_text = str(reason or "").strip()
+    at_text = str(at or "").strip()
+    if not reason_text:
+        raise WriteError(f"L2：放弃独立需求 {row_id} 必须给出理由")
+    if not at_text:
+        raise WriteError(f"L2：放弃独立需求 {row_id} 必须给出时间")
+
+    project_id = _project_of(conn, table_id)
+    plan: list[tuple[str, str, dict[str, Any], str, list[str]]] = []
+    released: list[str] = []
+    for version_table_id, version_fields in _version_tables(conn, project_id):
+        relation = next(
+            (
+                field for field in version_fields.values()
+                if field["type"] == "relation" and _target_table_id(field) == table_id
+            ),
+            None,
+        )
+        if relation is None:
+            continue
+        status_field = _by_name(version_fields, "发布状态")
+        for version_row in conn.execute(
+            "SELECT id, data FROM row_records WHERE table_id = ?", (version_table_id,)
+        ).fetchall():
+            version_values = _loads(version_row["data"]) or {}
+            if row_id not in (version_values.get(relation["id"]) or []):
+                continue
+            status = version_values.get(status_field["id"]) if status_field else None
+            if status == "released":
+                released.append(version_row["id"])
+                continue
+            remaining = [item for item in version_values[relation["id"]] if item != row_id]
+            plan.append((version_table_id, version_row["id"], version_values, relation["id"], remaining))
+
+    if released:
+        raise WriteError(
+            f"L7：已发布版本 {'、'.join(released)} 仍持有 {row_id}，发布历史不可回写；"
+            "放弃需在新版本里处理，不能改已发布版本的范围"
+        )
+
+    for version_table_id, version_id, version_values, relation_id, remaining in plan:
+        version_values[relation_id] = remaining
+        conn.execute(
+            "UPDATE row_records SET data = ? WHERE table_id = ? AND id = ?",
+            (json.dumps(version_values, ensure_ascii=False), version_table_id, version_id),
+        )
+
+    data[acceptance["id"]] = "dropped"
+    reason_field = _by_name(fields, DROP_REASON_NAME)
+    at_field = _by_name(fields, DROPPED_AT_NAME)
+    if reason_field is not None:
+        data[reason_field["id"]] = reason_text
+    if at_field is not None:
+        data[at_field["id"]] = at_text
+    conn.execute(
+        "UPDATE row_records SET data = ? WHERE table_id = ? AND id = ?",
+        (json.dumps(data, ensure_ascii=False), table_id, row_id),
+    )
+    return {"versions": [item[1] for item in plan], "already": False}
 
 
 def _indep_table_of(

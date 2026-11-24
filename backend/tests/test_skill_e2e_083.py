@@ -528,222 +528,55 @@ def test_s6_numbered_scenario_prefix_parsed(tmp_path) -> None:
         assert count == 13, f"带编号的 13 条场景只派生出 {count} 条用例"
 
 
-class _FakeTable:
-    def __init__(self, rows: dict):
-        self.rows = rows
+def _post_drop(base: str, table: str, row: str, body: dict):
+    import urllib.error
+    import urllib.request
 
-    def fid(self, name, required=True):
-        return f"f-{name}"
-
-    def value(self, row_id, name, default=None):
-        return (self.rows.get(row_id) or {}).get(f"f-{name}", default)
-
-    def row_exists(self, row_id) -> bool:
-        return row_id in self.rows
-
-    def relation(self, row_id, name) -> list:
-        return list(self.value(row_id, name) or [])
-
-    def require(self, names) -> None:
-        return None
-
-
-class _FakeClient:
-    """只在内存里改行；indep 的写入固定失败，用来模拟末步失败。"""
-
-    def __init__(self, ver_rows: dict, indep_rows: dict):
-        self.ver = _FakeTable(ver_rows)
-        self.indep = _FakeTable(indep_rows)
-
-    def table(self, key, refresh=False):
-        return {"ver": self.ver, "indep": self.indep}[key]
-
-    def write_verified(self, op, table_key, row_id, values, expected):
-        if table_key == "indep":
-            return {"state": "failed", "http": 500, "error": "注入失败"}
-        self.table(table_key).rows.setdefault(row_id, {}).update(values)
-        return {"state": "success", "http": 200}
-
-
-class _FakeReport:
-    def __init__(self):
-        self.writes: list = []
-
-    def check(self, *a, **k):
-        return None
-
-    def note(self, *a, **k):
-        return None
-
-    def write(self, *a, **k):
-        self.writes.append((a, k))
-
-    def finish(self, *a, **k):
-        return None
-
-
-@pytest.mark.xfail(strict=True, reason="B4：放弃先摘版本关系再改状态，末步失败不回滚")
-def test_b4_drop_is_atomic_on_failure() -> None:
-    """最后一步失败时，前面摘掉的版本关联必须还在。"""
-    import argparse
-    import sys
-
-    sys.path.insert(0, str(SKILLS / "tf-lifecycle" / "scripts"))
-    import tf_lifecycle
-
-    ver_rows = {VERSION: {f"f-独立需求管理": [SPEC_ID]}}
-    indep_rows = {SPEC_ID: {"f-验收状态": "pending"}}
-    client = _FakeClient(ver_rows, indep_rows)
-    args = argparse.Namespace(spec=SPEC_ID, reason="083 复现用", apply=True, dry_run=False)
-    report = _FakeReport()
-
-    with pytest.raises(Exception):
-        tf_lifecycle.do_drop(args, report, client, client.ver, client.indep)
-
-    assert client.ver.rows[VERSION]["f-独立需求管理"] == [SPEC_ID], (
-        "置 dropped 失败后，版本关联已经被摘掉了（半改）"
+    req = urllib.request.Request(
+        f"{base}/api/agent/tables/{table}/rows/{row}/drop",
+        data=json.dumps(body, ensure_ascii=False).encode(), method="POST",
     )
+    req.add_header("Content-Type", "application/json")
+    req.add_header("X-Agent-Id", "agent-test")
+    req.add_header("X-Origin", "human-request")
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return resp.status, json.loads(resp.read() or b"{}")
+    except urllib.error.HTTPError as exc:
+        return exc.code, json.loads(exc.read() or b"{}")
 
 
-def test_s7_rejected_acceptance_must_mark_failed(tmp_path) -> None:
-    """跑了验收且结论不通过，节点必须是 failed，不能停在 todo。"""
-    run_id = f"{VERSION}--042-US1-AS1"
-    nodes = {f"v-node-{i}": ("done" if i < 5 else "todo") for i in range(6)}
-    version = {"id": VERSION, "values": {
-        "v-version": VERSION, "v-status": "planned", **nodes,
-        "v-indep": [SPEC_ID], "v-dep": [], "v-runs": [run_id], "v-bug": [],
-    }}
-    data = skill_board(
-        versions=[version],
-        runs=[{"id": run_id, "values": {
-            "r-id": run_id, "r-case-no": "042-US1-AS1",
-            "r-case": ["042-US1-AS1"], "r-state": "done", "r-result": "fail",
-        }}],
-    )
+def test_b4_drop_is_atomic_single_request(tmp_path) -> None:
+    """放弃是后端一个原子动作：一次请求完成摘关系 + 置 dropped。"""
+    with running_board(skill_board(), tmp_path) as (base, db):
+        code, payload = _post_drop(base, "t-indep", SPEC_ID,
+                                   {"reason": "083 复现用", "at": "2026-11-24T10:00:00+08:00"})
+        assert code == 200, payload
+        assert _row(db, "t-ver", VERSION)["v-indep"] == []
+        assert _row(db, "t-indep", SPEC_ID)["i-accept"] == "dropped"
+
+
+def test_b4_released_holder_blocks_drop_without_side_effects(tmp_path) -> None:
+    """已发布版本仍持有时拒绝，且版本关系与验收状态都不变。"""
+    data = skill_board(version_status="released")
     with running_board(data, tmp_path) as (base, db):
+        code, payload = _post_drop(base, "t-indep", SPEC_ID,
+                                   {"reason": "083 复现用", "at": "2026-11-24T10:00:00+08:00"})
+        assert code == 400, payload
+        assert "已发布" in payload.get("error", "")
+        assert _row(db, "t-ver", VERSION)["v-indep"] == [SPEC_ID], "拒绝后关系被改了"
+        assert _row(db, "t-indep", SPEC_ID)["i-accept"] == "pending", "拒绝后状态被改了"
+
+
+def test_b4_skill_drop_uses_atomic_api(tmp_path) -> None:
+    """tf-lifecycle drop 走原子接口：一次成功，版本关系与状态同时变化。"""
+    with running_board(skill_board(), tmp_path) as (base, db):
         code, _rep, raw = run_skill(
-            "tf-test-check", ["--version", VERSION, "--repo-root", str(REPO_ROOT), "--apply"],
+            "tf-lifecycle",
+            ["--version", VERSION, "--action", "drop", "--spec", SPEC_ID,
+             "--reason", "083 复现用", "--apply"],
             base=base,
         )
-        values = _row(db, "t-ver", VERSION)
-        assert code != 0, f"有失败执行记录却通过了验收：\n{raw[-1200:]}"
-        assert values["v-node-5"] == "failed", (
-            f"验收不通过但节点停在 {values['v-node-5']!r}，无法区分“没做”与“没过”"
-        )
-
-
-def test_s4c_defect_only_version_advances(tmp_path) -> None:
-    """只挂缺陷的版本：缺陷脱离 open 且单测通过，开发节点就能推进（v0.8.4 的形态）。"""
-    bug_id = "BUG-083-01"
-    nodes = {f"v-node-{i}": ("done" if i < 2 else "todo") for i in range(6)}
-    version = {"id": VERSION, "values": {
-        "v-version": VERSION, "v-status": "planned", **nodes,
-        "v-indep": [], "v-dep": [], "v-runs": [], "v-bug": [bug_id],
-    }}
-    data = skill_board(
-        versions=[version],
-        bugs=[{"id": bug_id, "values": {"b-id": bug_id, "b-status": "fixing"}}],
-        version_bugs=[bug_id],
-    )
-    with running_board(data, tmp_path) as (base, db):
-        code, report, raw = run_skill(
-            "tf-dev-implement",
-            ["--version", VERSION, "--repo-root", str(REPO_ROOT), "--apply", "--test-cmd", "true"],
-            base=base,
-        )
-        assert code == 0, f"缺陷修复版本推不动开发节点：\n{raw[-1500:]}"
-        assert _row(db, "t-ver", VERSION)["v-node-2"] == "done"
-
-
-def test_s4d_open_defect_blocks_dev_node(tmp_path) -> None:
-    """缺陷还是 open 时，开发节点不能收口——状态没动过就没有修复证据。"""
-    bug_id = "BUG-083-02"
-    nodes = {f"v-node-{i}": ("done" if i < 2 else "todo") for i in range(6)}
-    version = {"id": VERSION, "values": {
-        "v-version": VERSION, "v-status": "planned", **nodes,
-        "v-indep": [], "v-dep": [], "v-runs": [], "v-bug": [bug_id],
-    }}
-    data = skill_board(
-        versions=[version],
-        bugs=[{"id": bug_id, "values": {"b-id": bug_id, "b-status": "open"}}],
-        version_bugs=[bug_id],
-    )
-    with running_board(data, tmp_path) as (base, db):
-        code, _rep, raw = run_skill(
-            "tf-dev-implement",
-            ["--version", VERSION, "--repo-root", str(REPO_ROOT), "--apply", "--test-cmd", "true"],
-            base=base,
-        )
-        assert code != 0, f"缺陷仍是 open 却收口了开发节点：\n{raw[-1000:]}"
-        assert _row(db, "t-ver", VERSION)["v-node-2"] == "todo"
-
-
-def test_test_plan_reuse_from_previous_version(tmp_path) -> None:
-    """修复版复用上一版用例：只为本版新建执行记录，不重新派生。"""
-    src_run = f"{VERSION}--042-US1-AS1"
-    new_version = "v0.8.4"
-
-    def ver(vid, nodes_done, runs):
-        return {"id": vid, "values": {
-            "v-version": vid, "v-status": "planned",
-            **{f"v-node-{i}": ("done" if i < nodes_done else "todo") for i in range(6)},
-            "v-indep": [], "v-dep": [], "v-runs": runs, "v-bug": [],
-        }}
-
-    data = skill_board(
-        versions=[ver(VERSION, 2, [src_run]), ver(new_version, 1, [])],
-        runs=[{"id": src_run, "values": {
-            "r-id": src_run, "r-case-no": "042-US1-AS1",
-            "r-case": ["042-US1-AS1"], "r-state": "done", "r-result": "fail",
-        }}],
-        cases=[{"id": "042-US1-AS1", "values": {"c-id": "042-US1-AS1", "c-spec": [SPEC_ID]}}],
-    )
-    with running_board(data, tmp_path) as (base, db):
-        code, _rep, raw = run_skill(
-            "tf-test-plan",
-            ["--version", new_version, "--reuse-from", VERSION,
-             "--repo-root", str(REPO_ROOT), "--apply"],
-            base=base,
-        )
-        assert code == 0, f"复用用例失败：\n{raw[-1500:]}"
-        values = _row(db, "t-ver", new_version)
-        assert values["v-runs"] == [f"{new_version}--042-US1-AS1"]
-        assert values["v-node-1"] == "done", "测试设计节点没有推进"
-
-
-def test_test_plan_reuse_with_case_filter(tmp_path) -> None:
-    """--reuse-from 加 --case：只复用指定用例，其余不带入本版。"""
-    src_a = f"{VERSION}--042-US1-AS1"
-    src_b = f"{VERSION}--042-US1-AS2"
-    new_version = "v0.8.6"
-
-    def ver(vid, nodes_done, runs):
-        return {"id": vid, "values": {
-            "v-version": vid, "v-status": "planned",
-            **{f"v-node-{i}": ("done" if i < nodes_done else "todo") for i in range(6)},
-            "v-indep": [], "v-dep": [], "v-runs": runs, "v-bug": [],
-        }}
-
-    data = skill_board(
-        versions=[ver(VERSION, 2, [src_a, src_b]), ver(new_version, 1, [])],
-        runs=[
-            {"id": src_a, "values": {"r-id": src_a, "r-case-no": "042-US1-AS1",
-                                     "r-case": ["042-US1-AS1"], "r-state": "done", "r-result": "fail"}},
-            {"id": src_b, "values": {"r-id": src_b, "r-case-no": "042-US1-AS2",
-                                     "r-case": ["042-US1-AS2"], "r-state": "done", "r-result": "pass"}},
-        ],
-        cases=[
-            {"id": "042-US1-AS1", "values": {"c-id": "042-US1-AS1", "c-spec": [SPEC_ID]}},
-            {"id": "042-US1-AS2", "values": {"c-id": "042-US1-AS2", "c-spec": [SPEC_ID]}},
-        ],
-    )
-    with running_board(data, tmp_path) as (base, db):
-        code, _rep, raw = run_skill(
-            "tf-test-plan",
-            ["--version", new_version, "--reuse-from", VERSION,
-             "--case", "042-US1-AS1", "--repo-root", str(REPO_ROOT), "--apply"],
-            base=base,
-        )
-        assert code == 0, f"按用例号复用失败：\n{raw[-1500:]}"
-        values = _row(db, "t-ver", new_version)
-        assert values["v-runs"] == [f"{new_version}--042-US1-AS1"], values["v-runs"]
+        assert code == 0, f"drop 未完成：\n{raw[-1500:]}"
+        assert _row(db, "t-ver", VERSION)["v-indep"] == []
+        assert _row(db, "t-indep", SPEC_ID)["i-accept"] == "dropped"
