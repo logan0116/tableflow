@@ -9,6 +9,7 @@ data/*.db
 data/*.db-wal
 data/*.db-shm
 data/*.bak-*
+data/backups
 dist
 specs
 skills

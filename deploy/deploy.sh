@@ -33,7 +33,7 @@ echo "== 1/4 rsync → $HOST:$DEST"
 rsync -az --delete \
   --exclude '.git' --exclude '.agent-teams' \
   --exclude 'backend/.venv' --exclude 'backend/**/__pycache__' --exclude 'backend/.pytest_cache' \
-  --exclude 'frontend/node_modules' --exclude 'data/*.db*' --exclude '/dist' \
+  --exclude 'frontend/node_modules' --exclude 'data/*.db*' --exclude 'data/backups' --exclude '/dist' \
   --exclude '.tmp-shots' --exclude 'deploy/.env' \
   -e "ssh -F /dev/null -o BatchMode=yes -o StrictHostKeyChecking=no" \
   ./ "$HOST:$DEST/"
