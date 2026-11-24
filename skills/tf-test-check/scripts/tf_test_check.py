@@ -171,6 +171,22 @@ def main(args, report) -> None:
     if open_bugs:
         blockers.append(f"缺陷未关闭：{open_bugs}")
     if blockers:
+        # 判定不通过就落 failed：todo 表示「还没验收」，failed 才是「验收没过」。
+        # 停在 todo 会让看板分不清两者（BUG-083-20）。
+        if not args.dry_run:
+            field = ver.fid(NODE)
+            detail = client.write_verified(
+                "update", "ver", args.version, {field: "failed"}, {NODE: "failed"}
+            )
+            report.write(
+                f"ver/{args.version}", NODE, "failed",
+                detail["state"], detail.get("http"), detail.get("error"),
+            )
+            if detail["state"] != "success":
+                raise SkillFailure(
+                    f"写「{NODE}=failed」失败：{detail.get('error') or '回读不一致'}",
+                    state=detail["state"],
+                )
         raise SkillFailure("测试验收未满足：" + "；".join(blockers))
 
     # 对照看板计算字段（存在才比，不依赖）。

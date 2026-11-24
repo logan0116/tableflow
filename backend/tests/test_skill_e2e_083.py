@@ -167,6 +167,8 @@ def skill_board(*, version_status: str = "planned", indep_accept: str = "pending
                             _field("d-clause", "条款", "text", None, 2),
                             _field("d-specs", "关联的独立规格需求", "relation", {"table_id": "t-indep"}, 3),
                             _field("d-regress", "回归状态", "enum", REGRESS, 4),
+                            _field("d-evidence", "证据", "text", None, 5),
+                            _field("d-rest", "剩余事项", "text", None, 6),
                         ],
                         "rows": deps or [],
                     },
@@ -603,7 +605,6 @@ def test_b4_drop_is_atomic_on_failure() -> None:
     )
 
 
-@pytest.mark.xfail(strict=True, reason="S7：测试验收判定不通过时只抛错退出，不把节点落成 failed")
 def test_s7_rejected_acceptance_must_mark_failed(tmp_path) -> None:
     """跑了验收且结论不通过，节点必须是 failed，不能停在 todo。"""
     run_id = f"{VERSION}--042-US1-AS1"
