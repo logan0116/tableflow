@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import datetime
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -209,6 +210,9 @@ def detect_test_cmd(repo_root: Path) -> tuple[str, Path]:
 
 def run_tests(repo_root: Path, cmd: str | None, timeout: int) -> tuple[bool, str, str]:
     command, cwd = (cmd, repo_root) if cmd else detect_test_cmd(repo_root)
+    # 单测必须自包含：清掉调用者带来的 TF_*（TF_API_KEY/TF_BASE/TF_PROJECT），
+    # 否则 e2e/rebuild 测试会继承真实看板配置并连到外部服务。
+    env = {key: value for key, value in os.environ.items() if not key.startswith("TF_")}
     try:
         proc = subprocess.run(
             command,
@@ -217,6 +221,7 @@ def run_tests(repo_root: Path, cmd: str | None, timeout: int) -> tuple[bool, str
             capture_output=True,
             text=True,
             timeout=timeout,
+            env=env,
         )
     except subprocess.TimeoutExpired:
         return False, command, f"超时（>{timeout}s）"
