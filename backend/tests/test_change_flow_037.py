@@ -36,6 +36,7 @@ FULL_FIELDS = [
     {"id": "d-integration", "name": "集成验收", "type": "text", "options": None, "order": 5, "visible": 1},
     {"id": "d-evidence", "name": "证据", "type": "text", "options": None, "order": 6, "visible": 1},
     {"id": "d-revision", "name": "规格修订", "type": "enum", "options": REVISION, "order": 7, "visible": 1},
+    {"id": "d-baselines", "name": "基线修订", "type": "text", "options": None, "order": 8, "visible": 1},
 ]
 
 LEGACY_FIELDS = [
@@ -148,3 +149,46 @@ def test_legacy_table_without_fields_is_not_blocked(tmp_path, monkeypatch) -> No
         resp = client.patch("/api/agent/tables/c-dep/rows/DEP-A",
                             json={"values": {"d-regress": "passed"}}, headers=HEADERS)
         assert resp.status_code == 200, resp.text
+
+
+def test_037_us1_as2_single_scenario_change_still_needs_four_parts(env) -> None:
+    """US1-AS2：只改一条验收场景，增量说明/基线修订/受影响条款/证据仍须齐全。"""
+    assert patch(env, {"d-regress": "doing"}).status_code == 200
+    resp = patch(env, {**READY, "d-regress": "passed"})
+    assert resp.status_code == 200, resp.text
+    row = env.get("/api/tables/c-dep/rows/DEP-A").json()
+    values = (row.get("row") or row)["values"]
+    assert values["d-affected"], "缺受影响条款"
+    assert values["d-consistency"], "缺一致性检查"
+    assert values["d-integration"], "缺集成验收"
+
+
+def test_037_us1_as4_integration_record_is_separate(env) -> None:
+    """US1-AS4：集成验收是独立记录，不与单规格验证混同。"""
+    assert patch(env, {"d-regress": "doing"}).status_code == 200
+    assert patch(env, {**READY, "d-regress": "passed"}).status_code == 200
+    row = env.get("/api/tables/c-dep/rows/DEP-A").json()
+    values = (row.get("row") or row)["values"]
+    assert values["d-integration"].strip() != values["d-consistency"].strip(), (
+        "集成验收与一致性检查写成了同一段内容，说明没有独立记录"
+    )
+
+
+def test_037_us1_as1_multi_spec_baselines_are_separate(env) -> None:
+    """US1-AS1：关联两份规格时，基线修订要能分别写清每份。"""
+    baselines = "026-AR@v0.8.0\n027-AR@v0.8.1"
+    assert patch(env, {"d-regress": "doing"}).status_code == 200
+    resp = patch(env, {**READY, "d-baselines": baselines, "d-regress": "passed"})
+    assert resp.status_code == 200, resp.text
+    row = env.get("/api/tables/c-dep/rows/DEP-A").json()
+    stored = (row.get("row") or row)["values"]["d-baselines"]
+    assert "026-AR" in stored and "027-AR" in stored, stored
+
+
+def test_037_us4_as1_missing_affected_clause_blocks(env) -> None:
+    """US4-AS1：没有受影响条款时拒绝推进，并指出缺这一项。"""
+    assert patch(env, {"d-regress": "doing"}).status_code == 200
+    resp = patch(env, {"d-regress": "passed", "d-consistency": "无冲突",
+                       "d-integration": "集成通过"})
+    assert resp.status_code == 400, resp.text
+    assert "受影响条款" in resp.json()["error"]
