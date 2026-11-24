@@ -43,7 +43,7 @@ from _tf_common import (
     tasks_file,
 )
 
-ALLOWED = ("ver", "indep")
+ALLOWED = ("ver", "indep", "dep", "bug")
 NODE = "开发"
 PLAN_FIELD = "speckit-plan状态"
 TASK_FIELD = "speckit-task状态"
@@ -227,6 +227,62 @@ def run_tests(repo_root: Path, cmd: str | None, timeout: int) -> tuple[bool, str
     return proc.returncode == 0, command, tail
 
 
+def _close_fix_version(args, report, client, ver, repo_root, bug_ids, dep_ids) -> None:
+    """缺陷修复/变更版本没有独立需求时的开发收口。
+
+    判据：本版缺陷全部脱离 open（fixing/verifying/closed），且单测通过——
+    "修好了"由机器可验证的两件事支撑：状态真的动了、单测真的过了。
+    """
+    report.check(
+        "版本已关联缺陷或变更单",
+        bool(bug_ids or dep_ids),
+        f"缺陷 {len(bug_ids)} 条 / 变更单 {len(dep_ids)} 条",
+    )
+    if not (bug_ids or dep_ids):
+        raise SkillFailure(
+            "版本未关联任何独立规格需求、缺陷或变更单，没有可推进的开发工作"
+        )
+
+    if bug_ids:
+        bug = client.table("bug")
+        bug.require(["编号", "状态"])
+        pending = [
+            bug_id for bug_id in bug_ids
+            if bug.value(bug_id, "状态") not in ("fixing", "verifying", "closed")
+        ]
+        report.check(
+            "本版缺陷已进入修复",
+            not pending,
+            f"{len(bug_ids)} 条已全部脱离 open"
+            if not pending
+            else f"仍待修 {len(pending)} 条：{'、'.join(pending)}",
+        )
+        if pending:
+            raise SkillFailure(
+                "缺陷还没有进入修复状态，开发节点不能收口："
+                + "、".join(pending)
+                + "；先改到 fixing（或 verifying），并留下修复证据"
+            )
+
+    if args.plan_only:
+        report.check("缺陷修复范围", True, "已确认本版工作项，未推进版本节点（--plan-only）")
+        report.finish("success")
+        return
+
+    ok, command, output = run_tests(repo_root, args.test_cmd, args.test_timeout)
+    report.check("单测通过", ok, f"`{command}` -> {'通过' if ok else '失败'}")
+    report.note("test_output_tail", output[-800:])
+    if not ok:
+        raise SkillFailure(f"单测未通过，不能置开发完成：`{command}`")
+
+    advance_node(
+        client, ver, args.version, NODE, report,
+        dry_run=args.dry_run, no_stage=args.no_stage,
+    )
+    readback_nodes(client.table("ver", refresh=True), args.version, report)
+    report.finish("success")
+
+
 def main(args, report) -> None:
     report.note("role", "软件开发")
     report.note("node", NODE)
@@ -242,11 +298,15 @@ def main(args, report) -> None:
 
     version_specs = ver.relation(args.version, "独立需求管理")
     wanted = list(dict.fromkeys(args.spec)) or list(version_specs)
+    version_bugs = ver.relation(args.version, "Bug管理")
+    version_deps = ver.relation(args.version, "依赖需求管理")
     # FR-010：单份（或部分）规格完成不得代替版本完成，子集模式下只写各规格状态、不推进版本节点
     full_scope = set(wanted) == set(version_specs)
     report.check("版本已关联规格", bool(wanted), f"{len(wanted)} 份：{'、'.join(wanted) or '无'}")
     if not wanted:
-        raise SkillFailure("版本未关联任何独立规格需求，没有可推进的开发工作")
+        # 没有独立需求时，本版是缺陷修复/变更版本：修 bug 本身就是开发工作（034/037）。
+        _close_fix_version(args, report, client, ver, repo_root, version_bugs, version_deps)
+        return
     for spec_id in wanted:
         attached = spec_id in version_specs
         report.check(f"规格 {spec_id} 已挂到版本", attached, "在 ver.独立需求管理 中")

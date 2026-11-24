@@ -366,7 +366,6 @@ def test_s4_regression_only_version_proceeds(tmp_path) -> None:
         assert code == 0, f"纯回归版本被拒：\n{raw[-2000:]}"
 
 
-@pytest.mark.xfail(strict=True, reason="S4b：开发节点要求版本必须关联独立需求，只有依赖需求的版本被拒")
 def test_s4b_dep_only_version_proceeds(tmp_path) -> None:
     """版本只挂依赖需求时，开发节点也应可推进。"""
     dep_id = "DEP-083"
@@ -621,3 +620,49 @@ def test_s7_rejected_acceptance_must_mark_failed(tmp_path) -> None:
         assert values["v-node-5"] == "failed", (
             f"验收不通过但节点停在 {values['v-node-5']!r}，无法区分“没做”与“没过”"
         )
+
+
+def test_s4c_defect_only_version_advances(tmp_path) -> None:
+    """只挂缺陷的版本：缺陷脱离 open 且单测通过，开发节点就能推进（v0.8.4 的形态）。"""
+    bug_id = "BUG-083-01"
+    nodes = {f"v-node-{i}": ("done" if i < 2 else "todo") for i in range(6)}
+    version = {"id": VERSION, "values": {
+        "v-version": VERSION, "v-status": "planned", **nodes,
+        "v-indep": [], "v-dep": [], "v-runs": [], "v-bug": [bug_id],
+    }}
+    data = skill_board(
+        versions=[version],
+        bugs=[{"id": bug_id, "values": {"b-id": bug_id, "b-status": "fixing"}}],
+        version_bugs=[bug_id],
+    )
+    with running_board(data, tmp_path) as (base, db):
+        code, report, raw = run_skill(
+            "tf-dev-implement",
+            ["--version", VERSION, "--repo-root", str(REPO_ROOT), "--apply", "--test-cmd", "true"],
+            base=base,
+        )
+        assert code == 0, f"缺陷修复版本推不动开发节点：\n{raw[-1500:]}"
+        assert _row(db, "t-ver", VERSION)["v-node-2"] == "done"
+
+
+def test_s4d_open_defect_blocks_dev_node(tmp_path) -> None:
+    """缺陷还是 open 时，开发节点不能收口——状态没动过就没有修复证据。"""
+    bug_id = "BUG-083-02"
+    nodes = {f"v-node-{i}": ("done" if i < 2 else "todo") for i in range(6)}
+    version = {"id": VERSION, "values": {
+        "v-version": VERSION, "v-status": "planned", **nodes,
+        "v-indep": [], "v-dep": [], "v-runs": [], "v-bug": [bug_id],
+    }}
+    data = skill_board(
+        versions=[version],
+        bugs=[{"id": bug_id, "values": {"b-id": bug_id, "b-status": "open"}}],
+        version_bugs=[bug_id],
+    )
+    with running_board(data, tmp_path) as (base, db):
+        code, _rep, raw = run_skill(
+            "tf-dev-implement",
+            ["--version", VERSION, "--repo-root", str(REPO_ROOT), "--apply", "--test-cmd", "true"],
+            base=base,
+        )
+        assert code != 0, f"缺陷仍是 open 却收口了开发节点：\n{raw[-1000:]}"
+        assert _row(db, "t-ver", VERSION)["v-node-2"] == "todo"
