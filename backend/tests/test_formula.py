@@ -180,7 +180,27 @@ def test_sum(env):
 def test_sum_ignores_dirty_values(env):
     client, db = env
     _add_computed(client, "c-sum", {"kind": "sum", "source": "v-rel", "field_id": "s-num", "decimals": 0})
-    client.patch("/api/agent/tables/t-src/rows/S1", json={"values": {"s-num": "脏值"}}, headers=HEADERS)
+    # 新写入：类型校验拒绝非数字（090-17）
+    rejected = client.patch("/api/agent/tables/t-src/rows/S1", json={"values": {"s-num": "脏值"}}, headers=HEADERS)
+    assert rejected.status_code == 400
+    # 存量脏数据：直接落库，计算引擎仍忽略它（不因历史脏值报错）
+    import json
+    import sqlite3
+
+    conn = sqlite3.connect(db)
+    try:
+        row = conn.execute(
+            "SELECT data FROM row_records WHERE table_id='t-src' AND id='S1'"
+        ).fetchone()
+        data = json.loads(row[0])
+        data["s-num"] = "脏值"
+        conn.execute(
+            "UPDATE row_records SET data=? WHERE table_id='t-src' AND id='S1'", (json.dumps(data),)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    client.post("/api/agent/tables/t-src/recompute", headers=HEADERS)
     assert _values(client)["V1"]["c-sum"] == 9
 
 

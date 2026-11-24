@@ -36,6 +36,7 @@ v0.7.0（025）：
 from __future__ import annotations
 
 import json
+import math
 import re
 import sqlite3
 import uuid
@@ -124,6 +125,14 @@ def record_auth_failure(
     conn.commit()
 
 
+def _commit_quietly(conn: sqlite3.Connection) -> None:
+    """失败审计的提交：审计写不进去不能掩盖原始错误。"""
+    try:
+        conn.commit()
+    except sqlite3.Error:
+        pass
+
+
 def run_write(
     conn: sqlite3.Connection,
     *,
@@ -159,27 +168,32 @@ def run_write(
     try:
         result = operation()
         _audit_row(conn, agent_id, origin, action, target, payload, "success", key_id=key_id)
-        conn.commit()
-        return result
     except WriteError as exc:
         conn.rollback()
         _audit_row(conn, agent_id, origin, action, target, payload, "failed", str(exc), key_id=key_id)
-        conn.commit()
+        _commit_quietly(conn)
         raise
     except sqlite3.Error as exc:
         conn.rollback()
         _audit_row(
             conn, agent_id, origin, action, target, payload, "failed", f"数据库错误：{exc}", key_id=key_id
         )
-        conn.commit()
+        _commit_quietly(conn)
         raise WriteError(f"数据库错误：{exc}") from exc
     except Exception as exc:  # noqa: BLE001 - 兜底，保证审计
         conn.rollback()
         _audit_row(
             conn, agent_id, origin, action, target, payload, "failed", f"未预期错误：{exc}", key_id=key_id
         )
-        conn.commit()
+        _commit_quietly(conn)
         raise WriteError(f"未预期错误：{exc}") from exc
+    try:
+        conn.commit()
+    except sqlite3.Error as exc:
+        # 提交阶段失败无法断言"未落库"：可能已提交、也可能只落了一半。
+        # 按 failed 让调用方重试会重复写入，必须返回 unknown。
+        raise WriteError(f"提交结果未知，请先回读确认：{exc}", unknown=True) from exc
+    return result
 
 
 def _payload_text(body: dict[str, Any] | None) -> str | None:
@@ -472,7 +486,7 @@ def delete_project(conn: sqlite3.Connection, project_id: str) -> str:
     ]
     for table_id in table_ids:
         calculation.delete_values_for_table(conn, table_id)
-        conn.execute("DELETE FROM business_changes WHERE table_id = ?", (table_id,))
+        # business_changes 是追加式审计：删项目不擦除字段级追溯链（090-16）。
         conn.execute("DELETE FROM row_records WHERE table_id = ?", (table_id,))
         conn.execute("DELETE FROM fields WHERE table_id = ?", (table_id,))
     conn.execute("DELETE FROM tables WHERE project_id = ?", (project_id,))
@@ -532,7 +546,7 @@ def delete_table(conn: sqlite3.Connection, table_id: str) -> str:
         names = "、".join(f"{ref['table_id']}.{ref['name']}" for ref in references)
         raise WriteError(f"表格仍被 relation 字段引用，请先删除：{names}")
     calculation.delete_values_for_table(conn, table_id)
-    conn.execute("DELETE FROM business_changes WHERE table_id = ?", (table_id,))
+    # 保留 business_changes：删表不擦审计（090-16）。
     conn.execute("DELETE FROM row_records WHERE table_id = ?", (table_id,))
     conn.execute("DELETE FROM fields WHERE table_id = ?", (table_id,))
     conn.execute("DELETE FROM tables WHERE id = ?", (table_id,))
@@ -765,6 +779,34 @@ def _validate_row_id(row_id: Any) -> str:
     return row_id
 
 
+def _validate_scalar_type(field: sqlite3.Row, value: Any) -> None:
+    """text/number/datetime 的运行时类型：非字符串文本、非数字数字、非 ISO 时间一律拒收。
+
+    历史脏数据不受影响（只校验本次提交的 values，不校验合并后的整行）。
+    """
+    if _is_empty(value):
+        return
+    kind = field["type"]
+    name = field["name"]
+    if kind == "text":
+        if not isinstance(value, str):
+            raise WriteError(f"字段「{name}」必须是文本，收到 {type(value).__name__}")
+        return
+    if kind == "number":
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise WriteError(f"字段「{name}」必须是数字，收到 {value!r}")
+        if not math.isfinite(value):
+            raise WriteError(f"字段「{name}」必须是有限数字，收到 {value!r}")
+        return
+    if kind == "datetime":
+        if not isinstance(value, str):
+            raise WriteError(f"字段「{name}」必须是 ISO 时间字符串，收到 {type(value).__name__}")
+        try:
+            datetime.fromisoformat(value)
+        except ValueError:
+            raise WriteError(f"字段「{name}」不是合法 ISO 时间：{value!r}") from None
+
+
 def _validate_values(
     conn: sqlite3.Connection, table_id: str, fields: dict[str, sqlite3.Row], values: dict[str, Any]
 ) -> None:
@@ -778,6 +820,7 @@ def _validate_values(
         raise WriteError(f"计算字段不能直接写入：{sorted(computed_keys)}")
     for key, value in values.items():
         field = fields[key]
+        _validate_scalar_type(field, value)
         if field["type"] == "enum" and not _is_empty(value):
             items = _enum_items(_loads(field["options"]))
             allowed = [item.get("value") for item in items if isinstance(item, dict)]
@@ -876,10 +919,28 @@ def drop_spec_row(
     actor: str,
     origin: str,
 ) -> dict[str, Any]:
-    """原子放弃独立需求：一次请求完成摘关系与置 dropped（034 原子性）。"""
+    """原子放弃独立需求：摘关系 + 置 dropped + 字段级留痕 + 重算（034 原子性，090-04）。"""
     result = spec_lifecycle.drop_spec(
         conn, table_id, row_id, reason=body.get("reason"), at=body.get("at")
     )
+    changes = result.pop("changes", [])
+    reason = str(body.get("reason") or "").strip() or None
+    for change in changes:
+        _record_change(
+            conn,
+            actor=actor,
+            origin=origin,
+            table_id=change["table_id"],
+            row_id=change["row_id"],
+            field_id=change["field_id"],
+            field_name=change["field_name"],
+            old_value=change["old"],
+            new_value=change["new"],
+            change_kind="update",
+            reason=reason,
+        )
+    for table in {table_id, *[change["table_id"] for change in changes]}:
+        calculation.recompute_for_write(conn, table, actor=actor, origin=origin)
     return {"result": "success", "id": row_id, **result}
 
 
@@ -1033,6 +1094,15 @@ def update_row(
     return row_id
 
 
+def _reject_delete_of_released_version(
+    fields: dict[str, sqlite3.Row], row_id: str, values: dict[str, Any]
+) -> None:
+    """删除同样受发布冻结约束：已发布版本不可物理删除（090-16）。"""
+    status = next((field for field in fields.values() if field["name"] == "发布状态"), None)
+    if status is not None and values.get(status["id"]) == "released":
+        raise WriteError(f"L7：版本 {row_id} 已发布，不可删除；发布历史不可回写")
+
+
 def delete_row(
     conn: sqlite3.Connection,
     table_id: str,
@@ -1048,6 +1118,7 @@ def delete_row(
         raise WriteError("行不存在")
     fields = _fields_map(conn, table_id)
     old_values = _loads(row["data"]) or {}
+    _reject_delete_of_released_version(fields, row_id, old_values)
     for field_id, old_value in old_values.items():
         if _is_empty(old_value) or field_id not in fields:
             continue

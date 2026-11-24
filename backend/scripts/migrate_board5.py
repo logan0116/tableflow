@@ -160,14 +160,14 @@ def extend_acceptance(field: dict, apply: bool, planned: list[str]) -> list[str]
     failures: list[str] = []
     values = enum_values(field) or set()
     if "dropped" in values:
-        return
+        return failures
     options = field.get("options")
     raw = options.get("items") if isinstance(options, dict) else options
     items = list(raw or [])
     items = items + [DROPPED_OPTION]
     planned.append(f"字段 {field['id']}「{field['name']}」补枚举值 dropped")
     if not apply:
-        return
+        return failures
     result = call("PATCH", f"/api/agent/fields/{field['id']}", {"options": items})
     state = "ok" if result.get("http") in (200, 201) else f"FAILED {result.get('error') or ''}"
     planned[-1] += f" -> {state}"

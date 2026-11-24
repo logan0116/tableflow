@@ -348,7 +348,7 @@ def drop_spec(
         raise WriteError(f"独立需求 {row_id} 不存在")
     data = _loads(row["data"]) or {}
     if data.get(acceptance["id"]) == "dropped":
-        return {"versions": [], "already": True}
+        return {"versions": [], "already": True, "changes": []}
 
     reason_text = str(reason or "").strip()
     at_text = str(at or "").strip()
@@ -358,7 +358,7 @@ def drop_spec(
         raise WriteError(f"L2：放弃独立需求 {row_id} 必须给出时间")
 
     project_id = _project_of(conn, table_id)
-    plan: list[tuple[str, str, dict[str, Any], str, list[str]]] = []
+    plan: list[tuple[str, str, dict[str, Any], sqlite3.Row, list[str]]] = []
     released: list[str] = []
     for version_table_id, version_fields in _version_tables(conn, project_id):
         relation = next(
@@ -382,7 +382,7 @@ def drop_spec(
                 released.append(version_row["id"])
                 continue
             remaining = [item for item in version_values[relation["id"]] if item != row_id]
-            plan.append((version_table_id, version_row["id"], version_values, relation["id"], remaining))
+            plan.append((version_table_id, version_row["id"], version_values, relation, remaining))
 
     if released:
         raise WriteError(
@@ -390,25 +390,68 @@ def drop_spec(
             "放弃需在新版本里处理，不能改已发布版本的范围"
         )
 
-    for version_table_id, version_id, version_values, relation_id, remaining in plan:
-        version_values[relation_id] = remaining
+    changes: list[dict[str, Any]] = []
+    for version_table_id, version_id, version_values, relation, remaining in plan:
+        old_relation = list(version_values[relation["id"]] or [])
+        version_values[relation["id"]] = remaining
         conn.execute(
             "UPDATE row_records SET data = ? WHERE table_id = ? AND id = ?",
             (json.dumps(version_values, ensure_ascii=False), version_table_id, version_id),
         )
+        changes.append(
+            {
+                "table_id": version_table_id,
+                "row_id": version_id,
+                "field_id": relation["id"],
+                "field_name": relation["name"],
+                "old": old_relation,
+                "new": remaining,
+            }
+        )
 
+    old_state = data.get(acceptance["id"])
     data[acceptance["id"]] = "dropped"
+    changes.append(
+        {
+            "table_id": table_id,
+            "row_id": row_id,
+            "field_id": acceptance["id"],
+            "field_name": acceptance["name"],
+            "old": old_state,
+            "new": "dropped",
+        }
+    )
     reason_field = _by_name(fields, DROP_REASON_NAME)
     at_field = _by_name(fields, DROPPED_AT_NAME)
     if reason_field is not None:
+        changes.append(
+            {
+                "table_id": table_id,
+                "row_id": row_id,
+                "field_id": reason_field["id"],
+                "field_name": reason_field["name"],
+                "old": data.get(reason_field["id"]),
+                "new": reason_text,
+            }
+        )
         data[reason_field["id"]] = reason_text
     if at_field is not None:
+        changes.append(
+            {
+                "table_id": table_id,
+                "row_id": row_id,
+                "field_id": at_field["id"],
+                "field_name": at_field["name"],
+                "old": data.get(at_field["id"]),
+                "new": at_text,
+            }
+        )
         data[at_field["id"]] = at_text
     conn.execute(
         "UPDATE row_records SET data = ? WHERE table_id = ? AND id = ?",
         (json.dumps(data, ensure_ascii=False), table_id, row_id),
     )
-    return {"versions": [item[1] for item in plan], "already": False}
+    return {"versions": [item[1] for item in plan], "already": False, "changes": changes}
 
 
 def _indep_table_of(
