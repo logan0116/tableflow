@@ -108,9 +108,10 @@ def validate_seed(data: dict[str, Any]) -> None:
                 rid = row.get("id")
                 if not isinstance(rid, str) or not rid:
                     raise SeedError(f"表格 {tid} 的行缺少 id")
-                if rid in seen:
-                    raise SeedError(f"id 重复：{rid}")
-                seen.add(rid)
+                # 行 id 的唯一性按表判定：row_records 主键是 (table_id, id)，
+                # 不同项目的同编号行是合法数据（跨项目同编号正是要防的干扰源）。
+                if rid in row_ids:
+                    raise SeedError(f"表格 {tid} 的行 id 重复：{rid}")
                 row_ids.add(rid)
                 values = row.get("values", {})
                 if not isinstance(values, dict):

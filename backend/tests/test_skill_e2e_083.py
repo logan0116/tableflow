@@ -76,14 +76,17 @@ def _field(fid, name, type_, options, order):
 
 
 def skill_board(*, version_status: str = "planned", indep_accept: str = "pending",
-                version_indep: list[str] | None = None, version_runs: list[str] | None = None):
+                version_indep: list[str] | None = None, version_dep: list[str] | None = None,
+                version_runs: list[str] | None = None, versions: list[dict] | None = None,
+                deps: list[dict] | None = None, runs: list[dict] | None = None,
+                cases: list[dict] | None = None):
     """技能可用的最小看板：表名必须与 board 契约一致（技能按名称解析）。"""
     ver_values = {
         "v-version": VERSION,
         "v-status": version_status,
         **{f"v-node-{i}": "todo" for i in range(6)},
         "v-indep": list(version_indep if version_indep is not None else [SPEC_ID]),
-        "v-dep": [],
+        "v-dep": list(version_dep or []),
         "v-runs": list(version_runs or []),
     }
     return {
@@ -104,7 +107,7 @@ def skill_board(*, version_status: str = "planned", indep_accept: str = "pending
                             _field("v-dep", "依赖需求管理", "relation", {"table_id": "t-dep"}, 10),
                             _field("v-runs", "测试用例", "relation", {"table_id": "t-run"}, 11),
                         ],
-                        "rows": [{"id": VERSION, "values": ver_values}],
+                        "rows": versions or [{"id": VERSION, "values": ver_values}],
                     },
                     {
                         "id": "t-indep",
@@ -147,7 +150,7 @@ def skill_board(*, version_status: str = "planned", indep_accept: str = "pending
                             _field("d-specs", "关联的独立规格需求", "relation", {"table_id": "t-indep"}, 3),
                             _field("d-regress", "回归状态", "enum", REGRESS, 4),
                         ],
-                        "rows": [],
+                        "rows": deps or [],
                     },
                     {
                         "id": "t-run",
@@ -157,7 +160,17 @@ def skill_board(*, version_status: str = "planned", indep_accept: str = "pending
                             _field("r-id", "执行编号", "text", None, 1),
                             _field("r-case-no", "用例号", "text", None, 2),
                         ],
-                        "rows": [],
+                        "rows": runs or [],
+                    },
+                    {
+                        "id": "t-case",
+                        "name": "测试用例",
+                        "order": 5,
+                        "fields": [
+                            _field("c-id", "用例号", "text", None, 1),
+                            _field("c-spec", "来源规格", "relation", {"table_id": "t-indep"}, 2),
+                        ],
+                        "rows": cases or [],
                     },
                 ],
             }
@@ -288,3 +301,66 @@ def test_s5_apply_with_dry_run_writes_nothing(tmp_path) -> None:
         assert after_ver["v-indep"] == [SPEC_ID], f"dry-run 摘掉了版本关联：{after_ver['v-indep']}\n{raw[-1500:]}"
         assert after_indep["i-accept"] == "pending", f"dry-run 改了验收状态：{after_indep['i-accept']}\n{raw[-1500:]}"
         assert code == 0, raw[-1500:]
+
+
+@pytest.mark.xfail(strict=True, reason="S4：需求设计节点要求版本必须挂独立需求或变更单，纯回归版本被拒")
+def test_s4_regression_only_version_proceeds(tmp_path) -> None:
+    """版本不挂任何需求、只收录版本外用例（035 解耦），应当能推进需求设计。"""
+    run_id = "v0.8.3--042-US1-AS1"
+    data = skill_board(
+        version_indep=[],
+        version_runs=[run_id],
+        runs=[{"id": run_id, "values": {"r-id": run_id, "r-case-no": "042-US1-AS1"}}],
+        cases=[{"id": "042-US1-AS1", "values": {"c-id": "042-US1-AS1", "c-spec": [SPEC_ID]}}],
+    )
+    with running_board(data, tmp_path) as (base, _db):
+        code, report, raw = run_skill(
+            "tf-dev-plan", ["--version", VERSION, "--repo-root", str(REPO_ROOT), "--apply"], base=base,
+        )
+        assert code == 0, f"纯回归版本被拒：\n{raw[-2000:]}"
+
+
+@pytest.mark.xfail(strict=True, reason="S4b：开发节点要求版本必须关联独立需求，只有依赖需求的版本被拒")
+def test_s4b_dep_only_version_proceeds(tmp_path) -> None:
+    """版本只挂依赖需求时，开发节点也应可推进。"""
+    dep_id = "DEP-083"
+    nodes = {f"v-node-{i}": ("done" if i < 2 else "todo") for i in range(6)}
+    version = {"id": VERSION, "values": {
+        "v-version": VERSION, "v-status": "planned", **nodes,
+        "v-indep": [], "v-dep": [dep_id], "v-runs": [],
+    }}
+    data = skill_board(
+        versions=[version],
+        version_dep=[dep_id],
+        deps=[{"id": dep_id, "values": {
+            "d-id": dep_id, "d-clause": "US1", "d-specs": [SPEC_ID], "d-regress": "todo",
+        }}],
+    )
+    with running_board(data, tmp_path) as (base, _db):
+        code, report, raw = run_skill(
+            "tf-dev-implement",
+            ["--version", VERSION, "--repo-root", str(REPO_ROOT), "--apply",
+             "--test-cmd", "true", "--plan-only"],
+            base=base,
+        )
+        assert code == 0, f"只有依赖需求的版本被拒：\n{raw[-2000:]}"
+
+
+@pytest.mark.xfail(strict=True, reason="B7：cleanup 前置检查去读不在作用域内的 run 表，恒为 False")
+def test_b7_cleanup_works_without_run_in_scope(tmp_path) -> None:
+    """同一需求挂在两个版本时，cleanup 应当能真正执行去重。"""
+    def ver(vid):
+        return {"id": vid, "values": {
+            "v-version": vid, "v-status": "planned",
+            **{f"v-node-{i}": "todo" for i in range(6)},
+            "v-indep": [SPEC_ID], "v-dep": [], "v-runs": [],
+        }}
+
+    data = skill_board(versions=[ver("v0.8.3"), ver("v0.8.4")])
+    with running_board(data, tmp_path) as (base, db):
+        code, report, raw = run_skill(
+            "tf-lifecycle",
+            ["--version", "v0.8.4", "--action", "cleanup", "--apply"], base=base,
+        )
+        assert code == 0, f"cleanup 被前置检查挡住：\n{raw[-2000:]}"
+        assert _row(db, "t-ver", "v0.8.4")["v-indep"] == [], "重复挂载没有被摘除"

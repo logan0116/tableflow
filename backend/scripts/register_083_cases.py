@@ -97,7 +97,27 @@ CASES = [
      "指向验证该 Then 的行为测试，而不是任意存在的测试", "P1", ""),
 ]
 
-FAILED = {"083-US1-AS1", "083-US1-AS2", "083-US2-AS1", "083-US5-AS1", "083-US7-AS1"}
+FAILED = {
+    "083-US1-AS1", "083-US1-AS2", "083-US2-AS1", "083-US3-AS1", "083-US3-AS3",
+    "083-US4-AS1", "083-US4-AS2", "083-US5-AS1", "083-US6-AS1", "083-US6-AS2",
+    "083-US7-AS1", "083-US9-AS2",
+}
+
+# 已能复现的用例 → 复现它的测试（写入执行记录证据）
+EVIDENCE = {
+    "083-US1-AS1": "tests/test_regress_083.py::test_b1_shrinking_run_list_must_not_close",
+    "083-US1-AS2": "tests/test_regress_083.py::test_b1_empty_run_list_must_not_close",
+    "083-US2-AS1": "tests/test_regress_083.py::test_b2_new_dep_row_must_pass_change_flow",
+    "083-US3-AS1": "tests/test_regress_083.py::test_b3_released_version_scope_must_be_frozen",
+    "083-US3-AS3": "tests/test_regress_083.py::test_b5_other_project_same_id_must_not_block_drop",
+    "083-US4-AS1": "tests/test_regress_083.py::test_b6_migration_reports_field_failure",
+    "083-US4-AS2": "tests/test_regress_083.py::test_c3_board5_acceptance_declares_dropped",
+    "083-US5-AS1": "tests/test_skill_e2e_083.py::test_s1_dev_plan_runs_on_real_spec",
+    "083-US6-AS1": "tests/test_skill_e2e_083.py::test_s4_regression_only_version_proceeds",
+    "083-US6-AS2": "tests/test_skill_e2e_083.py::test_s4b_dep_only_version_proceeds",
+    "083-US7-AS1": "tests/test_skill_e2e_083.py::test_s5_apply_with_dry_run_writes_nothing",
+    "083-US9-AS2": "tests/test_regress_083.py::test_c6_fr_under_requirements_section_counted",
+}
 
 
 def call(method: str, path: str, body: dict | None = None) -> dict:
@@ -227,6 +247,34 @@ def main() -> int:
                 failures.append(f"版本清单：{result.get('error') or result}")
     else:
         planned.append(f"版本 {VERSION} 的测试用例清单已收录 {len(merged)} 条，跳过")
+
+    _run_detail, run_rows = table_rows(TABLES["run"])
+    for case_id in FAILED:
+        run_id = f"{VERSION}--{case_id}"
+        current = run_rows.get(run_id)
+        if current is None:
+            continue
+        values = current["values"]
+        if (values.get("tf-r-state") == "done" and values.get("tf-r-result") == "fail"
+                and str(values.get("tf-r-evidence") or "").strip()):
+            continue
+        evidence = EVIDENCE.get(case_id, "")
+        planned.append(f"补齐执行记录 {run_id}：done/fail")
+        if not args.apply:
+            continue
+        result = call(
+            "PATCH", f"/api/agent/tables/{TABLES['run']}/rows/{run_id}",
+            {"values": {
+                "tf-r-state": "done",
+                "tf-r-result": "fail",
+                "tf-r-evidence": f"{evidence}（xfail strict：失败原因即缺陷）" if evidence else "待补复现用例",
+                "tf-r-executed_at": now,
+                "tf-r-executor": "agent-auto",
+                "tf-r-note": "v0.8.3 缺陷复现：当前必然失败",
+            }},
+        )
+        if result.get("http") not in (200, 201):
+            failures.append(f"补齐 {run_id}：{result.get('error') or result}")
 
     print(f"[083] 共 {len(planned)} 项{mode}")
     for item in planned:

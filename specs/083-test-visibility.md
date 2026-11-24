@@ -32,11 +32,11 @@ L2 是本轮重点：19 条里 6 条在技能侧，之前的 11 个“技能测�
 | B1a | `test_b1_shrinking_run_list_must_not_close` | 同请求把 runs 缩减为只含 pass 再置 done → 400 | 已落地 |
 | B1b | `test_b1_empty_run_list_must_not_close` | runs 置空再置 done → 400 | 已落地 |
 | B2 | `test_b2_new_dep_row_must_pass_change_flow` | POST 新建 dep 直接 passed、无证据 → 400 | 已落地 |
-| B3 | `test_b3_drop_must_refuse_released_version` | 已发布版本持有的需求 drop → 拒绝 | 待补 |
+| B3 | `test_b3_drop_must_refuse_released_version` | 已发布版本持有的需求 drop → 拒绝 | 已落地 |
 | B4 | `test_b4_drop_must_be_atomic` | 注入末步失败后，版本关系不得改变 | 待补 |
-| B5 | `test_b5_drop_not_confused_by_other_project` | 另一项目同编号需求不影响本项目 drop | 待补 |
-| B6 | `test_b6_migration_reports_failure` | 建字段/扩枚举失败 → 非零退出且计数准确 | 待补 |
-| B7 | `test_b7_cleanup_needs_run_table` | 允许表只有 ver/indep 时 cleanup 仍可用 | 待补 |
+| B5 | `test_b5_drop_not_confused_by_other_project` | 另一项目同编号需求不影响本项目 drop | 已落地 |
+| B6 | `test_b6_migration_reports_failure` | 建字段/扩枚举失败 → 非零退出且计数准确 | 已落地 |
+| B7 | `test_b7_cleanup_needs_run_table` | 允许表只有 ver/indep 时 cleanup 仍可用 | 已落地 |
 
 ### 技能（L2）
 
@@ -45,8 +45,8 @@ L2 是本轮重点：19 条里 6 条在技能侧，之前的 11 个“技能测�
 | S1 | `test_s1_dev_plan_runs_on_real_spec` | 用 042 规格跑 `tf-dev-plan` 不崩 | 待补 |
 | S2 | `test_s2_implement_keeps_plan_task_evidence` | 写 implement 证据后 plan/task 证据仍在 | 待补 |
 | S3 | `test_s3_skeleton_plan_is_not_done` | 只有骨架（「待补」）的 plan → 不得置 done | 待补 |
-| S4 | `test_s4_regression_only_version_proceeds` | 无独立需求、只有 runs 的版本能推进节点 | 待补 |
-| S4b | `test_s4_dep_only_version_proceeds` | 只有依赖需求的版本能推进开发节点 | 待补 |
+| S4 | `test_s4_regression_only_version_proceeds` | 无独立需求、只有 runs 的版本能推进节点 | 已落地 |
+| S4b | `test_s4_dep_only_version_proceeds` | 只有依赖需求的版本能推进开发节点 | 已落地 |
 | S5 | `test_s5_apply_with_dry_run_writes_nothing` | `--apply --dry-run` 后库里零变化 | 待补 |
 | S6 | `test_s6_non_semver_version_and_scenarios` | 非 semver 版本可跑；`**S1.1** **Given**` 能派生 | 待补 |
 
@@ -54,9 +54,9 @@ L2 是本轮重点：19 条里 6 条在技能侧，之前的 11 个“技能测�
 
 | 编号 | 用例 | 断言 | 状态 |
 |---|---|---|---|
-| C3 | `test_c3_board5_declares_dropped` | board@5 的验收枚举含 dropped | 待补 |
+| C3 | `test_c3_board5_declares_dropped` | board@5 的验收枚举含 dropped | 已落地 |
 | C4 | `test_c4_reconfirm_does_not_exempt_forever` | 宪法版本升级后，旧「已重新确认」不再豁免 | 待补 |
-| C6 | `test_c6_fr_under_requirements_section_counted` | FR 直接写在 `## Requirements` 下也要计数 | 待补 |
+| C6 | `test_c6_fr_under_requirements_section_counted` | FR 直接写在 `## Requirements` 下也要计数 | 已落地 |
 | C5 | 映射重做（非单条用例） | 每场景 1 条独立断言，禁止共用；见第五节 | 待补 |
 
 ## 四、执行顺序

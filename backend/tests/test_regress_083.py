@@ -58,6 +58,11 @@ WAIVED = [
     {"value": "none", "label": "未放行", "tone": "neutral"},
     {"value": "waived", "label": "已放行", "tone": "warning"},
 ]
+PUBLISH = [
+    {"value": "planned", "label": "计划中", "tone": "info"},
+    {"value": "released", "label": "已发布", "tone": "success"},
+    {"value": "dropped", "label": "已终止", "tone": "neutral"},
+]
 
 TEST_ACCEPT = "v-stage-test-accept"
 PASS_RUN = "v0.8.3--042-US1-AS1"
@@ -85,6 +90,7 @@ def board(*, runs, version_values=None, deps=None, versions=None, project_id="p0
     """六表最小集合；``versions`` 给定时覆盖默认版本行（多版本测试用）。"""
     ver_values = {
         "v-version": "v0.8.3",
+        "v-status": "planned",
         **{fid: "done" for fid, _ in STAGE_NAMES},
         "v-runs": [row["id"] for row in runs],
         "v-bugs": [],
@@ -106,6 +112,7 @@ def board(*, runs, version_values=None, deps=None, versions=None, project_id="p0
                             _field("v-version", "版本号", "text", None, 1),
                             *[_field(fid, name, "enum", STAGES, i + 2) for i, (fid, name) in enumerate(STAGE_NAMES)],
                             _field("v-runs", "测试用例", "relation", {"table_id": "t-run"}, 9),
+                            _field("v-status", "发布状态", "enum", PUBLISH, 13),
                             _field("v-bugs", "Bug管理", "relation", {"table_id": "t-bug"}, 10),
                             _field("v-indep", "独立需求管理", "relation", {"table_id": "t-indep"}, 11),
                             _field("v-dep", "依赖需求管理", "relation", {"table_id": "t-dep"}, 12),
@@ -144,6 +151,8 @@ def board(*, runs, version_values=None, deps=None, versions=None, project_id="p0
                         "fields": [
                             _field("i-id", "编号", "text", None, 1),
                             _field("i-accept", "验收状态", "enum", ACCEPT, 2),
+                            _field("i-reason", "放弃理由", "text", None, 3),
+                            _field("i-at", "放弃时间", "datetime", None, 4),
                         ],
                         "rows": [
                             {"id": "042-AR", "values": {"i-id": "042-AR", "i-accept": "accepted"}},
@@ -229,3 +238,140 @@ def test_b2_new_dep_row_must_pass_change_flow(env) -> None:
         )
         assert resp.status_code == 400, f"新建行绕过变更流：{resp.status_code} {resp.text}"
         assert "D1" in resp.json()["error"]
+
+
+# ---------- B3/B5：发布历史与跨项目 ----------
+
+def _mini_project(prefix: str, *, version_id: str, holding: list[str], status: str = "planned") -> dict:
+    """一个只含版本表与独立需求表的最小项目；表 id 与字段 id 都带前缀。"""
+    def fid(name: str) -> str:
+        return f"{prefix}-fld-{name}"
+
+    def f(name, label, type_, options, order):
+        return {"id": fid(name), "name": label, "type": type_, "options": options,
+                "order": order, "visible": 1}
+
+    nodes = [f(f"node{i}", label, "enum", STAGES, i + 3) for i, (_, label) in enumerate(STAGE_NAMES)]
+    return {
+        "id": f"{prefix}-proj",
+        "name": prefix,
+        "tables": [
+            {
+                "id": f"{prefix}-ver",
+                "name": "版本管理",
+                "order": 1,
+                "fields": [
+                    f("version", "版本号", "text", None, 1),
+                    f("status", "发布状态", "enum", PUBLISH, 2),
+                    *nodes,
+                    f("indep", "独立需求管理", "relation", {"table_id": f"{prefix}-indep"}, 9),
+                ],
+                "rows": [
+                    {
+                        "id": version_id,
+                        "values": {
+                            fid("version"): version_id,
+                            fid("status"): status,
+                            fid("indep"): holding,
+                            **{fid(f"node{i}"): "done" for i in range(6)},
+                        },
+                    }
+                ],
+            },
+            {
+                "id": f"{prefix}-indep",
+                "name": "独立规格需求",
+                "order": 2,
+                "fields": [
+                    f("iid", "编号", "text", None, 1),
+                    f("accept", "验收状态", "enum", ACCEPT, 2),
+                    f("reason", "放弃理由", "text", None, 3),
+                    f("at", "放弃时间", "datetime", None, 4),
+                ],
+                "rows": [
+                    {
+                        "id": "042-AR",
+                        "values": {fid("iid"): "042-AR", fid("accept"): "pending"},
+                    }
+                ],
+            },
+        ],
+    }
+
+
+def _cross_board() -> dict:
+    """A 项目没有版本持有 042-AR；B 项目有。"""
+    a = _mini_project("a", version_id="v0.8.3", holding=[], status="planned")
+    b = _mini_project("b", version_id="v9.9.9", holding=["042-AR"], status="planned")
+    return {"projects": [a, b]}
+
+
+@pytest.mark.xfail(strict=True, reason="B3：版本已发布后仍可摘除交付范围，发布历史被改写")
+def test_b3_released_version_scope_must_be_frozen(env) -> None:
+    """已发布版本摘掉一条独立需求，必须 400（034 FR-011：发布历史不可改）。"""
+    data = board(runs=[], version_values={"v-status": "released", "v-indep": ["042-AR"]})
+    with env(data) as client:
+        resp = _patched(client, {"v-indep": []})
+        assert resp.status_code == 400, f"已发布版本的范围被改掉了：{resp.status_code} {resp.text}"
+        assert "已发布" in resp.json()["error"]
+
+
+@pytest.mark.xfail(strict=True, reason="B5：查持有版本时扫全库，另一项目同编号需求导致误拒")
+def test_b5_other_project_same_id_must_not_block_drop(env) -> None:
+    """本项目没有任何版本持有 042-AR，另一项目有，放弃本项目这条应当成功。"""
+    with env(_cross_board()) as client:
+        resp = client.patch(
+            "/api/agent/tables/a-indep/rows/042-AR",
+            json={"values": {"a-fld-accept": "dropped", "a-fld-reason": "083 复现用",
+                             "a-fld-at": "2026-11-24T09:00:00+08:00"}},
+            headers=HEADERS,
+        )
+        assert resp.status_code == 200, f"被另一项目的同编号需求误拒：{resp.status_code} {resp.text}"
+
+
+# ---------- B6：迁移失败处理 ----------
+
+@pytest.mark.xfail(strict=True, reason="B6：add_fields 引用未定义的 failures，失败即 NameError")
+def test_b6_migration_reports_field_failure(monkeypatch) -> None:
+    """新建字段失败时必须把失败项交回调用方，而不是抛 NameError。"""
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    import migrate_board5
+
+    monkeypatch.setattr(migrate_board5, "call", lambda *a, **k: {"http": 500, "error": "boom"})
+    planned: list[str] = []
+    failures = migrate_board5.add_fields(
+        {"id": "x-ver", "fields": []},
+        [{"name": "新字段", "suffix": "x", "type": "text", "options": None}],
+        "a", True, planned,
+    )
+    assert failures, "失败项没有交回调用方"
+    assert any("boom" in item for item in failures)
+
+
+# ---------- C3/C6：契约与结构分析 ----------
+
+@pytest.mark.xfail(strict=True, reason="C3：board@5 的验收枚举没有 dropped")
+def test_c3_board5_acceptance_declares_dropped() -> None:
+    """契约声明支持放弃，验收状态枚举就必须含 dropped。"""
+    from pathlib import Path
+
+    text = (Path(__file__).resolve().parents[2] / "specs/019-test-contract/board@5.yaml").read_text(encoding="utf-8")
+    lines = text.splitlines()
+    start = next(i for i, line in enumerate(lines) if "key: spec.acceptance" in line)
+    block = "\n".join(lines[start:start + 14])
+    assert "dropped" in block, f"board@5 的验收枚举缺 dropped：\n{block}"
+
+
+@pytest.mark.xfail(strict=True, reason="C6：FR 只统计 Functional Requirements 章节，Requirements 下的 FR 被漏掉")
+def test_c6_fr_under_requirements_section_counted() -> None:
+    """026 把 FR 直接写在 Requirements 下，分析器必须计入。"""
+    from pathlib import Path
+
+    from tableflow.spec_structure import analyze
+
+    text = (Path(__file__).resolve().parents[2] / "specs/026-ver-columns/spec.md").read_text(encoding="utf-8")
+    result = analyze(text)
+    assert result["counts"]["fr"] >= 6, f"FR 计数为 {result['counts']['fr']}，文本里实际有 7 条"
