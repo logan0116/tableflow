@@ -895,7 +895,7 @@ def create_row(
     run_protocol.validate_row_write(
         conn, fields, row_id, merged=values, submitted=values, creating=True
     )
-    version_stage.validate_row_write(conn, fields, merged=values, previous={})
+    version_stage.validate_row_write(conn, fields, row_id, merged=values, previous={})
     board_rules.validate_row_write(
         conn, table_id, fields, row_id, merged=values, previous={}, submitted=values
     )
@@ -963,7 +963,7 @@ def update_row(
     run_protocol.validate_row_write(
         conn, fields, row_id, merged=merged, submitted=values, creating=False
     )
-    version_stage.validate_row_write(conn, fields, merged=merged, previous=old_values)
+    version_stage.validate_row_write(conn, fields, row_id, merged=merged, previous=old_values)
     board_rules.validate_row_write(
         conn, table_id, fields, row_id,
         merged=merged, previous=old_values, submitted=values,

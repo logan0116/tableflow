@@ -279,16 +279,38 @@ def _run_quality_fields(
     return result, waived, by_name.get(WAIVER_BY_NAME), by_name.get(WAIVER_REASON_NAME)
 
 
+def _owned_run_ids(
+    conn: sqlite3.Connection, run_table_id: str, version_id: str
+) -> list[str]:
+    """本版本在执行记录表里实际存在的行：id 以 ``<版本号>--`` 开头。
+
+    020 规定执行记录行 id 是 ``<版本号>--<用例号>``，版本号取版本行 id 本身，
+    所以前缀就是归属关系，不依赖 ``ver.runs`` 这条可被改写的关联。
+    """
+    prefix = f"{version_id}--"
+    rows = conn.execute(
+        "SELECT id FROM row_records WHERE table_id = ?", (run_table_id,)
+    ).fetchall()
+    return sorted(str(row["id"]) for row in rows if str(row["id"]).startswith(prefix))
+
+
 def _run_result_problems(
     conn: sqlite3.Connection,
     target_id: str,
     relation_field: sqlite3.Row,
     values: dict[str, Any],
+    version_id: str,
 ) -> list[str]:
-    """036：执行结果必须 pass，或带有效放行标记（批准人与理由都不为空）。"""
-    ids = values.get(relation_field["id"])
-    if not isinstance(ids, list) or not ids:
-        return []
+    """036：执行结果必须 pass，或带有效放行标记（批准人与理由都不为空）。
+
+    判定对象是「本版本实际持有的执行行」，与本次提交的清单取并集：
+    把失败行从 ``ver.runs`` 里摘掉、或把清单清空，都不能减少被判定的行。
+    """
+    submitted = values.get(relation_field["id"])
+    ids = [str(item) for item in submitted] if isinstance(submitted, list) else []
+    ids = sorted(set(ids) | set(_owned_run_ids(conn, target_id, version_id)))
+    if not ids:
+        return []  # 空集为真：新版本尚无执行记录时不拦（与 computed 的 and 同口径）
     fields = _table_fields(conn, target_id)
     result, waived, by_field, reason_field = _run_quality_fields(fields)
     if result is None:
@@ -363,6 +385,7 @@ def _check_gate(
     merged: dict[str, Any],
     previous: dict[str, Any],
     sources: dict[str, tuple[sqlite3.Row, str, sqlite3.Row]],
+    row_id: str,
 ) -> None:
     for field, key in nodes:
         if key is None or key not in NODE_REQUIREMENTS:
@@ -388,7 +411,7 @@ def _check_gate(
         source = sources.get("run")
         if source is None:
             continue
-        quality = _run_result_problems(conn, source[1], source[0], merged)
+        quality = _run_result_problems(conn, source[1], source[0], merged, row_id)
         if quality:
             raise WriteError(
                 "「测试验收」置 done 前，本版执行结果必须全部 pass，"
@@ -399,6 +422,7 @@ def _check_gate(
 def validate_row_write(
     conn: sqlite3.Connection,
     fields: dict[str, sqlite3.Row],
+    row_id: str,
     *,
     merged: dict[str, Any],
     previous: dict[str, Any],
@@ -413,4 +437,4 @@ def validate_row_write(
     if nodes is None:
         return
     _check_serial(nodes, merged, previous)
-    _check_gate(conn, fields, nodes, merged, previous, _relation_sources(conn, fields))
+    _check_gate(conn, fields, nodes, merged, previous, _relation_sources(conn, fields), row_id)

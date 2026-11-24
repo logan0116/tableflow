@@ -208,7 +208,6 @@ def _patched(env, values: dict):
     )
 
 
-@pytest.mark.xfail(strict=True, reason="B1：判定只读本请求提交的执行行，摘掉 fail 行即可通过验收")
 def test_b1_shrinking_run_list_must_not_close(env) -> None:
     """同一请求里把 runs 缩减为只含 pass，再置测试验收 done，必须 400（036 FR-009）。"""
     runs = [run_row(PASS_RUN, "done", "pass"), run_row(FAIL_RUN, "done", "fail")]
@@ -218,7 +217,6 @@ def test_b1_shrinking_run_list_must_not_close(env) -> None:
         assert FAIL_RUN in resp.json()["error"]
 
 
-@pytest.mark.xfail(strict=True, reason="B1：空执行清单被当成“没有可判定的行”，直接放行")
 def test_b1_empty_run_list_must_not_close(env) -> None:
     """把 runs 清空再置 done，必须 400——没有任何执行记录不等于验收通过。"""
     runs = [run_row(FAIL_RUN, "done", "fail")]
