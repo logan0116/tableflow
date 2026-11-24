@@ -65,6 +65,11 @@ WAIVED = [
     {"value": "waived", "label": "已放行", "tone": "warning"},
 ]
 
+PUBLISH = [
+    {"value": "planned", "label": "计划中", "tone": "info"},
+    {"value": "released", "label": "已发布", "tone": "success"},
+    {"value": "dropped", "label": "已终止", "tone": "neutral"},
+]
 TEST_ACCEPT = "v-stage-test-accept"
 RUN_A = "v0.1.0--033-US1-AS1"
 RUN_B = "v0.1.0--033-US1-AS2"
@@ -96,6 +101,8 @@ def base_project(runs):
                         "fields": [
                             {"id": "v-version", "name": "版本号", "type": "text",
                              "options": None, "order": 1, "visible": 1},
+                            {"id": "v-status", "name": "发布状态", "type": "enum",
+                             "options": PUBLISH, "order": 20, "visible": 1},
                             *[
                                 {"id": fid, "name": name, "type": "enum", "options": STAGES,
                                  "order": i + 2, "visible": 1}
@@ -271,3 +278,52 @@ def test_conclusion_not_rewritten_by_later_version(tmp_path, monkeypatch) -> Non
         # 后一版记录在库且为 pass，不改变前一版的判定
         back = env.get("/api/tables/t-run/rows/v0.2.0--033-US1-AS1").json()
         assert (back.get("row") or back)["values"]["r-result"] == "pass"
+
+
+def test_036_us2_as1_rejudge_old_version_stays_failed(tmp_path, monkeypatch) -> None:
+    """US2-AS1：后续版本修复了同一缺陷，重新判定前序版本仍为 failed。"""
+    runs = [run_row(RUN_A, "done", "fail")]
+    with make_env(tmp_path, monkeypatch, runs) as env:
+        # 先记录 failed，再尝试重新判定为 done
+        assert env.patch(
+            "/api/agent/tables/t-ver/rows/v0.1.0",
+            json={"values": {TEST_ACCEPT: "failed"}},
+            headers=HEADERS,
+        ).status_code == 200
+        resp = env.patch(
+            "/api/agent/tables/t-ver/rows/v0.1.0",
+            json={"values": {TEST_ACCEPT: "done"}},
+            headers=HEADERS,
+        )
+        assert resp.status_code == 400, resp.text
+        row = env.get("/api/tables/t-ver/rows/v0.1.0").json()
+        assert (row.get("row") or row)["values"][TEST_ACCEPT] == "failed", "历史结论被改写"
+
+
+def test_036_us3_as1_unwaived_fail_is_listed(tmp_path, monkeypatch) -> None:
+    """US3-AS1：fail 未标记放行时判 failed，并列出该用例。"""
+    runs = [run_row(RUN_A, "done", "fail")]
+    with make_env(tmp_path, monkeypatch, runs) as env:
+        resp = close_version(env)
+        assert resp.status_code == 400, resp.text
+        assert RUN_A in resp.json()["error"], "没有列出未放行的失败用例"
+
+
+def test_036_us4_as1_failed_version_can_be_dropped(tmp_path, monkeypatch) -> None:
+    """US4-AS1：红灯版本可以明确改为 dropped，原 failed 记录不被改写。"""
+    runs = [run_row(RUN_A, "done", "fail")]
+    with make_env(tmp_path, monkeypatch, runs) as env:
+        assert env.patch(
+            "/api/agent/tables/t-ver/rows/v0.1.0",
+            json={"values": {TEST_ACCEPT: "failed"}},
+            headers=HEADERS,
+        ).status_code == 200
+        resp = env.patch(
+            "/api/agent/tables/t-ver/rows/v0.1.0",
+            json={"values": {"v-status": "dropped"}},
+            headers=HEADERS,
+        )
+        assert resp.status_code == 200, resp.text
+        row = env.get("/api/tables/t-ver/rows/v0.1.0").json()
+        values = (row.get("row") or row)["values"]
+        assert values[TEST_ACCEPT] == "failed", "改为 dropped 时不应改写验收结论"

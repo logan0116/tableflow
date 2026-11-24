@@ -12,6 +12,8 @@
 
 from __future__ import annotations
 
+import copy
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -130,7 +132,8 @@ BASE = {
 @pytest.fixture()
 def env(tmp_path, monkeypatch):
     db = tmp_path / "board_rules_033.db"
-    write_seed(db, BASE)
+    # BASE 是模块级夹具，个别用例会就地改它；深拷贝避免跨用例污染。
+    write_seed(db, copy.deepcopy(BASE))
     monkeypatch.setenv("TABLEFLOW_DB", str(db))
     with TestClient(app) as client:
         yield client
@@ -213,7 +216,7 @@ def test_c3_multi_spec_uses_latest(env) -> None:
 
 def test_existing_violation_does_not_block_unrelated_edit(tmp_path, monkeypatch) -> None:
     """存量已违规时（两个版本共享同一规格），改无关字段不得被拦。"""
-    base = BASE["projects"][0]
+    base = copy.deepcopy(BASE["projects"][0])
     for table in base["tables"]:
         if table["id"] == "t-ver":
             table["rows"] = [
@@ -250,3 +253,34 @@ def test_rejection_is_atomic(env) -> None:
     after = env.get("/api/tables/t-ver/rows/v0.2.0").json()
     after = (after.get("row") or after)["values"]
     assert after.get("v-specs") == before.get("v-specs")
+
+
+def test_033_us4_as1_rejection_carries_four_elements(env) -> None:
+    """US4-AS1：拒绝体必须含规则号、冲突行 id、已占用版本号与修复建议。"""
+    assert attach(env, "v0.1.0", "v-specs", ["033-AR"]).status_code == 200
+    after = env.get("/api/tables/t-ver/rows/v0.1.0").json()
+    assert (after.get("row") or after)["values"]["v-specs"] == ["033-AR"], "第一次挂载没写入"
+    resp = attach(env, "v0.2.0", "v-specs", ["033-AR"])
+    assert resp.status_code == 400, resp.text
+    error = resp.json()["error"]
+    assert "C1" in error, "缺规则号"
+    assert "033-AR" in error, "缺冲突行 id"
+    assert "v0.1.0" in error, "缺已占用版本号"
+    assert "纳入" in error or "建议" in error, "缺修复建议"
+
+
+def test_035_us4_as1_rejection_suggests_using_cases(env) -> None:
+    """US4-AS1（035）：复测历史能力时提示改为纳入用例，而不是重复挂需求。"""
+    assert attach(env, "v0.1.0", "v-specs", ["033-AR"]).status_code == 200
+    resp = attach(env, "v0.2.0", "v-specs", ["033-AR"])
+    assert resp.status_code == 400, resp.text
+    assert "用例" in resp.json()["error"], "没有提示改为纳入用例"
+
+
+def test_040_us1_as1_direct_api_write_is_rejected(env) -> None:
+    """US1-AS1（040）：直接调接口挂载重复需求返回 4xx，且零写入。"""
+    assert attach(env, "v0.1.0", "v-specs", ["033-AR"]).status_code == 200
+    resp = attach(env, "v0.2.0", "v-specs", ["033-AR"])
+    assert 400 <= resp.status_code < 500, resp.text
+    row = env.get("/api/tables/t-ver/rows/v0.2.0").json()
+    assert not (row.get("row") or row)["values"].get("v-specs"), "被拒绝后仍写入了关联"
