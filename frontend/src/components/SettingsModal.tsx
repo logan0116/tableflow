@@ -220,7 +220,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                   <input
                     value={label}
                     onChange={(event) => setLabel(event.target.value)}
-                    placeholder="demo-cnc-agent"
+                    placeholder="my-project-agent"
                     maxLength={64}
                     autoFocus
                   />
@@ -230,7 +230,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                   <input
                     value={note}
                     onChange={(event) => setNote(event.target.value)}
-                    placeholder="demo-cnc 项目 Agent"
+                    placeholder="my-project 项目 Agent"
                     maxLength={200}
                   />
                 </label>

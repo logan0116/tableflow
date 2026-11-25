@@ -43,7 +43,7 @@ NODE_FIELDS = ["版本需求设计", "测试设计", "开发", "开发验收", "
 
 RUN_STATE_VALUES = {"todo", "done"}
 RUN_RESULT_VALUES = {"pass", "fail", "blocked", "skip"}
-# 版本号取版本行 id 本身（demo-cnc 用 4.0.0_001、demo-cloud 用 20261107-01-v1.1.132.13006）；
+# 版本号取版本行 id 本身（各项目格式不一，常见 v1.2.3、4.0.0_001、20261107-01-v1.1.132.13006）；
 # 只禁止分隔符 -- 以免与「<版本号>--<用例号>」的拼接产生歧义。
 RUN_VERSION_RE = re.compile(r"^v\d+\.\d+\.\d+$")
 
