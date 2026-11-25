@@ -1,0 +1,61 @@
+name: Bug 报告
+description: 报告可复现的功能异常
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        安全漏洞请勿在此提交，改用 [私密报告](https://github.com/logan0116/tableflow/security/advisories/new)。
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      description: 页面右下角或 `GET /api/health` 可见；也可是 commit hash
+      placeholder: v1.0.0
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 影响面
+      options:
+        - 只读看板（前端）
+        - 写接口 /api/agent
+        - 设置页 /api/admin
+        - 计算字段
+        - 版本节点与发布条件
+        - 部署 / 容器
+        - 文档
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开 ...
+        2. 用 X-API-Key 调用 ...
+        3. 看到 ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为
+      description: 贴报错、响应体或截图；`X-Request-Id` 能直接定位日志
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: 环境
+      placeholder: |
+        部署方式：Docker / 本地源码
+        TABLEFLOW_AUTH_MODE：enforced / legacy
+        浏览器与版本：（前端问题时）

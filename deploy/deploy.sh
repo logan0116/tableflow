@@ -33,7 +33,7 @@ done
 QDEST=$(printf %q "$DEST")
 QPORT=$(printf %q "$PORT")
 # 镜像 tag 由 git tag 驱动（单一真源）；无 tag 时回退当前版本号。
-VERSION="${TABLEFLOW_VERSION:-$(git describe --tags --abbrev=0 2>/dev/null || echo v0.10.8)}"
+VERSION="${TABLEFLOW_VERSION:-$(git describe --tags --abbrev=0 2>/dev/null || echo v1.0.0)}"
 VERSION="${VERSION#v}"
 QVERSION=$(printf %q "$VERSION")
 
