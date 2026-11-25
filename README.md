@@ -104,10 +104,8 @@ Docker（推荐，单端口 8090）：
 ```bash
 git clone https://github.com/logan0116/tableflow.git
 cd tableflow
-cat > deploy/.env <<'EOF'
-TABLEFLOW_ADMIN_TOKEN=change-me-at-least-8-chars
-EOF
-bash deploy/deploy.sh          # 同步到 deploy/.env 里的 HOST 并用 compose 起容器
+cp deploy/.env.example deploy/.env   # 填 HOST（ssh 目标）与管理口令
+bash deploy/deploy.sh                # rsync 到 HOST，compose 构建并起容器
 ```
 
 不想用脚本就直接起来：
