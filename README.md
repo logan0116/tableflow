@@ -54,4 +54,4 @@ cd backend && uv run python scripts/tf_keys.py issue --label <name>
 
 ## 版本
 
-当前 `v0.10.7`。版本号单一源在 `backend/src/tableflow/__init__.py`；前端 `package.json` 由 CI 校验一致；镜像 tag 由 git tag 驱动。
+当前 `v0.10.8`。版本号单一源在 `backend/src/tableflow/__init__.py`；前端 `package.json` 由 CI 校验一致；镜像 tag 由 git tag 驱动。

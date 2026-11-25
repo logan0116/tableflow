@@ -1163,3 +1163,148 @@ td:has(> .group-ratio) {
   z-index: 1000;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.18);
 }
+
+/* ---------- 设置页弹层（045：口令 + API key 管理） ---------- */
+
+.settings-section h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.settings-section + .settings-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border-soft);
+}
+
+.settings-hint {
+  margin: 0 0 12px;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.settings-hint code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--color-header);
+  font-size: 12px;
+}
+
+.settings-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.settings-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.settings-form input {
+  width: 220px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.settings-primary {
+  padding: 7px 16px;
+  border: 1px solid var(--color-accent);
+  border-radius: 6px;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.settings-primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.secret-reveal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid #d4a72c;
+  border-radius: 8px;
+  background: #fff8e1;
+}
+
+.secret-reveal-head {
+  width: 100%;
+  color: #7d4e00;
+  font-size: 12px;
+}
+
+.secret-reveal-value {
+  flex: 1;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.secret-reveal button {
+  padding: 4px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.key-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.key-table th {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.key-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.key-table tr.is-revoked td {
+  color: var(--color-muted);
+}
+
+.key-status {
+  font-size: 12px;
+}
+
+.key-status.is-revoked {
+  color: var(--color-muted);
+}
+
+.key-revoke {
+  padding: 3px 10px;
+  border: 1px solid var(--color-danger);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-danger);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.settings-error {
+  margin: 12px 0 0;
+  color: var(--color-danger);
+  font-size: 13px;
+}

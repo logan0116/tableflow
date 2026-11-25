@@ -3,7 +3,7 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
-    image: tableflow:${TABLEFLOW_VERSION:-0.10.7}
+    image: tableflow:${TABLEFLOW_VERSION:-0.10.8}
     container_name: tableflow
     restart: unless-stopped
     ports:
@@ -14,3 +14,6 @@ services:
       TABLEFLOW_DB: /data/tableflow.db
       TABLEFLOW_STATIC_DIR: /app/frontend/dist
       TABLEFLOW_AUTH_MODE: enforced
+      # 设置页管理口令（045）：不设则管理接口 503，看板其余功能不受影响。
+      # 由 deploy/.env 提供（不入库）；至少 8 位，过短按未配置处理。
+      TABLEFLOW_ADMIN_TOKEN: ${TABLEFLOW_ADMIN_TOKEN:?请在 deploy/.env 设置 TABLEFLOW_ADMIN_TOKEN（至少 8 位）}

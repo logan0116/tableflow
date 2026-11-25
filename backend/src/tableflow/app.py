@@ -25,6 +25,7 @@ from fastapi.responses import JSONResponse
 
 from . import __version__
 from . import (
+    admin,
     auth,
     board_rules,
     calculation,
@@ -560,6 +561,83 @@ def agent_delete_row(
                    lambda caller: write_service.delete_row(
                        conn, table_id, row_id, actor=caller.actor, origin=origin
                    ))
+
+
+# ---------- 设置页管理（045）：口令 + API key ----------
+
+
+def admin_header(
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> str | None:
+    """管理口令走请求头，口令本身不进 URL、不进日志。"""
+    return x_admin_token
+
+
+def _admin_reject(exc: Exception) -> JSONResponse:
+    """口令未配置 → 503（fail-closed）；口令错误 → 401；都不写业务数据。"""
+    status = 503 if isinstance(exc, admin.AdminDisabled) else 401
+    return JSONResponse(status_code=status, content={"result": "failed", "error": str(exc)})
+
+
+@app.post("/api/admin/unlock")
+def admin_unlock(token: str | None = Depends(admin_header)):
+    try:
+        admin.verify_admin(token)
+    except (admin.AdminDisabled, admin.AdminError) as exc:
+        return _admin_reject(exc)
+    return {"result": "success", "enabled": True}
+
+
+@app.get("/api/admin/keys")
+def admin_list_keys(
+    token: str | None = Depends(admin_header),
+    conn: sqlite3.Connection = Depends(get_write_conn),
+):
+    try:
+        admin.verify_admin(token)
+    except (admin.AdminDisabled, admin.AdminError) as exc:
+        return _admin_reject(exc)
+    return {"result": "success", "keys": auth.list_keys(conn)}
+
+
+@app.post("/api/admin/keys")
+def admin_issue_key(
+    token: str | None = Depends(admin_header),
+    body: dict[str, Any] = Body(default={}),
+    conn: sqlite3.Connection = Depends(get_write_conn),
+):
+    try:
+        admin.verify_admin(token)
+    except (admin.AdminDisabled, admin.AdminError) as exc:
+        return _admin_reject(exc)
+    try:
+        record, raw = auth.issue_key(
+            conn, body.get("label"), note=body.get("note"), by="admin"
+        )
+    except write_service.WriteError as exc:
+        return JSONResponse(
+            status_code=400, content={"result": "failed", "error": str(exc)}
+        )
+    return {"result": "success", "key": record, "plaintext": raw}
+
+
+@app.post("/api/admin/keys/{key_id}/revoke")
+def admin_revoke_key(
+    key_id: str,
+    token: str | None = Depends(admin_header),
+    conn: sqlite3.Connection = Depends(get_write_conn),
+):
+    try:
+        admin.verify_admin(token)
+    except (admin.AdminDisabled, admin.AdminError) as exc:
+        return _admin_reject(exc)
+    try:
+        record = auth.revoke_key(conn, key_id, by="admin")
+    except write_service.WriteError as exc:
+        return JSONResponse(
+            status_code=400, content={"result": "failed", "error": str(exc)}
+        )
+    return {"result": "success", "key": record}
 
 
 # 生产部署：前端构建产物挂在根路径，前后端同端口（开发时不设该变量，走 vite）

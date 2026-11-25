@@ -1,0 +1,12 @@
+- [x] T001 新增管理口令模块 `backend/src/tableflow/admin.py`：口令读取、长度下限、常量时间校验、两种异常（覆盖场景：045-US1-AS1、045-US1-AS2）
+- [x] T002 增加 `X-Admin-Token` 头依赖与 `POST /api/admin/unlock`，未配置 503、错口令 401（覆盖场景：045-US1-AS1、045-US1-AS2、045-US1-AS3）
+- [x] T003 增加 `GET /api/admin/keys`：只回标识/状态，不回明文与摘要（覆盖场景：045-US2-AS1）
+- [x] T004 增加 `POST /api/admin/keys`：复用 `auth.issue_key`，返回一次性明文并落 `key.issue` 审计（覆盖场景：045-US2-AS2、045-US2-AS3）
+- [x] T005 增加 `POST /api/admin/keys/{id}/revoke`：复用 `auth.revoke_key`，落 `key.revoke` 审计，立即失效（覆盖场景：045-US3-AS1、045-US3-AS2）
+- [x] T006 前端 `api.ts` 增加 `adminRequest` 与 unlock/list/issue/revoke 封装，口令只走请求头（覆盖场景：045-US1-AS3、045-US2-AS2、045-US3-AS1）
+- [x] T007 前端 `SettingsModal.tsx`：口令解锁、key 表格、签发表单、一次性明文与复制、吊销确认，口令存 `sessionStorage`（覆盖场景：045-US1-AS3、045-US2-AS1、045-US2-AS2、045-US2-AS3、045-US3-AS1）
+- [x] T008 `App.tsx` 页头加「设置」入口并挂载弹窗（覆盖场景：045-US1-AS3）
+- [x] T009 `styles.css` 增加设置页样式（表单、明文提示、key 表格、已验证状态）（覆盖场景：045-US2-AS1、045-US3-AS1）
+- [x] T010 部署侧接入 `TABLEFLOW_ADMIN_TOKEN`：`docker-compose.yml` 强制注入、版本号升到 0.10.8（覆盖场景：045-US1-AS1、045-US1-AS3）
+- [x] T011 补齐单元测试 `backend/tests/test_admin_045.py`：fail-closed、口令错误、一次性明文、审计 actor、吊销即时生效、label 校验（覆盖上述全部实现项）
+- [x] T012 跑通全量测试与前端构建：`pytest -q` 448 passed、`npm run build` 通过（覆盖上述全部实现项）

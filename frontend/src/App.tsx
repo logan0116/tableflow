@@ -7,6 +7,7 @@ import { ProjectNav } from "./components/ProjectNav";
 import { RelationListModal } from "./components/RelationListModal";
 import { RelationModal } from "./components/RelationModal";
 import { RoleBar } from "./components/RoleBar";
+import { SettingsModal } from "./components/SettingsModal";
 import { TableTabs } from "./components/TableTabs";
 import {
   compareVersion,
@@ -50,6 +51,7 @@ export default function App() {
     field: Field;
   } | null>(null);
   const [versionFilter, setVersionFilter] = useState<string>(() => readVersionFilter());
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const [role, setRole] = useRole();
 
@@ -544,6 +546,14 @@ export default function App() {
             ) : null}
             <button
               type="button"
+              className="refresh-button settings-button"
+              onClick={() => setSettingsOpen(true)}
+              title="设置：管理口令进入后可签发与吊销 API key"
+            >
+              设置
+            </button>
+            <button
+              type="button"
               className={`refresh-button${refreshing ? " is-loading" : ""}`}
               onClick={refreshAll}
               disabled={refreshing}
@@ -580,6 +590,8 @@ export default function App() {
           onClose={() => setModal(null)}
         />
       ) : null}
+
+      {settingsOpen ? <SettingsModal onClose={() => setSettingsOpen(false)} /> : null}
     </div>
   );
 }
