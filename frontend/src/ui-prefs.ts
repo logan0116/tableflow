@@ -45,13 +45,23 @@ export function writeRole(role: RoleId): void {
   }
 }
 
-/** 版本号语义序：`v<主>.<次>.<修>` 按数字比较，无法解析的排最前。 */
-function versionKey(id: string): [number, number, number] | null {
-  const match = /^v(\d+)\.(\d+)\.(\d+)$/.exec(id);
+/**
+ * 版本号解析：兼容 `v1.2.3`、`1.2.3`、`3.0.0_011`、`4.0.1`。
+ *
+ * 前三位按数字比较，`_`/`-` 后缀在两边都是纯数字时按数值、否则按字符串比较；
+ * 无法解析的返回 null（排序时排最前）。
+ */
+function versionKey(id: string): [number, number, number, string] | null {
+  const match = /^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:[_-](.+))?$/.exec((id || "").trim());
   if (!match) {
     return null;
   }
-  return [Number(match[1]), Number(match[2]), Number(match[3])];
+  return [
+    Number(match[1]),
+    Number(match[2] ?? 0),
+    Number(match[3] ?? 0),
+    match[4] ?? "",
+  ];
 }
 
 export function compareVersion(a: string, b: string): number {
@@ -62,10 +72,15 @@ export function compareVersion(a: string, b: string): number {
   if (!right) return 1;
   for (let i = 0; i < 3; i += 1) {
     if (left[i] !== right[i]) {
-      return left[i] - right[i];
+      return Number(left[i]) - Number(right[i]);
     }
   }
-  return 0;
+  const leftSuffix = left[3];
+  const rightSuffix = right[3];
+  if (/^\d+$/.test(leftSuffix) && /^\d+$/.test(rightSuffix)) {
+    return Number(leftSuffix) - Number(rightSuffix);
+  }
+  return leftSuffix.localeCompare(rightSuffix);
 }
 
 /** 版本行里语义序最大的那个 id；没有合法版本号时返回 null。 */
