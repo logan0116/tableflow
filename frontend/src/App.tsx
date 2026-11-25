@@ -364,6 +364,20 @@ export default function App() {
     };
   }, [versionTableId, runTableId, versionFilter]);
 
+  /** 090-36：跨项目切换后，持久化的具体版本可能不存在——回到「最新版本」。 */
+  useEffect(() => {
+    if (tableState.status !== "ready" || !tableState.table.table.id.endsWith("-ver")) {
+      return;
+    }
+    if (versionFilter === "all" || versionFilter === "latest") {
+      return;
+    }
+    if (!tableState.table.rows.some((row) => row.id === versionFilter)) {
+      setVersionFilter("latest");
+      writeVersionFilter("latest");
+    }
+  }, [tableState, versionFilter]);
+
   /** 027：版本表默认只看最新版本，可按版本筛选；只作用于渲染，不改接口。 */
   const versionScopedRows = useMemo(() => {
     if (tableState.status !== "ready" || !tableState.table.table.id.endsWith("-ver")) {
