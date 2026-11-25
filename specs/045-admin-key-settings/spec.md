@@ -2,7 +2,7 @@
 
 **Feature Branch**: `045-admin-key-settings`
 **Created**: 2026-11-24
-**Status**: Draft
+**Status**: Implemented（v0.10.8 已发布）
 
 ## 背景与问题证据
 

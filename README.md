@@ -52,6 +52,17 @@ cd backend && uv run python scripts/tf_keys.py issue --label <name>
 
 `--seed` 会自动签发一把 seed key 到容器 `/data/seed-key.txt`。技能侧通过 `TF_API_KEY` 环境变量携带。
 
+### 设置页（口令 + key 管理）
+
+界面右上角「设置」可列出、签发、吊销 key，签发结果只显示一次明文。进入设置要管理口令，由部署侧环境变量提供：
+
+```bash
+# deploy/.env（不入库），至少 8 位；未配置或过短时管理接口返回 503，看板其余功能不受影响
+TABLEFLOW_ADMIN_TOKEN=<口令>
+```
+
+口令只存在浏览器 `sessionStorage`，关掉标签页即失效；签发与吊销都落 `write_audit`（`action=key.issue` / `key.revoke`，`agent_id=admin`）。
+
 ## 版本
 
 当前 `v0.10.8`。版本号单一源在 `backend/src/tableflow/__init__.py`；前端 `package.json` 由 CI 校验一致；镜像 tag 由 git tag 驱动。
