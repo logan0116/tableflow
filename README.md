@@ -1,5 +1,8 @@
 # TableFlow
 
+[![CI](https://github.com/logan0116/tableflow/actions/workflows/ci.yml/badge.svg)](https://github.com/logan0116/tableflow/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 **A self-hosted R&D governance board where humans read and AI agents write.**
 
 TableFlow runs the delivery process as data instead of documents: one board holds
